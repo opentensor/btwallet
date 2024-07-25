@@ -1,0 +1,9 @@
+termcolor
+substrate-interface==1.7.5
+password_strength
+cryptography~=42.0.5
+ansible~=6.7
+ansible_vault~=2.1
+rich
+bittensor~=7.3.0
+typer
