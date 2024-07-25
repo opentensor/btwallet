@@ -37,13 +37,12 @@ class InvalidConfigFile(Exception):
 
 
 class Config(DefaultMunch):
-    """
-    Implementation of the config class, which manages the configuration of different Bittensor modules.
-    """
+    """Implementation of the config class, which manages the configuration of different Bittensor modules."""
 
     __is_set: Dict[str, bool]
 
-    r""" Translates the passed parser into a nested Bittensor config.
+    """ 
+    Translates the passed parser into a nested Bittensor config.
     
         Args:
             parser (argparse.ArgumentParser):
