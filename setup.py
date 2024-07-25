@@ -24,18 +24,18 @@ import os
 import pathlib
 
 
-def read_requirements(path):
-    requirements = []
+def read_requirements(path_):
+    requirements_ = []
 
-    with pathlib.Path(path).open() as requirements_txt:
+    with pathlib.Path(path_).open() as requirements_txt:
         for line in requirements_txt:
             if line.startswith("git+"):
                 pkg_name = re.search(r"egg=([a-zA-Z0-9_-]+)", line.strip()).group(1)
-                requirements.append(pkg_name + " @ " + line.strip())
+                requirements_.append(pkg_name + " @ " + line.strip())
             else:
-                requirements.append(line.strip())
+                requirements_.append(line.strip())
 
-    return requirements
+    return requirements_
 
 
 requirements = read_requirements("requirements/prod.txt")
@@ -73,7 +73,6 @@ setup(
     extras_require={
         "dev": extra_requirements_dev,
     },
-    scripts=["bin/btwallet"],
     classifiers=[
         "Development Status :: 1 - Alpha",
         "Intended Audience :: Developers",
