@@ -16,6 +16,7 @@
 # DEALINGS IN THE SOFTWARE.
 
 """Implementation of the wallet class, which manages balances with staking and transfer. Also manages hotkey and coldkey."""
+
 import argparse
 import copy
 import os
