@@ -25,7 +25,6 @@ from typing import Optional
 
 from ansible.parsing.vault import AnsibleVaultError
 from ansible_vault import Vault
-from bittensor import __ss58_format__, __console__
 from cryptography.exceptions import InvalidSignature, InvalidKey
 from cryptography.fernet import Fernet, InvalidToken
 from cryptography.hazmat.backends import default_backend
@@ -33,21 +32,24 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from nacl import pwhash, secret
 from password_strength import PasswordPolicy
+from rich.console import Console
 from rich.prompt import Confirm
 from substrateinterface import Keypair
 from substrateinterface.utils.ss58 import ss58_encode
 from termcolor import colored
 
 from .errors import KeyFileError, DeserializeKeypairFromKeyfileError
+from .utils import SS58_FORMAT
 
 NACL_SALT = b"\x13q\x83\xdf\xf1Z\t\xbc\x9c\x90\xb5Q\x879\xe9\xb1"
+__console__ = Console()
 
 
 def serialized_keypair_to_keyfile_data(keypair: "Keypair") -> bytes:
     """Serializes keypair object into keyfile data.
 
     Args:
-        keypair (bittensor.Keypair): The keypair object to be serialized.
+        keypair (Keypair): The keypair object to be serialized.
     Returns:
         data (bytes): Serialized keypair data.
     """
@@ -78,7 +80,7 @@ def deserialize_keypair_from_keyfile_data(keyfile_data: bytes) -> "Keypair":
     Args:
         keyfile_data (bytes): The keyfile data as bytes to be loaded.
     Returns:
-        keypair (bittensor.Keypair): The Keypair loaded from bytes.
+        keypair (Keypair): The Keypair loaded from bytes.
     Raises:
         KeyFileError: Raised if the passed bytes cannot construct a keypair object.
     """
@@ -111,7 +113,7 @@ def deserialize_keypair_from_keyfile_data(keyfile_data: bytes) -> "Keypair":
     elif keyfile_dict.get("privateKey", None) is not None:
         # May have the above dict keys also, but we want to preserve the first two
         return Keypair.create_from_private_key(
-            keyfile_dict["privateKey"], ss58_format=__ss58_format__
+            keyfile_dict["privateKey"], ss58_format=SS58_FORMAT
         )
 
     if "ss58Address" in keyfile_dict and keyfile_dict["ss58Address"] is not None:
@@ -322,7 +324,7 @@ def decrypt_keyfile_data(
                     memlimit=pwhash.argon2i.MEMLIMIT_SENSITIVE,
                 )
                 box = secret.SecretBox(key)
-                decrypted_keyfile_data = box.decrypt(keyfile_data[len("$NACL") :])
+                decrypted_keyfile_data = box.decrypt(keyfile_data[len("$NACL"):])
             # Ansible decrypt.
             elif keyfile_data_is_encrypted_ansible(keyfile_data):
                 vault = Vault(password)
@@ -383,7 +385,7 @@ class Keyfile:
         """Returns the keypair from path, decrypts data if the file is encrypted.
 
         Returns:
-            keypair (bittensor.Keypair): The keypair stored under the path.
+            keypair (Keypair): The keypair stored under the path.
         Raises:
             KeyFileError: Raised if the file does not exist, is not readable, writable, corrupted, or if the password is incorrect.
         """
@@ -421,7 +423,7 @@ class Keyfile:
         """Writes the keypair to the file and optionally encrypts data.
 
         Args:
-            keypair (bittensor.Keypair): The keypair to store under the path.
+            keypair (Keypair): The keypair to store under the path.
             encrypt (bool, optional): If ``True``, encrypts the file under the path. Default is ``True``.
             overwrite (bool, optional): If ``True``, forces overwrite of the current file. Default is ``False``.
             password (str, optional): The password used to encrypt the file. If ``None``, asks for user input.
@@ -440,7 +442,7 @@ class Keyfile:
         Args:
             password (str, optional): The password used to decrypt the file. If ``None``, asks for user input.
         Returns:
-            keypair (bittensor.Keypair): The keypair stored under the path.
+            keypair (Keypair): The keypair stored under the path.
         Raises:
             KeyFileError: Raised if the file does not exist, is not readable, writable, corrupted, or if the password is incorrect.
         """

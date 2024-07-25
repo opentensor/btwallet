@@ -15,11 +15,13 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-from substrateinterface.utils import ss58
 from typing import Union, Optional
 
-from bittensor import __ss58_format__ as SS58_FORMAT
 from substrateinterface import Keypair as Keypair
+from substrateinterface.utils import ss58
+
+# Substrate ss58_format
+SS58_FORMAT = 42
 
 
 def get_ss58_format(ss58_address: str) -> int:
