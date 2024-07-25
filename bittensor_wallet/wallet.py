@@ -16,23 +16,24 @@
 # DEALINGS IN THE SOFTWARE.
 
 """Implementation of the wallet class, which manages balances with staking and transfer. Also manages hotkey and coldkey."""
-
 import argparse
 import copy
 import os
 from typing import Dict, Optional, Tuple, Union, overload
 
-from bittensor import config as Config, defaults, __ss58_format__ as SS58_FORMAT
-from bittensor.utils import get_ss58_format
 from substrateinterface import Keypair
 from termcolor import colored
 
 from .keyfile import Keyfile
-from .utils import is_valid_bittensor_address_or_public_key
+from .utils import is_valid_bittensor_address_or_public_key, get_ss58_format
 from .errors import KeyFileError
+from .config import Config
 
 BT_WALLET_NAME = "default"
 BT_WALLET_PATH = "~/.bittensor/wallets/"
+
+# Substrate ss58_format
+SS58_FORMAT = 42
 
 
 def display_mnemonic_msg(keypair: Keypair, key_type: str):
@@ -132,19 +133,18 @@ class Wallet:
             path (str, optional): The path to your bittensor wallets. Defaults to ``~/.bittensor/wallets/``.
             config (bittensor.Config, optional): bittensor.wallet.Config(). Defaults to ``None``.
         """
-        # Fill Config from passed args using command line defaults.
         if config is None:
             config = Wallet.config()
 
         self.config = copy.deepcopy(config)
         self.config.wallet.name = name or self.config.wallet.get(
-            "name", defaults.wallet.name
+            "name", Wallet.config().name
         )
         self.config.wallet.hotkey = hotkey or self.config.wallet.get(
-            "hotkey", defaults.wallet.hotkey
+            "hotkey", Wallet.config().hotkey
         )
         self.config.wallet.path = path or self.config.wallet.get(
-            "path", defaults.wallet.path
+            "path", Wallet.config().path
         )
         self.config.wallet.path = self.config.wallet.path.strip("'")
 
@@ -454,8 +454,8 @@ class Wallet:
         if self._coldkey is None:
             try:
                 self._coldkey = self.coldkey_file.keypair
-            except KeyFileError as error:
-                print(f"KeyFileError: {error.args[0] if error.args else str(error)}.")
+            except Exception as error:
+                print(f"Error: {error.args[0] if error.args else str(error)}.")
 
         return self._coldkey
 
