@@ -38,7 +38,7 @@ from substrateinterface import Keypair
 from substrateinterface.utils.ss58 import ss58_encode
 from termcolor import colored
 
-from .errors import KeyFileError, DeserializeKeypairFromKeyfileError
+from .errors import KeyFileError
 from .utils import SS58_FORMAT
 
 NACL_SALT = b"\x13q\x83\xdf\xf1Z\t\xbc\x9c\x90\xb5Q\x879\xe9\xb1"
@@ -87,7 +87,7 @@ def deserialize_keypair_from_keyfile_data(keyfile_data: bytes) -> "Keypair":
     keyfile_data_ = keyfile_data.decode()
     try:
         keyfile_dict = dict(json.loads(keyfile_data_))
-    except DeserializeKeypairFromKeyfileError:
+    except Exception:
         string_value = str(keyfile_data_)
         if string_value[:2] == "0x":
             string_value = ss58_encode(string_value)
@@ -280,7 +280,7 @@ def get_coldkey_password_from_environment(coldkey_name: str) -> Optional[str]:
         for env_name, env_value in os.environ.items()
         if (normalized_env_name := env_name.upper()).startswith("BT_COLD_PW_")
     }
-    return envs.get(f"BT_COLD_PW_{coldkey_name.upper()}")
+    return envs.get(f"BT_COLD_PW_{coldkey_name.replace('-', '_').upper()}")
 
 
 def decrypt_keyfile_data(
@@ -616,7 +616,7 @@ class Keyfile:
                 return False
         return False
 
-    def encrypt(self, password: Optional[str] = None):
+    def encrypt(self, password: str = None):
         """Encrypts the file under the path.
 
         Args:
