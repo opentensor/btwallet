@@ -18,7 +18,3 @@
 
 class KeyFileError(Exception):
     """Error thrown when the keyfile is corrupt, non-writable, non-readable or the password used to decrypt is invalid."""
-
-
-class DeserializeKeypairFromKeyfileError(Exception):
-    """Error occurring during the attempt to deserialize a KeyPair from data."""
