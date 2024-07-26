@@ -28,7 +28,11 @@ from termcolor import colored
 from .config import Config
 from .errors import KeyFileError
 from .keyfile import Keyfile
-from .utils import is_valid_bittensor_address_or_public_key, get_ss58_format, SS58_FORMAT
+from .utils import (
+    is_valid_bittensor_address_or_public_key,
+    get_ss58_format,
+    SS58_FORMAT,
+)
 
 BT_WALLET_NAME = "default"
 BT_WALLET_PATH = "~/.bittensor/wallets/"

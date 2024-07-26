@@ -331,7 +331,9 @@ def test_regen_coldkeypub_no_pubkey(mock_wallet):
     """
     with pytest.raises(ValueError):
         # Must provide either public_key or ss58_address
-        mock_wallet.regenerate_coldkeypub(ss58_address=None, public_key=None, overwrite=True)
+        mock_wallet.regenerate_coldkeypub(
+            ss58_address=None, public_key=None, overwrite=True
+        )
 
 
 def test_regen_coldkey_from_hex_seed_str(mock_wallet):
