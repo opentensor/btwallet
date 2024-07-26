@@ -4,5 +4,4 @@ password_strength
 cryptography~=42.0.5
 ansible~=6.7
 ansible_vault~=2.1
-typer
 munch~=2.5.0
