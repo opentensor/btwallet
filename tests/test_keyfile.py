@@ -366,56 +366,56 @@ def keyfile_setup_teardown():
     shutil.rmtree(root_path)
 
 
-# def test_create(keyfile_setup_teardown):
-#     """
-#     Test case for creating a keyfile and performing various operations on it.
-#     """
-#     root_path = keyfile_setup_teardown
-#     keyfile = Keyfile(path=os.path.join(root_path, "keyfile"))
-#
-#     mnemonic = Keypair.generate_mnemonic(12)
-#     alice = Keypair.create_from_mnemonic(mnemonic)
-#     keyfile.set_keypair(
-#         alice, encrypt=True, overwrite=True, password="thisisafakepassword"
-#     )
-#     assert keyfile.is_readable()
-#     assert keyfile.is_writable()
-#     assert keyfile.is_encrypted()
-#     keyfile.decrypt(password="thisisafakepassword")
-#     assert not keyfile.is_encrypted()
-#     keyfile.encrypt(password="thisisafakepassword")
-#     assert keyfile.is_encrypted()
-#     str(keyfile)
-#     keyfile.decrypt(password="thisisafakepassword")
-#     assert not keyfile.is_encrypted()
-#     str(keyfile)
-#
-#     assert (
-#         keyfile.get_keypair(password="thisisafakepassword").ss58_address
-#         == alice.ss58_address
-#     )
-#     assert (
-#         keyfile.get_keypair(password="thisisafakepassword").private_key
-#         == alice.private_key
-#     )
-#     assert (
-#         keyfile.get_keypair(password="thisisafakepassword").public_key
-#         == alice.public_key
-#     )
-#
-#     bob = Keypair.create_from_uri("/Bob")
-#     keyfile.set_keypair(
-#         bob, encrypt=True, overwrite=True, password="thisisafakepassword"
-#     )
-#     assert (
-#         keyfile.get_keypair(password="thisisafakepassword").ss58_address
-#         == bob.ss58_address
-#     )
-#     assert (
-#         keyfile.get_keypair(password="thisisafakepassword").public_key == bob.public_key
-#     )
-#
-#     repr(keyfile)
+def test_create(keyfile_setup_teardown):
+    """
+    Test case for creating a keyfile and performing various operations on it.
+    """
+    root_path = keyfile_setup_teardown
+    keyfile = Keyfile(path=os.path.join(root_path, "keyfile"))
+
+    mnemonic = Keypair.generate_mnemonic(12)
+    alice = Keypair.create_from_mnemonic(mnemonic)
+    keyfile.set_keypair(
+        alice, encrypt=True, overwrite=True, password="thisisafakepassword"
+    )
+    assert keyfile.is_readable()
+    assert keyfile.is_writable()
+    assert keyfile.is_encrypted()
+    keyfile.decrypt(password="thisisafakepassword")
+    assert not keyfile.is_encrypted()
+    keyfile.encrypt(password="thisisafakepassword")
+    assert keyfile.is_encrypted()
+    str(keyfile)
+    keyfile.decrypt(password="thisisafakepassword")
+    assert not keyfile.is_encrypted()
+    str(keyfile)
+
+    assert (
+        keyfile.get_keypair(password="thisisafakepassword").ss58_address
+        == alice.ss58_address
+    )
+    assert (
+        keyfile.get_keypair(password="thisisafakepassword").private_key
+        == alice.private_key
+    )
+    assert (
+        keyfile.get_keypair(password="thisisafakepassword").public_key
+        == alice.public_key
+    )
+
+    bob = Keypair.create_from_uri("/Bob")
+    keyfile.set_keypair(
+        bob, encrypt=True, overwrite=True, password="thisisafakepassword"
+    )
+    assert (
+        keyfile.get_keypair(password="thisisafakepassword").ss58_address
+        == bob.ss58_address
+    )
+    assert (
+        keyfile.get_keypair(password="thisisafakepassword").public_key == bob.public_key
+    )
+
+    repr(keyfile)
 
 
 def test_legacy_coldkey(keyfile_setup_teardown):
