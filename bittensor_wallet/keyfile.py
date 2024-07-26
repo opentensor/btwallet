@@ -324,7 +324,7 @@ def decrypt_keyfile_data(
                     memlimit=pwhash.argon2i.MEMLIMIT_SENSITIVE,
                 )
                 box = secret.SecretBox(key)
-                decrypted_keyfile_data = box.decrypt(keyfile_data[len("$NACL"):])
+                decrypted_keyfile_data = box.decrypt(keyfile_data[len("$NACL") :])
             # Ansible decrypt.
             elif keyfile_data_is_encrypted_ansible(keyfile_data):
                 vault = Vault(password)
