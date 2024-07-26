@@ -42,7 +42,7 @@ from .errors import KeyFileError
 from .utils import SS58_FORMAT
 
 NACL_SALT = b"\x13q\x83\xdf\xf1Z\t\xbc\x9c\x90\xb5Q\x879\xe9\xb1"
-__console__ = Console()
+console = Console()
 
 
 def serialized_keypair_to_keyfile_data(keypair: "Keypair") -> bytes:
@@ -235,7 +235,6 @@ def legacy_encrypt_keyfile_data(
     keyfile_data: bytes, password: Optional[str] = None
 ) -> bytes:
     password = ask_password_to_encrypt() if password is None else password
-    console = __console__
     with console.status(
         ":exclamation_mark: Encrypting key with legacy encryption method..."
     ):
@@ -310,7 +309,6 @@ def decrypt_keyfile_data(
             if password is None
             else password
         )
-        console = __console__
         with console.status(":key: Decrypting key..."):
             # NaCl SecretBox decrypt.
             if keyfile_data_is_encrypted_nacl(keyfile_data):
@@ -533,15 +531,15 @@ class Keyfile:
         """
         if not self.exists_on_device():
             if print_result:
-                __console__.print(f"Keyfile does not exist. {self.path}")
+                console.print(f"Keyfile does not exist. {self.path}")
             return False
         if not self.is_readable():
             if print_result:
-                __console__.print(f"Keyfile is not redable. {self.path}")
+                console.print(f"Keyfile is not redable. {self.path}")
             return False
         if not self.is_writable():
             if print_result:
-                __console__.print(f"Keyfile is not writable. {self.path}")
+                console.print(f"Keyfile is not writable. {self.path}")
             return False
 
         update_keyfile = False
@@ -553,14 +551,14 @@ class Keyfile:
                 keyfile_data
             ) and not keyfile_data_is_encrypted_nacl(keyfile_data):
                 terminate = False
-                __console__.print(
+                console.print(
                     f"You may update the keyfile to improve the security for storing your keys.\nWhile the key and the password stays the same, it would require providing your password once.\n:key:{self}\n"
                 )
                 update_keyfile = Confirm.ask("Update keyfile?")
                 if update_keyfile:
                     stored_mnemonic = False
                     while not stored_mnemonic:
-                        __console__.print(
+                        console.print(
                             f"\nPlease make sure you have the mnemonic stored in case an error occurs during the transfer.",
                             style="white on red",
                         )
@@ -600,23 +598,23 @@ class Keyfile:
             keyfile_data = self._read_keyfile_data_from_file()
             if not keyfile_data_is_encrypted(keyfile_data):
                 if print_result:
-                    __console__.print(f"\nKeyfile is not encrypted. \n:key: {self}")
+                    console.print(f"\nKeyfile is not encrypted. \n:key: {self}")
                 return False
             elif keyfile_data_is_encrypted_nacl(keyfile_data):
                 if print_result:
-                    __console__.print(
+                    console.print(
                         f"\n:white_heavy_check_mark: Keyfile is updated. \n:key: {self}"
                     )
                 return True
             else:
                 if print_result:
-                    __console__.print(
+                    console.print(
                         f'\n:cross_mark: Keyfile is outdated, please update with "btcli wallet update" \n:key: {self}'
                     )
                 return False
         return False
 
-    def encrypt(self, password: str = None):
+    def encrypt(self, password: Optional[str] = None):
         """Encrypts the file under the path.
 
         Args:

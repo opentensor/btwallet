@@ -160,7 +160,7 @@ class Wallet:
 
     def __str__(self):
         """
-        Returns the string representation of the Wallet object.
+        Returns a human-readable string representation of the wallet object.
 
         Returns:
             str: The string representation.
@@ -174,7 +174,7 @@ class Wallet:
         Returns:
             str: The string representation.
         """
-        return self.__str__()
+        return f"name: '{self.name}', hotkey: '{self.hotkey_str}', path: '{self.path}'"
 
     @classmethod
     def config(cls) -> "Config":
