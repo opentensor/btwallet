@@ -21,7 +21,7 @@ from typing import Optional
 from Crypto.Hash import keccak
 from substrateinterface import Keypair
 
-from bittensor import __ss58_format__
+from bittensor_wallet.utils import SS58_FORMAT
 from .keyfile_mock import MockKeyfile
 from ..keyfile import Keyfile
 from ..wallet import Wallet
@@ -110,7 +110,7 @@ def get_mock_keypair(uid: int, test_name: Optional[str] = None) -> Keypair:
 
     return Keypair.create_from_seed(
         seed_hex=int.to_bytes(uid, 32, "big", signed=False),
-        ss58_format=__ss58_format__,
+        ss58_format=SS58_FORMAT,
     )
 
 
