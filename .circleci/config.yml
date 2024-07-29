@@ -5,8 +5,12 @@ orbs:
 
 jobs:
   ruff:
+    resource_class: small
+    parameters:
+      python-version:
+        type: string
     docker:
-      - image: cimg/python:3.9
+      - image: cimg/python:<< parameters.python-version >>
     steps:
       - checkout
       - run:
@@ -46,7 +50,8 @@ jobs:
 workflows:
   test-and-lint:
     jobs:
-      - ruff
+      - ruff:
+          python-version: "3.9.13"
       - build-and-test:
           matrix:
             parameters:
