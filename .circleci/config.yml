@@ -31,7 +31,7 @@ jobs:
     steps:
       - checkout
       - run:
-          name: Set up Virtual Environment
+          name: Set up virtual environment
           command: |
             python -m venv .venv
             . .venv/bin/activate
