@@ -181,7 +181,7 @@ def test_sign_and_verify_incorrect_signature():
     mnemonic = Keypair.generate_mnemonic()
     keypair = Keypair.create_from_mnemonic(mnemonic)
     signature = "0x4c291bfb0bb9c1274e86d4b666d13b2ac99a0bacc04a4846fb8ea50bda114677f83c1f164af58fc184451e5140cc8160c4de626163b11451d3bbb208a1889f8a"
-    assert keypair.verify("Test1231223123123", signature) == False
+    assert keypair.verify("Test1231223123123", signature) is False
 
 
 def test_sign_and_verify_invalid_signature():
@@ -202,7 +202,7 @@ def test_sign_and_verify_invalid_message():
     mnemonic = Keypair.generate_mnemonic()
     keypair = Keypair.create_from_mnemonic(mnemonic)
     signature = keypair.sign("Test1231223123123")
-    assert keypair.verify("OtherMessage", signature) == False
+    assert keypair.verify("OtherMessage", signature) is False
 
 
 def test_create_ed25519_keypair():
