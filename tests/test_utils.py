@@ -24,16 +24,15 @@ def test_get_ss58_format(mocker):
 
     # Preps
 
-    mocked_get_ss58_format = mocker.MagicMock()
-    utils.ss58.get_ss58_format = mocked_get_ss58_format
-    fake_ss58_addressss58_address = "fake_ss58_address"
+    spy_get_ss58_format = mocker.spy(utils.ss58, "get_ss58_format")
+    fake_ss58_addressss58_address = "5FvUhL6sQ5egLAvnyiY1n7gTuhmYg9sD3oJbvASWkpNULt3n"
 
     # Call
     result = utils.get_ss58_format(fake_ss58_addressss58_address)
 
     # Asserts
-    mocked_get_ss58_format.assert_called_once_with(fake_ss58_addressss58_address)
-    assert result == mocked_get_ss58_format.return_value
+    spy_get_ss58_format.assert_called_once_with(fake_ss58_addressss58_address)
+    assert result == 42
 
 
 @pytest.mark.parametrize(
