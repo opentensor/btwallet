@@ -444,7 +444,7 @@ class Wallet:
 
     @property
     def coldkey(self) -> "Keypair":
-        """Loads the hotkey from wallet.path/wallet.name/coldkey or raises an error.
+        """Loads the coldkey from wallet.path/wallet.name/coldkey or raises an error.
 
         Returns:
             coldkey (Keypair): coldkey loaded from Config arguments.
@@ -527,6 +527,14 @@ class Wallet:
             display_mnemonic_msg(keypair, "hotkey")
         self.set_hotkey(keypair, encrypt=use_password, overwrite=overwrite)
         return self
+
+    def unlock_coldkey(self) -> Keypair:
+        """
+        Unlocks the coldkey (prompts password if locked)
+
+        :return: the unlocked coldkey Keypair
+        """
+        return self.coldkey
 
     def new_coldkey(
         self,
