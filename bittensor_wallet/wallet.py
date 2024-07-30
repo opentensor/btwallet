@@ -532,7 +532,8 @@ class Wallet:
         """
         Unlocks the coldkey (prompts password if locked)
 
-        :return: the unlocked coldkey Keypair
+        Returns:
+            coldkey (Keypair): the unlocked coldkey Keypair.
         """
         return self.coldkey
 
