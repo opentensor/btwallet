@@ -502,3 +502,23 @@ def test_regen_coldkey_overwrite_functionality(
             assert (
                 keypair.ss58_address == ss58_addr
             ), "The SS58 address does not match the expected address"
+
+
+def test_unlock_hotkey(mock_wallet):
+    """Verify that `unlock_hotkey` works correctly."""
+
+    # Call
+    result = mock_wallet.unlock_hotkey()
+
+    # Assertions
+    assert result == mock_wallet.hotkey
+
+
+def test_unlock_coldkey(mock_wallet):
+    """Verify that `unlock_coldkey` works correctly."""
+
+    # Call
+    result = mock_wallet.unlock_coldkey()
+
+    # Assertions
+    assert result == mock_wallet.coldkey

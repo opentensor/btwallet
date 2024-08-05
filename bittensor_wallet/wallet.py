@@ -537,6 +537,15 @@ class Wallet:
         """
         return self.coldkey
 
+    def unlock_hotkey(self) -> Keypair:
+        """
+        Unlocks the hotkey.
+
+        Returns:
+            hotkey (Keypair): the unlocked hotkey Keypair.
+        """
+        return self.hotkey
+
     def new_coldkey(
         self,
         n_words: int = 12,
