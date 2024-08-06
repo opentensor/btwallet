@@ -537,6 +537,15 @@ class Wallet:
         """
         return self.coldkey
 
+    def unlock_coldkeypub(self) -> Keypair:
+        """
+        Unlocks the coldkeypub.
+
+        Returns:
+            coldkeypub (Keypair): the unlocked coldkeypub Keypair.
+        """
+        return self.coldkeypub
+
     def unlock_hotkey(self) -> Keypair:
         """
         Unlocks the hotkey.

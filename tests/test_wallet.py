@@ -522,3 +522,13 @@ def test_unlock_coldkey(mock_wallet):
 
     # Assertions
     assert result == mock_wallet.coldkey
+
+
+def test_unlock_coldkeypub(mock_wallet):
+    """Verify that `unlock_coldkeypub` works correctly."""
+
+    # Call
+    result = mock_wallet.unlock_coldkeypub()
+
+    # Assertions
+    assert result == mock_wallet.coldkeypub
