@@ -25,6 +25,8 @@ from typing import Dict, Optional, Tuple, Union, overload
 from substrateinterface import Keypair
 from termcolor import colored
 
+import btwallet
+
 from .config import Config
 from .errors import KeyFileError
 from .keyfile import Keyfile
@@ -37,6 +39,11 @@ from .utils import (
 BT_WALLET_NAME = "default"
 BT_WALLET_PATH = "~/.bittensor/wallets/"
 
+def generate_mnemonic(num_words: int) -> str:
+    return btwallet.generate_mnemonic(num_words)
+
+def validate_mnemonic(mnemonic: str, language_code: str) -> bool:
+    return btwallet.validate_mnemonic(mnemonic, language_code or "en")
 
 def display_mnemonic_msg(keypair: Keypair, key_type: str):
     """
@@ -593,8 +600,8 @@ class Wallet:
         Returns:
             wallet (Wallet): This object with newly created coldkey.
         """
-        mnemonic = Keypair.generate_mnemonic(n_words)
-        keypair = Keypair.create_from_mnemonic(mnemonic)
+        mnemonic = btwallet.generate_mnemonic(n_words)
+        keypair = btwallet.create_from_mnemonic(mnemonic) #Keypair.create_from_mnemonic(mnemonic)
         if not suppress:
             display_mnemonic_msg(keypair, "coldkey")
         self.set_coldkey(keypair, encrypt=use_password, overwrite=overwrite)

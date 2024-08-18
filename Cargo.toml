@@ -1,0 +1,25 @@
+[package]
+name = "btwallet"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+name = "btwallet"
+crate-type = ["cdylib"]
+
+[dependencies]
+base58 = "0.2.0"
+blake2 = "0.10.6"
+generic-array = "1.1.0"
+hex = "0.4.3"
+hmac = "0.12.1"
+pbkdf2 = "0.12.2"
+primitive-types = "0.12.2"
+pyo3 = "0.22.0"
+regex = "1.10.6"
+schnorrkel = "0.11.4"
+secp256k1 = "0.29.0"
+sha2 = "0.10.8"
+tiny-bip39 = "1.0.0"
+uint = "0.9.5"
