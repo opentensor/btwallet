@@ -1,5 +1,5 @@
 use schnorrkel::keys::{ExpansionMode, MiniSecretKey};
-use schnorrkel::{PUBLIC_KEY_LENGTH, SECRET_KEY_LENGTH, MINI_SECRET_KEY_LENGTH};
+use schnorrkel::{MINI_SECRET_KEY_LENGTH, PUBLIC_KEY_LENGTH, SECRET_KEY_LENGTH};
 
 /// Represents a keypair containing a public key and a secret key.
 pub struct Keypair(pub [u8; PUBLIC_KEY_LENGTH], pub [u8; SECRET_KEY_LENGTH]);
@@ -58,4 +58,40 @@ pub fn pair_from_seed(seed: Seed) -> Keypair {
     let kp = k.expand_to_keypair(ExpansionMode::Ed25519);
 
     Keypair(kp.public.to_bytes(), kp.secret.to_bytes())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_seed_from_bytes() {
+        let valid_bytes = [0u8; MINI_SECRET_KEY_LENGTH];
+        let result = Seed::from_bytes(&valid_bytes);
+        assert!(result.is_ok());
+
+        let invalid_bytes = [0u8; MINI_SECRET_KEY_LENGTH - 1];
+        let result = Seed::from_bytes(&invalid_bytes);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "Invalid seed length");
+    }
+
+    #[test]
+    fn test_pubkey_as_bytes() {
+        let pubkey_bytes = [1u8; PUBLIC_KEY_LENGTH];
+        let pubkey = PubKey(pubkey_bytes);
+        assert_eq!(pubkey.as_bytes(), &pubkey_bytes);
+    }
+
+    #[test]
+    fn test_pair_from_seed() {
+        let seed_bytes = [0u8; MINI_SECRET_KEY_LENGTH];
+        let seed = Seed::from_bytes(&seed_bytes).unwrap();
+        let keypair = pair_from_seed(seed);
+
+        assert_eq!(keypair.0.len(), PUBLIC_KEY_LENGTH);
+        assert_eq!(keypair.1.len(), SECRET_KEY_LENGTH);
+
+        assert_ne!(keypair.0, [0u8; PUBLIC_KEY_LENGTH]);
+    }
 }

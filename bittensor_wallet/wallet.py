@@ -601,7 +601,7 @@ class Wallet:
             wallet (Wallet): This object with newly created coldkey.
         """
         mnemonic = btwallet.generate_mnemonic(n_words)
-        keypair = btwallet.create_from_mnemonic(mnemonic) #Keypair.create_from_mnemonic(mnemonic)
+        keypair = btwallet.Keypair.create_from_mnemonic(mnemonic)
         if not suppress:
             display_mnemonic_msg(keypair, "coldkey")
         self.set_coldkey(keypair, encrypt=use_password, overwrite=overwrite)

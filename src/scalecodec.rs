@@ -1,7 +1,7 @@
-use blake2::{Blake2b, Digest};
 use base58::ToBase58;
-use generic_array::GenericArray;
+use blake2::{Blake2b, Digest};
 use generic_array::typenum::U64;
+use generic_array::GenericArray;
 
 use crate::sr25519::PubKey;
 
@@ -23,7 +23,7 @@ use crate::sr25519::PubKey;
 /// - The address length is invalid
 pub fn ss58_encode(address: &PubKey, ss58_format: u16) -> String {
     let checksum_prefix = b"SS58PRE";
-    
+
     if ss58_format > 16383 || ss58_format == 46 || ss58_format == 47 {
         return "Invalid value for ss58_format".to_string();
     }
@@ -55,4 +55,45 @@ pub fn ss58_encode(address: &PubKey, ss58_format: u16) -> String {
     input_bytes.extend_from_slice(&checksum[..checksum_length]);
 
     input_bytes.to_base58()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_ss58_encode_valid() {
+        let pubkey = PubKey([1u8; 32]);
+        let ss58_format = 42; // Substrate
+        let result = ss58_encode(&pubkey, ss58_format);
+        assert!(!result.is_empty());
+        assert_ne!(result, "Invalid value for ss58_format");
+        assert_ne!(result, "Invalid length for address");
+    }
+
+    #[test]
+    fn test_ss58_encode_invalid_format() {
+        let pubkey = PubKey([1u8; 32]);
+        let ss58_format = 16384; // Invalid
+        let result = ss58_encode(&pubkey, ss58_format);
+        assert_eq!(result, "Invalid value for ss58_format");
+    }
+
+    #[test]
+    fn test_ss58_encode_invalid_address_length() {
+        let pubkey = PubKey([1u8; 31]); // Invalid length
+        let ss58_format = 42;
+        let result = ss58_encode(&pubkey, ss58_format);
+        assert_eq!(result, "Invalid length for address");
+    }
+
+    #[test]
+    fn test_ss58_encode_different_formats() {
+        let pubkey = PubKey([1u8; 32]);
+        let format1 = 0;
+        let format2 = 42;
+        let result1 = ss58_encode(&pubkey, format1);
+        let result2 = ss58_encode(&pubkey, format2);
+        assert_ne!(result1, result2);
+    }
 }
