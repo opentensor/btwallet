@@ -45,3 +45,23 @@ To use your own config, you can do it like this:
 from bittensor_wallet.config import Config
 config = Config()
 ```
+
+
+## Rust
+# Rust Development
+
+To build and test the Rust components of the project, you can use the following commands:
+* `maturin develop` - Builds the project.
+* `cargo test` - Runs the tests.
+* `cargo run` - Runs the project.
+* `cargo doc --open` - Generates the documentation and opens it in the browser.
+* `cargo fmt` - Formats the code.
+* `cargo clippy` - Runs the linter.
+* `cargo clippy --fix` - Fixes the code.
+
+## Using the Rust components in Python
+* `import btwallet`
+
+
+
+

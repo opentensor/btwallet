@@ -1,54 +1,60 @@
-use bip39::{Language, Mnemonic, MnemonicType};
 use pyo3::prelude::*;
 
 mod keypair;
-pub mod scalecodec;
-pub mod sr25519;
 
 use crate::keypair::*;
+use sp_core::Pair;
 
+/// Creates a new hotkey pair and demonstrates its functionality.
+///
+/// This function performs the following steps:
+/// 1. Generates a mnemonic phrase.
+/// 2. Creates a new hotkey pair using the mnemonic.
+/// 3. Signs a test message with the hotkey.
+/// 4. Verifies the signature.
+/// 5. Returns the public key of the hotkey as a string.
+///
+/// # Returns
+///
+/// Returns a `PyResult<String>` containing the public key of the created hotkey.
+///
+/// # Errors
+///
+/// This function will return an error if:
+/// - The mnemonic creation fails.
+/// - Any of the cryptographic operations fail.
 #[pyfunction]
-#[pyo3(signature = (mnemonic, language_code=None))]
-fn validate_mnemonic(mnemonic: &str, language_code: Option<String>) -> PyResult<bool> {
-    let language_code = language_code.unwrap_or_else(|| String::from("en"));
+fn create_hotkey_pub() -> PyResult<String> {
+    // Create a new mnemonic with 12 words
+    let mnemonic = create_mnemonic(12).expect("Failed to create mnemonic");
+    println!("mnemonic: {:?}", mnemonic.to_string());
 
-    let language = match language_code.as_str() {
-        "en" => Language::English,
-        _ => {
-            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                "Unsupported language code",
-            ))
-        }
-    };
+    // Create a hotkey pair using the mnemonic and a name.
+    let hotkey_pair = create_hotkey(mnemonic, "name");
+    println!("Hotkey pair: {:?}", hotkey_pair.public());
 
-    let is_valid = Mnemonic::from_phrase(mnemonic, language).is_ok();
-    Ok(is_valid)
-}
+    // Test message
+    let message = b"Hello, Opentensor!";
 
-#[pyfunction]
-fn generate_mnemonic(num_words: u32) -> PyResult<String> {
-    let mnemonic_type = match num_words {
-        12 => MnemonicType::Words12,
-        15 => MnemonicType::Words15,
-        18 => MnemonicType::Words18,
-        21 => MnemonicType::Words21,
-        24 => MnemonicType::Words24,
-        _ => {
-            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                "Invalid number of words. Must be 12, 15, 18, 21, or 24.",
-            ))
-        }
-    };
-    let mnemonic = Mnemonic::new(mnemonic_type, Language::English);
-    Ok(mnemonic.to_string())
+    // Sign the message using the hotkey pair
+    let signature = hotkey_pair.sign(message);
+    println!("Message: {:?}", String::from_utf8_lossy(message));
+    println!("Signature: {:?}", signature);
+
+    // Verify the signature
+    let is_valid = sp_core::sr25519::Pair::verify(&signature, message, &hotkey_pair.public());
+    println!("Is signature valid? {}", is_valid);
+
+    // Extract the public key from the hotkey pair
+    let pub_key = hotkey_pair.public();
+    // Return the public key as a string
+    Ok(pub_key.to_string())
 }
 
 /// A Python module implemented in Rust.
 #[pymodule]
 fn btwallet(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(generate_mnemonic, m)?)?;
-    m.add_function(wrap_pyfunction!(validate_mnemonic, m)?)?;
-    m.add_class::<Keypair>()?;
+    m.add_function(wrap_pyfunction!(create_hotkey_pub, m)?)?;
 
     Ok(())
 }

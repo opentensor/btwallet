@@ -9,17 +9,24 @@ name = "btwallet"
 crate-type = ["cdylib"]
 
 [dependencies]
+aes-gcm = "0.10.3"
+argon2 = "0.5.3"
 base58 = "0.2.0"
+bip39 = "2.0.0"
 blake2 = "0.10.6"
 generic-array = "1.1.0"
 hex = "0.4.3"
 hmac = "0.12.1"
 pbkdf2 = "0.12.2"
 primitive-types = "0.12.2"
-pyo3 = "0.22.0"
+pyo3 = { version = "0.22.0", features = ["extension-module"] }
+
+rand = "0.8.5"
 regex = "1.10.6"
 schnorrkel = "0.11.4"
 secp256k1 = "0.29.0"
+serde = "1.0.208"
 sha2 = "0.10.8"
-tiny-bip39 = "1.0.0"
+sp-core = "34.0.0"
+sp-runtime = "39.0.0"
 uint = "0.9.5"
