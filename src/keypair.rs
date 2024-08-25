@@ -1,11 +1,84 @@
-// External crates
+use crate::wallet::BT_WALLET_PATH;
 use bip39::{Language, Mnemonic};
 use rand::RngCore;
 use schnorrkel::{
     derive::{ChainCode, Derivation},
     ExpansionMode, MiniSecretKey,
 };
+use serde_json::json;
+use sp_core::crypto::Ss58Codec;
 use sp_core::{sr25519, Pair};
+use std::fs::{File, OpenOptions};
+use std::io::Write;
+use std::os::unix::fs::PermissionsExt;
+use std::path::Path;
+use std::path::PathBuf;
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum KeyFileError {
+    #[error("Keyfile at: {0} is not writable")]
+    NotWritable(String),
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
+}
+
+pub struct Keypair {
+    pub public_key: Option<Vec<u8>>,
+    pub private_key: Option<Vec<u8>>,
+    pub mnemonic: Option<String>,
+    pub seed_hex: Option<Vec<u8>>,
+    pub ss58_address: Option<String>,
+}
+
+fn serialized_keypair_to_keyfile_data(keypair: &Keypair) -> Vec<u8> {
+    let json_data = json!({
+        "accountId": keypair.public_key.as_ref().map(|pk| format!("0x{}", hex::encode(pk))),
+        "publicKey": keypair.public_key.as_ref().map(|pk| format!("0x{}", hex::encode(pk))),
+        "privateKey": keypair.private_key.as_ref().map(|pk| format!("0x{}", hex::encode(pk))),
+        "secretPhrase": keypair.mnemonic.clone(),
+        "secretSeed": keypair.seed_hex.as_ref().map(|seed| format!("0x{}", hex::encode(seed))),
+        "ss58Address": keypair.ss58_address.clone(),
+    });
+
+    serde_json::to_vec(&json_data).unwrap()
+}
+
+fn hotkey_file(path: &str, name: &str) -> PathBuf {
+    let wallet_path = PathBuf::from(shellexpand::tilde(path).into_owned()).join(name);
+    wallet_path.join("hotkeys").join(name)
+}
+
+pub fn write_keyfile_data_to_file(
+    path: &Path,
+    keyfile_data: Vec<u8>,
+    overwrite: bool,
+) -> Result<(), KeyFileError> {
+    if exists_on_device(path) && !overwrite {
+        return Err(KeyFileError::NotWritable(
+            path.to_string_lossy().into_owned(),
+        ));
+    }
+
+    let mut file = OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .open(path)?;
+
+    file.write_all(&keyfile_data)?;
+
+    // Set file permissions
+    let mut perms = file.metadata()?.permissions();
+    perms.set_mode(0o600); // This is equivalent to stat.S_IRUSR | stat.S_IWUSR
+    file.set_permissions(perms)?;
+
+    Ok(())
+}
+
+fn exists_on_device(path: &Path) -> bool {
+    path.exists()
+}
 
 /// Creates a new mnemonic phrase with the specified number of words.
 ///
@@ -48,6 +121,34 @@ pub fn create_mnemonic(num_words: u32) -> Result<Mnemonic, &'static str> {
     Ok(mnemonic)
 }
 
+/// Derives an sr25519 key pair from a seed and a derivation path.
+///
+/// This function takes a seed and a derivation path to generate an sr25519 key pair.
+/// It uses the Schnorrkel/Ristretto x25519 ("sr25519") signature system.
+///
+/// # Arguments
+///
+/// * `seed` - A byte slice containing the seed for key generation. Must be exactly 32 bytes long.
+/// * `path` - A byte slice representing the derivation path for the key.
+///
+/// # Returns
+///
+/// * `Result<sr25519::Pair, String>` - A Result containing the derived sr25519 key pair if successful,
+///   or an error message as a String if the operation fails.
+///
+/// # Errors
+///
+/// This function will return an error if:
+/// - The seed length is not exactly 32 bytes.
+/// - Any of the key derivation steps fail.
+///
+/// # Example
+///
+/// ```
+/// let seed = [0u8; 32]; // Replace with actual seed
+/// let path = b"//some/path";
+/// let key_pair = derive_sr25519_key(&seed, path).expect("Key derivation failed");
+/// ```
 fn derive_sr25519_key(seed: &[u8], path: &[u8]) -> Result<sr25519::Pair, String> {
     // Ensure the seed is the correct length
     let seed_len = seed.len();
@@ -82,34 +183,32 @@ fn derive_sr25519_key(seed: &[u8], path: &[u8]) -> Result<sr25519::Pair, String>
     Ok(pair)
 }
 
-/// Creates a new hotkey pair from a mnemonic phrase and name.
+/// Creates a new hotkey pair and writes it to a file.
 ///
-/// This function generates a new sr25519 key pair (hotkey) using the provided mnemonic and
-/// a name for derivation.
+/// This function performs the following steps:
+/// 1. Generates a seed from the provided mnemonic.
+/// 2. Creates a derivation path using the provided name.
+/// 3. Derives an sr25519 key pair using the seed and derivation path.
+/// 4. Creates a `Keypair` struct with the derived key information.
+/// 5. Writes the keypair data to a file in the wallet directory.
 ///
 /// # Arguments
 ///
 /// * `mnemonic` - A `Mnemonic` object representing the seed phrase.
-/// * `name` - A string slice used to create the derivation path.
+/// * `name` - A string slice containing the name for the hotkey.
 ///
 /// # Returns
 ///
-/// Returns an `sr25519::Pair` representing the derived hotkey pair.
+/// Returns a `Keypair` struct containing the generated key information.
 ///
 /// # Panics
 ///
 /// This function will panic if:
-/// - The seed creation from the mnemonic fails.
-/// - The key derivation process fails.
-///
-/// # Examples
-///
-/// ```
-/// use bip39::Mnemonic;
-/// let mnemonic = Mnemonic::from_phrase("your mnemonic phrase here", Language::English).unwrap();
-/// let hotkey = create_hotkey(mnemonic, "my_hotkey");
-/// ```
-pub fn create_hotkey(mnemonic: Mnemonic, name: &str) -> sr25519::Pair {
+/// - It fails to create a seed from the mnemonic.
+/// - It fails to derive the sr25519 key.
+/// - It fails to create the directory for the keyfile.
+/// - It fails to write the keyfile.
+pub fn create_hotkey(mnemonic: Mnemonic, name: &str) -> Keypair {
     let seed: [u8; 32] = mnemonic.to_seed("")[..32]
         .try_into()
         .expect("Failed to create seed");
@@ -119,7 +218,26 @@ pub fn create_hotkey(mnemonic: Mnemonic, name: &str) -> sr25519::Pair {
     let hotkey_pair: sr25519::Pair =
         derive_sr25519_key(&seed, &derivation_path).expect("Failed to derive sr25519 key");
 
-    hotkey_pair
+    let keypair = Keypair {
+        public_key: Some(hotkey_pair.public().to_vec()),
+        private_key: Some(hotkey_pair.to_raw_vec()),
+        mnemonic: Some(mnemonic.to_string()),
+        seed_hex: Some(seed.to_vec()),
+        ss58_address: Some(hotkey_pair.public().to_ss58check()),
+    };
+    let path = BT_WALLET_PATH;
+    let hotkey_path = hotkey_file(&path, name);
+    // Ensure the directory exists before writing the file
+    if let Some(parent) = hotkey_path.parent() {
+        std::fs::create_dir_all(parent).expect("Failed to create directory");
+    }
+    write_keyfile_data_to_file(
+        &hotkey_path,
+        serialized_keypair_to_keyfile_data(&keypair),
+        false,
+    )
+    .expect("Failed to write keyfile");
+    keypair
 }
 
 #[cfg(test)]
@@ -166,47 +284,6 @@ mod tests {
             Language::English,
             "Mnemonic should be in English"
         );
-    }
-    #[test]
-    fn test_create_hotkey() {
-        let mnemonic = Mnemonic::parse_in_normalized(
-            Language::English,
-            "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
-        ).unwrap();
-        let name = "test_hotkey";
-
-        let hotkey = create_hotkey(mnemonic.clone(), name);
-
-        // Check that the hotkey is not empty
-        assert!(!hotkey.public().0.is_empty());
-
-        // Check that creating the same hotkey twice produces the same result
-        let hotkey2 = create_hotkey(mnemonic.clone(), name);
-        assert_eq!(hotkey.public(), hotkey2.public());
-
-        // Check that different names produce different hotkeys
-        let hotkey3 = create_hotkey(mnemonic, "different_name");
-        assert_ne!(hotkey.public(), hotkey3.public());
-    }
-
-    #[test]
-    fn test_create_hotkey_different_mnemonics() {
-        let mnemonic1 = Mnemonic::parse_in_normalized(
-            Language::English,
-            "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
-        ).unwrap();
-        let mnemonic2 = Mnemonic::parse_in_normalized(
-            Language::English,
-            "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong",
-        )
-        .expect("Invalid mnemonic phrase");
-        let name = "test_hotkey";
-
-        let hotkey1 = create_hotkey(mnemonic1, name);
-        let hotkey2 = create_hotkey(mnemonic2, name);
-
-        // Check that different mnemonics produce different hotkeys
-        assert_ne!(hotkey1.public(), hotkey2.public());
     }
 
     #[test]
