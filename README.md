@@ -63,5 +63,17 @@ To build and test the Rust components of the project, you can use the following 
 * `import btwallet`
 
 
+# TODO
+* password for encrypting the wallet
+* create coldkey
+* wrap signing into a fn and expose to python
+using - create_hotkey, use sr25519::Pair =
+        derive_sr25519_key(&seed, &derivation_path).expect("Failed to derive sr25519 key"); to sign a message
+        ex: 
+        let keypair = create_hotkey(mnemonic, "hello"); // we will need to return the keypair from create_hotkey
+        let signature = keypair.sign(message);
+
+
+
 
 

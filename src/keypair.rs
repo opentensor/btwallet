@@ -33,11 +33,11 @@ pub struct Keypair {
 
 fn serialized_keypair_to_keyfile_data(keypair: &Keypair) -> Vec<u8> {
     let json_data = json!({
-        "accountId": keypair.public_key.as_ref().map(|pk| format!("0x{}", hex::encode(pk))),
-        "publicKey": keypair.public_key.as_ref().map(|pk| format!("0x{}", hex::encode(pk))),
-        "privateKey": keypair.private_key.as_ref().map(|pk| format!("0x{}", hex::encode(pk))),
+        "accountId": keypair.public_key.as_ref().map(|pk| format!("{}", hex::encode(pk))),
+        "publicKey": keypair.public_key.as_ref().map(|pk| format!("{}", hex::encode(pk))),
+        "privateKey": keypair.private_key.as_ref().map(|pk| format!("{}", hex::encode(pk))),
         "secretPhrase": keypair.mnemonic.clone(),
-        "secretSeed": keypair.seed_hex.as_ref().map(|seed| format!("0x{}", hex::encode(seed))),
+        "secretSeed": keypair.seed_hex.as_ref().map(|seed| format!("{}", hex::encode(seed))),
         "ss58Address": keypair.ss58_address.clone(),
     });
 
