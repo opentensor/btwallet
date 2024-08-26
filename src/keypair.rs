@@ -8,7 +8,7 @@ use schnorrkel::{
 use serde_json::json;
 use sp_core::crypto::Ss58Codec;
 use sp_core::{sr25519, Pair};
-use std::fs::{File, OpenOptions};
+use std::fs::OpenOptions;
 use std::io::Write;
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
@@ -226,7 +226,7 @@ pub fn create_hotkey(mnemonic: Mnemonic, name: &str) -> Keypair {
         ss58_address: Some(hotkey_pair.public().to_ss58check()),
     };
     let path = BT_WALLET_PATH;
-    let hotkey_path = hotkey_file(&path, name);
+    let hotkey_path = hotkey_file(path, name);
     // Ensure the directory exists before writing the file
     if let Some(parent) = hotkey_path.parent() {
         std::fs::create_dir_all(parent).expect("Failed to create directory");
@@ -243,7 +243,7 @@ pub fn create_hotkey(mnemonic: Mnemonic, name: &str) -> Keypair {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bip39::{Language, Mnemonic};
+    use bip39::Language;
     use rand::Rng;
 
     #[test]

@@ -1,5 +1,5 @@
 use pyo3::prelude::*;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 const BT_WALLET_NAME: &str = "default";
 pub const BT_WALLET_PATH: &str = "~/.bittensor/wallets/";

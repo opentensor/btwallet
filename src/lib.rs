@@ -3,8 +3,6 @@ use pyo3::prelude::*;
 mod keypair;
 mod wallet;
 use crate::keypair::*;
-use sp_core::ByteArray;
-use sp_core::Pair;
 use wallet::{Keyfile, Wallet};
 
 #[pyfunction]
@@ -21,16 +19,16 @@ fn create_hotkey_pair(num_words: u32, name: &str) -> PyResult<PyObject> {
         let keypair_dict = pyo3::types::PyDict::new_bound(py);
         keypair_dict.set_item(
             "public_key",
-            hotkey_pair.public_key.map(|pk| hex::encode(pk)),
+            hotkey_pair.public_key.map(hex::encode),
         )?;
         keypair_dict.set_item(
             "private_key",
-            hotkey_pair.private_key.map(|pk| hex::encode(pk)),
+            hotkey_pair.private_key.map(hex::encode),
         )?;
         keypair_dict.set_item("mnemonic", hotkey_pair.mnemonic)?;
         keypair_dict.set_item(
             "seed_hex",
-            hotkey_pair.seed_hex.map(|seed| hex::encode(seed)),
+            hotkey_pair.seed_hex.map(hex::encode),
         )?;
         keypair_dict.set_item("ss58_address", hotkey_pair.ss58_address)?;
         Ok(keypair_dict.to_object(py))
