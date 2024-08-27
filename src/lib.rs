@@ -15,9 +15,26 @@ fn create_hotkey_pair(num_words: u32, name: &str) -> PyResult<PyObject> {
     // Create a hotkey pair using the mnemonic and a name.
     let (hotkey_pair, seed) = create_hotkey(mnemonic.clone(), name);
 
-    let keypair = save_keypair(hotkey_pair, mnemonic, seed, name, true);
+    let keypair = save_keypair(hotkey_pair, mnemonic, seed, name, true, "hotkey");
 
     // Convert Keypair to PyObject
+    Python::with_gil(|py| {
+        let keypair_dict = pyo3::types::PyDict::new_bound(py);
+        keypair_dict.set_item("public_key", keypair.public_key.map(hex::encode))?;
+        keypair_dict.set_item("private_key", keypair.private_key.map(hex::encode))?;
+        keypair_dict.set_item("mnemonic", keypair.mnemonic)?;
+        keypair_dict.set_item("seed_hex", keypair.seed_hex.map(hex::encode))?;
+        keypair_dict.set_item("ss58_address", keypair.ss58_address)?;
+        Ok(keypair_dict.to_object(py))
+    })
+}
+
+#[pyfunction]
+fn create_coldkey_pair(name: &str) -> PyResult<PyObject> {
+    let mnemonic = create_mnemonic(12).expect("Failed to create mnemonic");
+    let (coldkey_pair, seed) = create_coldkey(mnemonic.clone(), name);
+    let keypair = save_keypair(coldkey_pair, mnemonic, seed, name, false, "coldkey");
+
     Python::with_gil(|py| {
         let keypair_dict = pyo3::types::PyDict::new_bound(py);
         keypair_dict.set_item("public_key", keypair.public_key.map(hex::encode))?;
@@ -94,7 +111,7 @@ fn btwallet(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(sign_message, m)?)?;
     m.add_function(wrap_pyfunction!(verify_signature, m)?)?;
     m.add_function(wrap_pyfunction!(load_keypair_with_password, m)?)?;
-
+    m.add_function(wrap_pyfunction!(create_coldkey_pair, m)?)?;
     m.add_class::<Keyfile>()?;
     m.add_class::<Wallet>()?;
 

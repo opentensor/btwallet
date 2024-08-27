@@ -24,8 +24,9 @@ use std::path::PathBuf;
 use thiserror::Error;
 
 const NACL_SALT: &[u8; 16] = b"\x13q\x83\xdf\xf1Z\t\xbc\x9c\x90\xb5Q\x879\xe9\xb1";
-const KEY_SIZE: usize = 32; // 256 bits
+const KEY_SIZE: usize = 32;
 const NONCE_SIZE: usize = 12;
+
 #[derive(Error, Debug)]
 pub enum KeyFileError {
     #[error("Keyfile at: {0} is not writable")]
@@ -158,6 +159,34 @@ pub fn deserialize_keyfile_data_to_keypair(
 fn hotkey_file(path: &str, name: &str) -> PathBuf {
     let wallet_path = PathBuf::from(shellexpand::tilde(path).into_owned()).join(name);
     wallet_path.join("hotkeys").join(name)
+}
+
+/// Constructs the file path for a coldkey public key within a wallet.
+///
+/// This function takes a base path and a name, expands any tilde in the path,
+/// and constructs a `PathBuf` representing the location of a coldkey public key file
+/// within the wallet's directory structure.
+///
+/// # Arguments
+///
+/// * `path` - A string slice representing the base path of the wallet.
+/// * `name` - A string slice representing the name of the wallet.
+///
+/// # Returns
+///
+/// * `PathBuf` - The constructed path to the coldkey public key file.
+///
+/// # Examples
+///
+/// ```
+/// let path = "~/wallets";
+/// let name = "my_wallet";
+/// let coldkeypub_path = coldkey_pub_file(path, name);
+/// assert_eq!(coldkeypub_path, PathBuf::from("/home/user/wallets/my_wallet/coldkeypub.txt"));
+/// ```
+fn coldkey_pub_file(path: &str, name: &str) -> PathBuf {
+    let wallet_path = PathBuf::from(shellexpand::tilde(path).into_owned()).join(name);
+    wallet_path.join("coldkeypub.txt")
 }
 
 /// Writes keyfile data to a file with specific permissions.
@@ -432,55 +461,51 @@ fn derive_sr25519_key(seed: &[u8], path: &[u8]) -> Result<sr25519::Pair, String>
     Ok(pair)
 }
 
-/// Saves a keypair to a file and returns the Keypair struct.
+/// Saves a keypair to a file.
 ///
-/// This function creates a Keypair struct from the provided sr25519 pair, mnemonic, and seed,
-/// then saves it to a file in the wallet directory.
+/// This function takes a key pair, mnemonic, seed, and other details, creates a `Keypair` struct,
+/// and saves it to a file. The file can be optionally encrypted.
 ///
 /// # Arguments
 ///
-/// * `hotkey_pair` - An sr25519::Pair representing the keypair.
-/// * `mnemonic` - A Mnemonic object containing the seed phrase.
-/// * `seed` - A 32-byte array containing the seed.
-/// * `name` - A string slice containing the name for the hotkey file.
+/// * `key_pair` - The sr25519 key pair to save.
+/// * `mnemonic` - The mnemonic associated with the key pair.
+/// * `seed` - The 32-byte seed used to generate the key pair.
+/// * `name` - The name to use for the key file.
+/// * `encrypt` - Whether to encrypt the key file.
+/// * `key_type` - The type of key ("hotkey" or "coldkey").
 ///
 /// # Returns
 ///
-/// Returns a Keypair struct containing the saved key information.
+/// Returns a `Keypair` struct containing the saved key information.
 ///
 /// # Panics
 ///
-/// This function will panic if:
-/// - It fails to create the directory for the keyfile.
-/// - It fails to write the keyfile.
-///
-/// # Example
-///
-/// ```
-/// let hotkey_pair = sr25519::Pair::generate();
-/// let mnemonic = bip39::Mnemonic::new(bip39::MnemonicType::Words12, bip39::Language::English);
-/// let seed = [0u8; 32]; // Replace with actual seed
-/// let name = "my_hotkey";
-/// let keypair = save_keypair(hotkey_pair, mnemonic, seed, name);
-/// ```
+/// This function will panic if it fails to create directories, encrypt data, or write to the file.
 pub fn save_keypair(
-    hotkey_pair: sr25519::Pair,
+    key_pair: sr25519::Pair,
     mnemonic: Mnemonic,
     seed: [u8; 32],
     name: &str,
     encrypt: bool,
+    key_type: &str,
 ) -> Keypair {
     let keypair = Keypair {
-        public_key: Some(hotkey_pair.public().to_vec()),
-        private_key: Some(hotkey_pair.to_raw_vec()),
+        public_key: Some(key_pair.public().to_vec()),
+        private_key: Some(key_pair.to_raw_vec()),
         mnemonic: Some(mnemonic.to_string()),
         seed_hex: Some(seed.to_vec()),
-        ss58_address: Some(hotkey_pair.public().to_ss58check()),
+        ss58_address: Some(key_pair.public().to_ss58check()),
     };
     let path = BT_WALLET_PATH;
-    let hotkey_path = hotkey_file(path, name);
+    let key_path;
+    if key_type == "hotkey" {
+        key_path = hotkey_file(path, name);
+    } else {
+        key_path = coldkey_pub_file(path, name);
+    }
     // Ensure the directory exists before writing the file
-    if let Some(parent) = hotkey_path.parent() {
+    if let Some(parent) = key_path.parent() {
         std::fs::create_dir_all(parent).expect("Failed to create directory");
     }
     let password = "ben+is+a+css+pro";
@@ -488,11 +513,11 @@ pub fn save_keypair(
         let encrypted_data =
             encrypt_keyfile_data(serialized_keypair_to_keyfile_data(&keypair), password)
                 .expect("Failed to encrypt keyfile");
-        write_keyfile_data_to_file(&hotkey_path, encrypted_data, false)
+        write_keyfile_data_to_file(&key_path, encrypted_data, false)
             .expect("Failed to write encrypted keyfile");
     } else {
         write_keyfile_data_to_file(
-            &hotkey_path,
+            &key_path,
             serialized_keypair_to_keyfile_data(&keypair),
             false,
         )
@@ -539,11 +564,73 @@ pub fn create_hotkey(mnemonic: Mnemonic, name: &str) -> (sr25519::Pair, [u8; 32]
     (hotkey_pair, seed) //hack to demo hotkey_pair sign
 }
 
+/// Creates a new coldkey pair and returns it along with its seed.
+///
+/// This function performs the following steps:
+/// 1. Generates a seed from the provided mnemonic.
+/// 2. Creates a derivation path using the provided name.
+/// 3. Derives an sr25519 key pair using the seed and derivation path.
+///
+/// # Arguments
+///
+/// * `mnemonic` - A `Mnemonic` object representing the seed phrase.
+/// * `name` - A string slice containing the name for the coldkey.
+///
+/// # Returns
+///
+/// Returns a tuple containing:
+/// - An `sr25519::Pair` representing the generated coldkey pair.
+/// - A 32-byte array containing the seed used to generate the key pair.
+///
+/// # Panics
+///
+/// This function will panic if:
+/// - It fails to create a seed from the mnemonic.
+/// - It fails to derive the sr25519 key.
+pub fn create_coldkey(mnemonic: Mnemonic, name: &str) -> (sr25519::Pair, [u8; 32]) {
+    let seed: [u8; 32] = mnemonic.to_seed("")[..32]
+        .try_into()
+        .expect("Failed to create seed");
+
+    let derivation_path: Vec<u8> = format!("//{}", name).into_bytes();
+
+    let coldkey_pair: sr25519::Pair =
+        derive_sr25519_key(&seed, &derivation_path).expect("Failed to derive sr25519 key");
+
+    (coldkey_pair, seed)
+}
+
 fn generate_nonce() -> [u8; NONCE_SIZE] {
     let mut nonce = [0u8; NONCE_SIZE];
     OsRng.fill_bytes(&mut nonce);
     nonce
 }
+/// Decrypts the given encrypted keyfile data using the provided password.
+///
+/// This function performs the following steps:
+/// 1. Derives a decryption key from the password using Argon2 and a constant salt.
+/// 2. Creates a ChaCha20-Poly1305 decryption key.
+/// 3. Extracts the nonce from the encrypted data.
+/// 4. Decrypts the data using the derived key and extracted nonce.
+///
+/// # Arguments
+///
+/// * `encrypted_data` - A byte slice containing the encrypted keyfile data.
+/// * `password` - A string slice containing the password used for decryption.
+///
+/// # Returns
+///
+/// Returns a `Result` which is:
+/// - `Ok(Vec<u8>)` containing the decrypted data if successful.
+/// - `Err(Box<dyn Error>)` if any error occurs during the decryption process.
+///
+/// # Errors
+///
+/// This function may return an error if:
+/// - The password hashing process fails.
+/// - The key derivation process fails.
+/// - The encrypted data is of invalid length or format.
+/// - The decryption process fails.
 fn decrypt_keyfile_data(encrypted_data: &[u8], password: &str) -> Result<Vec<u8>, Box<dyn Error>> {
     let password = password.as_bytes();
 
@@ -587,52 +674,32 @@ fn decrypt_keyfile_data(encrypted_data: &[u8], password: &str) -> Result<Vec<u8>
     Ok(in_out)
 }
 
-fn decrypt_keyfile_data_second(
-    encrypted_data: &[u8],
-    password: &str,
-) -> Result<Vec<u8>, Box<dyn Error>> {
-    let password = password.as_bytes();
-
-    // Create Argon2 instance
-    let argon2 = Argon2::default();
-
-    // Create a SaltString from our constant salt
-    let salt = SaltString::b64_encode(NACL_SALT)?;
-
-    // Hash the password to derive the key
-    let password_hash = argon2.hash_password(password, &salt)?;
-    let hash = password_hash.hash.ok_or("Failed to generate hash")?;
-    let key = hash.as_bytes();
-
-    // Ensure the key is the correct length
-    if key.len() != KEY_SIZE {
-        return Err("Invalid key length".into());
-    }
-
-    // Create the decryption key
-    let unbound_key = UnboundKey::new(&CHACHA20_POLY1305, key).map_err(|e| e.to_string())?;
-    let less_safe_key = LessSafeKey::new(unbound_key);
-
-    // Extract the nonce and encrypted data
-    if encrypted_data.len() < 5 + NONCE_SIZE {
-        return Err("Invalid encrypted data length".into());
-    }
-    let nonce_bytes = &encrypted_data[5..5 + NONCE_SIZE];
-    let nonce = Nonce::try_assume_unique_for_key(nonce_bytes).map_err(|e| e.to_string())?;
-    let ciphertext = &encrypted_data[5 + NONCE_SIZE..];
-
-    // Decrypt the data
-    let mut in_out = ciphertext.to_vec();
-    less_safe_key
-        .open_in_place(nonce, Aad::empty(), &mut in_out)
-        .map_err(|e| e.to_string())?;
-
-    // Remove the authentication tag
-    in_out.truncate(in_out.len() - CHACHA20_POLY1305.tag_len());
-
-    Ok(in_out)
-}
-
+/// Encrypts the given keyfile data using the provided password.
+///
+/// This function performs the following steps:
+/// 1. Derives an encryption key from the password using Argon2 and a constant salt.
+/// 2. Creates a ChaCha20-Poly1305 encryption key.
+/// 3. Generates a random nonce.
+/// 4. Encrypts the keyfile data using the derived key and nonce.
+/// 5. Combines the encrypted data with a "$NACL" prefix and the nonce.
+///
+/// # Arguments
+///
+/// * `keyfile_data` - A vector of bytes containing the keyfile data to be encrypted.
+/// * `password` - A string slice containing the password used for encryption.
+///
+/// # Returns
+///
+/// Returns a `Result` which is:
+/// - `Ok(Vec<u8>)` containing the encrypted data if successful.
+/// - `Err(Box<dyn Error>)` if any error occurs during the encryption process.
+///
+/// # Errors
+///
+/// This function may return an error if:
+/// - The password hashing process fails.
+/// - The encryption key creation fails.
+/// - The encryption process itself fails.
 fn encrypt_keyfile_data(keyfile_data: Vec<u8>, password: &str) -> Result<Vec<u8>, Box<dyn Error>> {
     let password = password.as_bytes();
 
