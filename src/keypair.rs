@@ -35,6 +35,37 @@ pub struct Keypair {
     pub ss58_address: Option<String>,
 }
 
+/// Serializes a Keypair struct into a JSON-formatted byte vector.
+///
+/// This function takes a reference to a Keypair struct and converts it into a JSON object,
+/// which is then serialized into a byte vector. The resulting data is suitable for writing
+/// to a keyfile.
+///
+/// # Arguments
+///
+/// * `keypair` - A reference to the Keypair struct to be serialized.
+///
+/// # Returns
+///
+/// * `Vec<u8>` - A byte vector containing the JSON-formatted keyfile data.
+///
+/// # Panics
+///
+/// This function will panic if the JSON serialization fails. In practice, this should not
+/// occur unless there's a fundamental issue with the data or the serialization process.
+///
+/// # Examples
+///
+/// ```
+/// let keypair = Keypair {
+///     public_key: Some(vec![1, 2, 3, 4]),
+///     private_key: Some(vec![5, 6, 7, 8]),
+///     mnemonic: Some("example mnemonic".to_string()),
+///     seed_hex: Some(vec![9, 10, 11, 12]),
+///     ss58_address: Some("exampleAddress".to_string()),
+/// };
+/// let keyfile_data = serialized_keypair_to_keyfile_data(&keypair);
+/// ```
 fn serialized_keypair_to_keyfile_data(keypair: &Keypair) -> Vec<u8> {
     let json_data = json!({
         "accountId": keypair.public_key.as_ref().map(|pk| format!("{}", hex::encode(pk))),
@@ -48,6 +79,30 @@ fn serialized_keypair_to_keyfile_data(keypair: &Keypair) -> Vec<u8> {
     serde_json::to_vec(&json_data).unwrap()
 }
 
+/// Deserializes keyfile data into a Keypair struct.
+///
+/// This function takes a byte slice containing JSON-formatted keyfile data and
+/// attempts to deserialize it into a Keypair struct.
+///
+/// # Arguments
+///
+/// * `keyfile_data` - A byte slice containing the JSON-formatted keyfile data.
+///
+/// # Returns
+///
+/// * `Result<Keypair, serde_json::Error>` - A Result containing either:
+///   - `Ok(Keypair)`: A successfully deserialized Keypair struct.
+///   - `Err(serde_json::Error)`: An error if deserialization fails.
+///
+/// # Examples
+///
+/// ```
+/// let keyfile_data = r#"{"publicKey":"0123...", "privateKey":"abcd...", ...}"#.as_bytes();
+/// match deserialize_keyfile_data_to_keypair(keyfile_data) {
+///     Ok(keypair) => println!("Deserialized keypair: {:?}", keypair),
+///     Err(e) => eprintln!("Failed to deserialize: {}", e),
+/// }
+/// ```
 pub fn deserialize_keyfile_data_to_keypair(
     keyfile_data: &[u8],
 ) -> Result<Keypair, serde_json::Error> {
@@ -68,11 +123,66 @@ pub fn deserialize_keyfile_data_to_keypair(
     })
 }
 
+/// Constructs the file path for a hotkey within a wallet.
+///
+/// This function takes a base path and a name, expands any tilde in the path,
+/// and constructs a `PathBuf` representing the location of a hotkey file
+/// within the wallet's directory structure.
+///
+/// # Arguments
+///
+/// * `path` - A string slice representing the base path of the wallet.
+/// * `name` - A string slice representing the name of the wallet and hotkey.
+///
+/// # Returns
+///
+/// * `PathBuf` - The constructed path to the hotkey file.
+///
+/// # Examples
+///
+/// ```
+/// let path = "~/wallets";
+/// let name = "my_wallet";
+/// let hotkey_path = hotkey_file(path, name);
+/// assert_eq!(hotkey_path, PathBuf::from("/home/user/wallets/my_wallet/hotkeys/my_wallet"));
+/// ```
 fn hotkey_file(path: &str, name: &str) -> PathBuf {
     let wallet_path = PathBuf::from(shellexpand::tilde(path).into_owned()).join(name);
     wallet_path.join("hotkeys").join(name)
 }
 
+/// Writes keyfile data to a file with specific permissions.
+///
+/// This function writes the provided keyfile data to a file at the specified path.
+/// It can optionally overwrite an existing file and sets the file permissions to be
+/// readable and writable only by the owner.
+///
+/// # Arguments
+///
+/// * `path` - A reference to a `Path` where the keyfile should be written.
+/// * `keyfile_data` - A `Vec<u8>` containing the data to be written to the file.
+/// * `overwrite` - A boolean flag indicating whether to overwrite an existing file.
+///
+/// # Returns
+///
+/// * `Result<(), KeyFileError>` - Ok(()) if the operation is successful, or an error of type `KeyFileError`.
+///
+/// # Errors
+///
+/// This function will return an error if:
+/// - The file already exists and `overwrite` is set to `false`.
+/// - There are issues opening, writing to, or setting permissions on the file.
+///
+/// # Examples
+///
+/// ```
+/// use std::path::Path;
+/// use your_crate::keypair::write_keyfile_data_to_file;
+///
+/// let path = Path::new("/path/to/keyfile");
+/// let data = vec![1, 2, 3, 4, 5];
+/// let result = write_keyfile_data_to_file(path, data, true);
+/// ```
 pub fn write_keyfile_data_to_file(
     path: &Path,
     keyfile_data: Vec<u8>,
@@ -100,49 +210,78 @@ pub fn write_keyfile_data_to_file(
     Ok(())
 }
 
+/// Loads a hotkey pair from a keyfile.
+///
+/// This function retrieves the private key data from a keyfile, processes it,
+/// and creates an sr25519::Pair from the extracted seed.
+///
+/// # Arguments
+///
+/// * `hotkey_name` - A string slice that holds the name of the hotkey to load.
+///
+/// # Returns
+///
+/// * `Result<sr25519::Pair, Box<dyn std::error::Error>>` - A Result containing the sr25519::Pair if successful,
+///   or a boxed error if any step in the process fails.
+///
+/// # Errors
+///
+/// This function will return an error if:
+/// - The keyfile data cannot be loaded or deserialized.
+/// - The private key is missing from the keyfile data.
+/// - The decoded private key has an invalid length.
+/// - The sr25519::Pair cannot be created from the seed.
 pub fn load_hotkey_pair(hotkey_name: &str) -> Result<sr25519::Pair, Box<dyn std::error::Error>> {
+    // Load and deserialize the keyfile data
     let keyfile_data = load_keyfile_data_from_file(hotkey_name)?;
     let keypair = deserialize_keyfile_data_to_keypair(&keyfile_data)?;
-    // println!("keypair: {:?}", keypair);
+
+    // Extract the private key
     let private_key = keypair
         .private_key
         .ok_or("Private key not found in keyfile data")?;
 
-    // Convert the private key Vec<u8> to a hex string
+    // Convert the private key to a hex string and then decode it
     let private_key_hex = hex::encode(&private_key);
-    // println!("Private key hex: {}", private_key_hex);
-
-    // Decode the hex string to bytes
     let seed = hex::decode(private_key_hex)?;
 
-    // The private key is 64 bytes (128 hex characters), but we need a 32-byte seed
+    // Validate the seed length
     if seed.len() != 64 {
         return Err("Invalid private key length".into());
     }
 
-    // Take only the first 32 bytes of the private key as the seed
+    // Use the first 32 bytes of the private key as the seed
     let seed = &seed[0..32];
 
+    // Final validation of the seed length
     if seed.len() != 32 {
         return Err("Invalid seed length".into());
     }
 
+    // Create and return the sr25519::Pair
     let pair = sr25519::Pair::from_seed_slice(&seed)?;
     Ok(pair)
 }
 
-// let seed = hex::decode(private_key)?;
-
-// // if seed.len() != 32 {
-// //     return Err("Invalid seed length".into());
-// // }
-
-// let pair = sr25519::Pair::from_seed_slice(&seed)
-//     .map_err(|_| "Failed to create pair from seed")?;
-
-// Ok(pair)
-// }
-
+/// Loads keyfile data from a file with the given name.
+///
+/// This function attempts to read the contents of a keyfile associated with the provided name.
+/// It uses a default path (BT_WALLET_PATH) and constructs the full file path using the `hotkey_file` function.
+///
+/// # Arguments
+///
+/// * `name` - A string slice that holds the name of the keyfile to load.
+///
+/// # Returns
+///
+/// * `Result<Vec<u8>, KeyFileError>` - A Result containing a vector of bytes with the keyfile data if successful,
+///   or a KeyFileError if an error occurs during the process.
+///
+/// # Errors
+///
+/// This function will return an error if:
+/// - The keyfile does not exist at the expected location.
+/// - There are issues opening or reading the file.
 pub fn load_keyfile_data_from_file(name: &str) -> Result<Vec<u8>, KeyFileError> {
     let default_path = BT_WALLET_PATH;
     let path = hotkey_file(default_path, name);
@@ -158,6 +297,17 @@ pub fn load_keyfile_data_from_file(name: &str) -> Result<Vec<u8>, KeyFileError> 
     Ok(keyfile_data)
 }
 
+/// Checks if a file or directory exists at the given path.
+///
+/// This function is a simple wrapper around the `exists` method of the `Path` struct.
+///
+/// # Arguments
+///
+/// * `path` - A reference to a `Path` that represents the file or directory to check.
+///
+/// # Returns
+///
+/// * `bool` - Returns `true` if the path exists, `false` otherwise.
 fn exists_on_device(path: &Path) -> bool {
     path.exists()
 }
@@ -265,6 +415,37 @@ fn derive_sr25519_key(seed: &[u8], path: &[u8]) -> Result<sr25519::Pair, String>
     Ok(pair)
 }
 
+/// Saves a keypair to a file and returns the Keypair struct.
+///
+/// This function creates a Keypair struct from the provided sr25519 pair, mnemonic, and seed,
+/// then saves it to a file in the wallet directory.
+///
+/// # Arguments
+///
+/// * `hotkey_pair` - An sr25519::Pair representing the keypair.
+/// * `mnemonic` - A Mnemonic object containing the seed phrase.
+/// * `seed` - A 32-byte array containing the seed.
+/// * `name` - A string slice containing the name for the hotkey file.
+///
+/// # Returns
+///
+/// Returns a Keypair struct containing the saved key information.
+///
+/// # Panics
+///
+/// This function will panic if:
+/// - It fails to create the directory for the keyfile.
+/// - It fails to write the keyfile.
+///
+/// # Example
+///
+/// ```
+/// let hotkey_pair = sr25519::Pair::generate();
+/// let mnemonic = bip39::Mnemonic::new(bip39::MnemonicType::Words12, bip39::Language::English);
+/// let seed = [0u8; 32]; // Replace with actual seed
+/// let name = "my_hotkey";
+/// let keypair = save_keypair(hotkey_pair, mnemonic, seed, name);
+/// ```
 pub fn save_keypair(
     hotkey_pair: sr25519::Pair,
     mnemonic: Mnemonic,

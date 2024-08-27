@@ -14,6 +14,7 @@ fn create_hotkey_pair(num_words: u32, name: &str) -> PyResult<PyObject> {
 
     // Create a hotkey pair using the mnemonic and a name.
     let (hotkey_pair, seed) = create_hotkey(mnemonic.clone(), name);
+
     let keypair = save_keypair(hotkey_pair, mnemonic, seed, name);
 
     // Convert Keypair to PyObject
@@ -46,26 +47,34 @@ fn load_keypair(name: &str) -> PyResult<PyObject> {
     })
 }
 #[pyfunction]
-fn verify_signature(signature: &str, message: &str, public_key: &str) -> PyResult<bool> {
-    use sp_core::sr25519::{Pair, Public, Signature};
-    use sp_core::ByteArray;
+fn verify_signature(signature: &str, message: &[u8], public_key: &str) -> PyResult<bool> {
+    use sp_core::sr25519;
+    use sp_core::Pair;
 
-    let signature =
-        Signature::from_slice(&hex::decode(signature).expect("Failed to decode signature"))
-            .expect("Invalid signature length");
-    let message_bytes = message.as_bytes();
-    let public_key =
-        Public::from_slice(&hex::decode(public_key).expect("Failed to decode public key"))
-            .expect("Invalid public key length");
+    let signature_bytes = hex::decode(signature).expect("Failed to decode signature");
+    let public_key_bytes = hex::decode(public_key).expect("Failed to decode public key");
 
-    let verified = Pair::verify(&signature, message_bytes, &public_key);
+    let signature = sr25519::Signature::from_raw(
+        signature_bytes
+            .try_into()
+            .expect("Invalid signature length"),
+    );
+    let public_key = sr25519::Public::from_raw(
+        public_key_bytes
+            .try_into()
+            .expect("Invalid public key length"),
+    );
+
+    let verified = sr25519::Pair::verify(&signature, message, &public_key);
     Ok(verified)
 }
 
 #[pyfunction]
-fn sign_message(message: &str, hotkey_name: &str) -> PyResult<String> {
+fn sign_message(message: &[u8], hotkey_name: &str) -> PyResult<String> {
     let keypair = load_hotkey_pair(hotkey_name).expect("Failed to load keypair");
-    let signature = keypair.sign(message.as_bytes());
+    println!("public_key: {:?}", keypair.public());
+    let signature = keypair.sign(message);
+
     Ok(hex::encode(signature))
 }
 
