@@ -8,7 +8,9 @@ use schnorrkel::{
 use serde_json::json;
 use sp_core::crypto::Ss58Codec;
 use sp_core::{sr25519, Pair};
+use std::fs::File;
 use std::fs::OpenOptions;
+use std::io::Read;
 use std::io::Write;
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
@@ -21,8 +23,10 @@ pub enum KeyFileError {
     NotWritable(String),
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
+    #[error("Keyfile at: {0} not found")]
+    NotFound(String),
 }
-
+#[derive(Debug)]
 pub struct Keypair {
     pub public_key: Option<Vec<u8>>,
     pub private_key: Option<Vec<u8>>,
@@ -42,6 +46,26 @@ fn serialized_keypair_to_keyfile_data(keypair: &Keypair) -> Vec<u8> {
     });
 
     serde_json::to_vec(&json_data).unwrap()
+}
+
+pub fn deserialize_keyfile_data_to_keypair(
+    keyfile_data: &[u8],
+) -> Result<Keypair, serde_json::Error> {
+    let json_data: serde_json::Value = serde_json::from_slice(keyfile_data)?;
+
+    Ok(Keypair {
+        public_key: json_data["publicKey"]
+            .as_str()
+            .and_then(|s| hex::decode(s).ok()),
+        private_key: json_data["privateKey"]
+            .as_str()
+            .and_then(|s| hex::decode(s).ok()),
+        mnemonic: json_data["secretPhrase"].as_str().map(String::from),
+        seed_hex: json_data["secretSeed"]
+            .as_str()
+            .and_then(|s| hex::decode(s).ok()),
+        ss58_address: json_data["ss58Address"].as_str().map(String::from),
+    })
 }
 
 fn hotkey_file(path: &str, name: &str) -> PathBuf {
@@ -74,6 +98,64 @@ pub fn write_keyfile_data_to_file(
     file.set_permissions(perms)?;
 
     Ok(())
+}
+
+pub fn load_hotkey_pair(hotkey_name: &str) -> Result<sr25519::Pair, Box<dyn std::error::Error>> {
+    let keyfile_data = load_keyfile_data_from_file(hotkey_name)?;
+    let keypair = deserialize_keyfile_data_to_keypair(&keyfile_data)?;
+    // println!("keypair: {:?}", keypair);
+    let private_key = keypair
+        .private_key
+        .ok_or("Private key not found in keyfile data")?;
+
+    // Convert the private key Vec<u8> to a hex string
+    let private_key_hex = hex::encode(&private_key);
+    // println!("Private key hex: {}", private_key_hex);
+
+    // Decode the hex string to bytes
+    let seed = hex::decode(private_key_hex)?;
+
+    // The private key is 64 bytes (128 hex characters), but we need a 32-byte seed
+    if seed.len() != 64 {
+        return Err("Invalid private key length".into());
+    }
+
+    // Take only the first 32 bytes of the private key as the seed
+    let seed = &seed[0..32];
+
+    if seed.len() != 32 {
+        return Err("Invalid seed length".into());
+    }
+
+    let pair = sr25519::Pair::from_seed_slice(&seed)?;
+    Ok(pair)
+}
+
+// let seed = hex::decode(private_key)?;
+
+// // if seed.len() != 32 {
+// //     return Err("Invalid seed length".into());
+// // }
+
+// let pair = sr25519::Pair::from_seed_slice(&seed)
+//     .map_err(|_| "Failed to create pair from seed")?;
+
+// Ok(pair)
+// }
+
+pub fn load_keyfile_data_from_file(name: &str) -> Result<Vec<u8>, KeyFileError> {
+    let default_path = BT_WALLET_PATH;
+    let path = hotkey_file(default_path, name);
+
+    if !exists_on_device(&path) {
+        return Err(KeyFileError::NotFound(path.to_string_lossy().into_owned()));
+    }
+
+    let mut file = File::open(path)?;
+    let mut keyfile_data = Vec::new();
+    file.read_to_end(&mut keyfile_data)?;
+
+    Ok(keyfile_data)
 }
 
 fn exists_on_device(path: &Path) -> bool {
@@ -183,6 +265,34 @@ fn derive_sr25519_key(seed: &[u8], path: &[u8]) -> Result<sr25519::Pair, String>
     Ok(pair)
 }
 
+pub fn save_keypair(
+    hotkey_pair: sr25519::Pair,
+    mnemonic: Mnemonic,
+    seed: [u8; 32],
+    name: &str,
+) -> Keypair {
+    let keypair = Keypair {
+        public_key: Some(hotkey_pair.public().to_vec()),
+        private_key: Some(hotkey_pair.to_raw_vec()),
+        mnemonic: Some(mnemonic.to_string()),
+        seed_hex: Some(seed.to_vec()),
+        ss58_address: Some(hotkey_pair.public().to_ss58check()),
+    };
+    let path = BT_WALLET_PATH;
+    let hotkey_path = hotkey_file(path, name);
+    // Ensure the directory exists before writing the file
+    if let Some(parent) = hotkey_path.parent() {
+        std::fs::create_dir_all(parent).expect("Failed to create directory");
+    }
+    write_keyfile_data_to_file(
+        &hotkey_path,
+        serialized_keypair_to_keyfile_data(&keypair),
+        false,
+    )
+    .expect("Failed to write keyfile");
+    keypair
+}
+
 /// Creates a new hotkey pair and writes it to a file.
 ///
 /// This function performs the following steps:
@@ -208,7 +318,7 @@ fn derive_sr25519_key(seed: &[u8], path: &[u8]) -> Result<sr25519::Pair, String>
 /// - It fails to derive the sr25519 key.
 /// - It fails to create the directory for the keyfile.
 /// - It fails to write the keyfile.
-pub fn create_hotkey(mnemonic: Mnemonic, name: &str) -> Keypair {
+pub fn create_hotkey(mnemonic: Mnemonic, name: &str) -> (sr25519::Pair, [u8; 32]) {
     let seed: [u8; 32] = mnemonic.to_seed("")[..32]
         .try_into()
         .expect("Failed to create seed");
@@ -218,26 +328,7 @@ pub fn create_hotkey(mnemonic: Mnemonic, name: &str) -> Keypair {
     let hotkey_pair: sr25519::Pair =
         derive_sr25519_key(&seed, &derivation_path).expect("Failed to derive sr25519 key");
 
-    let keypair = Keypair {
-        public_key: Some(hotkey_pair.public().to_vec()),
-        private_key: Some(hotkey_pair.to_raw_vec()),
-        mnemonic: Some(mnemonic.to_string()),
-        seed_hex: Some(seed.to_vec()),
-        ss58_address: Some(hotkey_pair.public().to_ss58check()),
-    };
-    let path = BT_WALLET_PATH;
-    let hotkey_path = hotkey_file(path, name);
-    // Ensure the directory exists before writing the file
-    if let Some(parent) = hotkey_path.parent() {
-        std::fs::create_dir_all(parent).expect("Failed to create directory");
-    }
-    write_keyfile_data_to_file(
-        &hotkey_path,
-        serialized_keypair_to_keyfile_data(&keypair),
-        false,
-    )
-    .expect("Failed to write keyfile");
-    keypair
+    (hotkey_pair, seed) //hack to demo hotkey_pair sign
 }
 
 #[cfg(test)]
