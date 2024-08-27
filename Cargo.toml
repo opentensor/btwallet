@@ -21,6 +21,7 @@ pbkdf2 = "0.12.2"
 primitive-types = "0.12.2"
 pyo3 = { version = "0.22.0", features = ["extension-module"] }
 
+ring = "0.17"
 rand = "0.8.5"
 regex = "1.10.6"
 schnorrkel = "0.11.4"
@@ -33,3 +34,4 @@ uint = "0.9.5"
 serde_json = "1.0"
 thiserror = "1.0"
 shellexpand = "2.1"
+secrets = "1.2"

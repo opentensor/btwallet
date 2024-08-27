@@ -1,6 +1,11 @@
 use crate::wallet::BT_WALLET_PATH;
+use argon2::{
+    password_hash::{rand_core::OsRng, PasswordHasher, SaltString},
+    Argon2,
+};
 use bip39::{Language, Mnemonic};
 use rand::RngCore;
+use ring::aead::{self, Aad, LessSafeKey, Nonce, UnboundKey, CHACHA20_POLY1305};
 use schnorrkel::{
     derive::{ChainCode, Derivation},
     ExpansionMode, MiniSecretKey,
@@ -8,6 +13,7 @@ use schnorrkel::{
 use serde_json::json;
 use sp_core::crypto::Ss58Codec;
 use sp_core::{sr25519, Pair};
+use std::error::Error;
 use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::Read;
@@ -17,6 +23,9 @@ use std::path::Path;
 use std::path::PathBuf;
 use thiserror::Error;
 
+const NACL_SALT: &[u8; 16] = b"\x13q\x83\xdf\xf1Z\t\xbc\x9c\x90\xb5Q\x879\xe9\xb1";
+const KEY_SIZE: usize = 32; // 256 bits
+const NONCE_SIZE: usize = 12;
 #[derive(Error, Debug)]
 pub enum KeyFileError {
     #[error("Keyfile at: {0} is not writable")]
@@ -231,10 +240,18 @@ pub fn write_keyfile_data_to_file(
 /// - The private key is missing from the keyfile data.
 /// - The decoded private key has an invalid length.
 /// - The sr25519::Pair cannot be created from the seed.
-pub fn load_hotkey_pair(hotkey_name: &str) -> Result<sr25519::Pair, Box<dyn std::error::Error>> {
+pub fn load_hotkey_pair(
+    hotkey_name: &str,
+    password: Option<&str>,
+) -> Result<sr25519::Pair, Box<dyn std::error::Error>> {
     // Load and deserialize the keyfile data
     let keyfile_data = load_keyfile_data_from_file(hotkey_name)?;
-    let keypair = deserialize_keyfile_data_to_keypair(&keyfile_data)?;
+    let keypair = if let Some(pass) = password {
+        let decrypted_data = decrypt_keyfile_data(&keyfile_data, pass)?;
+        deserialize_keyfile_data_to_keypair(&decrypted_data)?
+    } else {
+        deserialize_keyfile_data_to_keypair(&keyfile_data)?
+    };
 
     // Extract the private key
     let private_key = keypair
@@ -451,6 +468,7 @@ pub fn save_keypair(
     mnemonic: Mnemonic,
     seed: [u8; 32],
     name: &str,
+    encrypt: bool,
 ) -> Keypair {
     let keypair = Keypair {
         public_key: Some(hotkey_pair.public().to_vec()),
@@ -465,12 +483,21 @@ pub fn save_keypair(
     if let Some(parent) = hotkey_path.parent() {
         std::fs::create_dir_all(parent).expect("Failed to create directory");
     }
-    write_keyfile_data_to_file(
-        &hotkey_path,
-        serialized_keypair_to_keyfile_data(&keypair),
-        false,
-    )
-    .expect("Failed to write keyfile");
+    let password = "ben+is+a+css+pro";
+    if encrypt {
+        let encrypted_data =
+            encrypt_keyfile_data(serialized_keypair_to_keyfile_data(&keypair), password)
+                .expect("Failed to encrypt keyfile");
+        write_keyfile_data_to_file(&hotkey_path, encrypted_data, false)
+            .expect("Failed to write encrypted keyfile");
+    } else {
+        write_keyfile_data_to_file(
+            &hotkey_path,
+            serialized_keypair_to_keyfile_data(&keypair),
+            false,
+        )
+        .expect("Failed to write keyfile");
+    }
     keypair
 }
 
@@ -510,6 +537,141 @@ pub fn create_hotkey(mnemonic: Mnemonic, name: &str) -> (sr25519::Pair, [u8; 32]
         derive_sr25519_key(&seed, &derivation_path).expect("Failed to derive sr25519 key");
 
     (hotkey_pair, seed) //hack to demo hotkey_pair sign
+}
+
+fn generate_nonce() -> [u8; NONCE_SIZE] {
+    let mut nonce = [0u8; NONCE_SIZE];
+    OsRng.fill_bytes(&mut nonce);
+    nonce
+}
+fn decrypt_keyfile_data(encrypted_data: &[u8], password: &str) -> Result<Vec<u8>, Box<dyn Error>> {
+    let password = password.as_bytes();
+
+    // Create Argon2 instance
+    let argon2 = Argon2::default();
+
+    // Create a SaltString from our constant salt
+    let salt = SaltString::b64_encode(NACL_SALT)?;
+
+    // Hash the password to derive the key
+    let password_hash = argon2.hash_password(password, &salt)?;
+    let hash = password_hash.hash.ok_or("Failed to generate hash")?;
+    let key = hash.as_bytes();
+
+    // Ensure the key is the correct length
+    if key.len() != KEY_SIZE {
+        return Err("Invalid key length".into());
+    }
+
+    // Create the decryption key
+    let unbound_key = UnboundKey::new(&CHACHA20_POLY1305, key).map_err(|e| e.to_string())?;
+    let less_safe_key = LessSafeKey::new(unbound_key);
+
+    // Extract the nonce and encrypted data
+    if encrypted_data.len() < 5 + NONCE_SIZE {
+        return Err("Invalid encrypted data length".into());
+    }
+    let nonce_bytes = &encrypted_data[5..5 + NONCE_SIZE];
+    let nonce = Nonce::try_assume_unique_for_key(nonce_bytes).map_err(|e| e.to_string())?;
+    let ciphertext = &encrypted_data[5 + NONCE_SIZE..];
+
+    // Decrypt the data
+    let mut in_out = ciphertext.to_vec();
+    less_safe_key
+        .open_in_place(nonce, Aad::empty(), &mut in_out)
+        .map_err(|e| e.to_string())?;
+
+    // Remove the authentication tag
+    in_out.truncate(in_out.len() - CHACHA20_POLY1305.tag_len());
+
+    Ok(in_out)
+}
+
+fn decrypt_keyfile_data_second(
+    encrypted_data: &[u8],
+    password: &str,
+) -> Result<Vec<u8>, Box<dyn Error>> {
+    let password = password.as_bytes();
+
+    // Create Argon2 instance
+    let argon2 = Argon2::default();
+
+    // Create a SaltString from our constant salt
+    let salt = SaltString::b64_encode(NACL_SALT)?;
+
+    // Hash the password to derive the key
+    let password_hash = argon2.hash_password(password, &salt)?;
+    let hash = password_hash.hash.ok_or("Failed to generate hash")?;
+    let key = hash.as_bytes();
+
+    // Ensure the key is the correct length
+    if key.len() != KEY_SIZE {
+        return Err("Invalid key length".into());
+    }
+
+    // Create the decryption key
+    let unbound_key = UnboundKey::new(&CHACHA20_POLY1305, key).map_err(|e| e.to_string())?;
+    let less_safe_key = LessSafeKey::new(unbound_key);
+
+    // Extract the nonce and encrypted data
+    if encrypted_data.len() < 5 + NONCE_SIZE {
+        return Err("Invalid encrypted data length".into());
+    }
+    let nonce_bytes = &encrypted_data[5..5 + NONCE_SIZE];
+    let nonce = Nonce::try_assume_unique_for_key(nonce_bytes).map_err(|e| e.to_string())?;
+    let ciphertext = &encrypted_data[5 + NONCE_SIZE..];
+
+    // Decrypt the data
+    let mut in_out = ciphertext.to_vec();
+    less_safe_key
+        .open_in_place(nonce, Aad::empty(), &mut in_out)
+        .map_err(|e| e.to_string())?;
+
+    // Remove the authentication tag
+    in_out.truncate(in_out.len() - CHACHA20_POLY1305.tag_len());
+
+    Ok(in_out)
+}
+
+fn encrypt_keyfile_data(keyfile_data: Vec<u8>, password: &str) -> Result<Vec<u8>, Box<dyn Error>> {
+    let password = password.as_bytes();
+
+    // Create Argon2 instance
+    let argon2 = Argon2::default();
+
+    // Create a SaltString from our constant salt
+    let salt = SaltString::b64_encode(NACL_SALT)?;
+
+    // Hash the password to derive the key
+    let password_hash = argon2.hash_password(password, &salt)?;
+    let hash = password_hash.hash.ok_or("Failed to generate hash")?;
+    let key = hash.as_bytes();
+    // Ensure the key is the correct length
+    if key.len() != KEY_SIZE {
+        return Err("Invalid key length".into());
+    }
+
+    // Create the encryption key
+    let unbound_key = UnboundKey::new(&CHACHA20_POLY1305, key).map_err(|e| e.to_string())?;
+    let less_safe_key = LessSafeKey::new(unbound_key);
+
+    // Generate a random nonce
+    let nonce_bytes = generate_nonce();
+    let nonce = Nonce::assume_unique_for_key(nonce_bytes);
+
+    // Encrypt the data
+    let mut in_out = keyfile_data.to_vec();
+    less_safe_key
+        .seal_in_place_append_tag(nonce, Aad::empty(), &mut in_out)
+        .map_err(|e| e.to_string())?;
+
+    // Combine the nonce, encrypted data with the "$NACL" prefix
+    let mut result = Vec::with_capacity(5 + NONCE_SIZE + in_out.len());
+    result.extend_from_slice(b"$NACL");
+    result.extend_from_slice(&nonce_bytes);
+    result.extend_from_slice(&in_out);
+
+    Ok(result)
 }
 
 #[cfg(test)]

@@ -15,7 +15,7 @@ fn create_hotkey_pair(num_words: u32, name: &str) -> PyResult<PyObject> {
     // Create a hotkey pair using the mnemonic and a name.
     let (hotkey_pair, seed) = create_hotkey(mnemonic.clone(), name);
 
-    let keypair = save_keypair(hotkey_pair, mnemonic, seed, name);
+    let keypair = save_keypair(hotkey_pair, mnemonic, seed, name, true);
 
     // Convert Keypair to PyObject
     Python::with_gil(|py| {
@@ -27,6 +27,14 @@ fn create_hotkey_pair(num_words: u32, name: &str) -> PyResult<PyObject> {
         keypair_dict.set_item("ss58_address", keypair.ss58_address)?;
         Ok(keypair_dict.to_object(py))
     })
+}
+
+#[pyfunction]
+fn load_keypair_with_password(name: &str, password: &str) -> PyResult<bool> {
+    let keypair = load_hotkey_pair(name, Some(password)).expect("Failed to load keypair");
+    println!("keypair: {:?}", keypair.public());
+    let ok = true;
+    Ok(ok)
 }
 
 #[pyfunction]
@@ -71,7 +79,7 @@ fn verify_signature(signature: &str, message: &[u8], public_key: &str) -> PyResu
 
 #[pyfunction]
 fn sign_message(message: &[u8], hotkey_name: &str) -> PyResult<String> {
-    let keypair = load_hotkey_pair(hotkey_name).expect("Failed to load keypair");
+    let keypair = load_hotkey_pair(hotkey_name, None).expect("Failed to load keypair");
     println!("public_key: {:?}", keypair.public());
     let signature = keypair.sign(message);
 
@@ -85,6 +93,7 @@ fn btwallet(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(load_keypair, m)?)?;
     m.add_function(wrap_pyfunction!(sign_message, m)?)?;
     m.add_function(wrap_pyfunction!(verify_signature, m)?)?;
+    m.add_function(wrap_pyfunction!(load_keypair_with_password, m)?)?;
 
     m.add_class::<Keyfile>()?;
     m.add_class::<Wallet>()?;
