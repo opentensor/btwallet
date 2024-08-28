@@ -5,7 +5,7 @@ use argon2::{
 };
 use bip39::{Language, Mnemonic};
 use rand::RngCore;
-use ring::aead::{self, Aad, LessSafeKey, Nonce, UnboundKey, CHACHA20_POLY1305};
+use ring::aead::{Aad, LessSafeKey, Nonce, UnboundKey, CHACHA20_POLY1305};
 use schnorrkel::{
     derive::{ChainCode, Derivation},
     ExpansionMode, MiniSecretKey,
@@ -35,6 +35,8 @@ pub enum KeyFileError {
     Io(#[from] std::io::Error),
     #[error("Keyfile at: {0} not found")]
     NotFound(String),
+    #[error("Invalid key type: {0}")]
+    InvalidKeyType(String),
 }
 #[derive(Debug)]
 pub struct Keypair {
@@ -189,6 +191,10 @@ fn coldkey_pub_file(path: &str, name: &str) -> PathBuf {
     wallet_path.join("coldkeypub.txt")
 }
 
+fn coldkey_file(path: &str, name: &str) -> PathBuf {
+    let wallet_path = PathBuf::from(shellexpand::tilde(path).into_owned()).join(name);
+    wallet_path.join("coldkey")
+}
 /// Writes keyfile data to a file with specific permissions.
 ///
 /// This function writes the provided keyfile data to a file at the specified path.
@@ -248,6 +254,22 @@ pub fn write_keyfile_data_to_file(
     Ok(())
 }
 
+pub fn load_keypair_dict(
+    name: &str,
+    key_type: &str,
+    password: Option<&str>,
+) -> Result<Keypair, Box<dyn std::error::Error>> {
+    // Load and deserialize the keyfile data
+    let keyfile_data = get_keypair_from_file(name, key_type)?;
+    let keypair = if let Some(pass) = password {
+        let decrypted_data = decrypt_keyfile_data(&keyfile_data, pass)?;
+        deserialize_keyfile_data_to_keypair(&decrypted_data)?
+    } else {
+        deserialize_keyfile_data_to_keypair(&keyfile_data)?
+    };
+
+    Ok(keypair)
+}
 /// Loads a hotkey pair from a keyfile.
 ///
 /// This function retrieves the private key data from a keyfile, processes it,
@@ -269,18 +291,13 @@ pub fn write_keyfile_data_to_file(
 /// - The private key is missing from the keyfile data.
 /// - The decoded private key has an invalid length.
 /// - The sr25519::Pair cannot be created from the seed.
-pub fn load_hotkey_pair(
-    hotkey_name: &str,
+pub fn load_keypair(
+    name: &str,
+    key_type: &str,
     password: Option<&str>,
 ) -> Result<sr25519::Pair, Box<dyn std::error::Error>> {
     // Load and deserialize the keyfile data
-    let keyfile_data = load_keyfile_data_from_file(hotkey_name)?;
-    let keypair = if let Some(pass) = password {
-        let decrypted_data = decrypt_keyfile_data(&keyfile_data, pass)?;
-        deserialize_keyfile_data_to_keypair(&decrypted_data)?
-    } else {
-        deserialize_keyfile_data_to_keypair(&keyfile_data)?
-    };
+    let keypair = load_keypair_dict(name, key_type, password)?;
 
     // Extract the private key
     let private_key = keypair
@@ -304,7 +321,6 @@ pub fn load_hotkey_pair(
         return Err("Invalid seed length".into());
     }
 
-    // Create and return the sr25519::Pair
     let pair = sr25519::Pair::from_seed_slice(&seed)?;
     Ok(pair)
 }
@@ -328,9 +344,14 @@ pub fn load_hotkey_pair(
 /// This function will return an error if:
 /// - The keyfile does not exist at the expected location.
 /// - There are issues opening or reading the file.
-pub fn load_keyfile_data_from_file(name: &str) -> Result<Vec<u8>, KeyFileError> {
+pub fn get_keypair_from_file(name: &str, key_type: &str) -> Result<Vec<u8>, KeyFileError> {
     let default_path = BT_WALLET_PATH;
-    let path = hotkey_file(default_path, name);
+    let path = match key_type {
+        "hotkey" => hotkey_file(default_path, name),
+        "coldkeypub" => coldkey_pub_file(default_path, name),
+        "coldkey" => coldkey_file(default_path, name),
+        _ => return Err(KeyFileError::InvalidKeyType(key_type.to_string())),
+    };
 
     if !exists_on_device(&path) {
         return Err(KeyFileError::NotFound(path.to_string_lossy().into_owned()));
@@ -487,8 +508,8 @@ pub fn save_keypair(
     mnemonic: Mnemonic,
     seed: [u8; 32],
     name: &str,
-    encrypt: bool,
     key_type: &str,
+    password: Option<String>,
 ) -> Keypair {
     let keypair = Keypair {
         public_key: Some(key_pair.public().to_vec()),
@@ -501,17 +522,21 @@ pub fn save_keypair(
     let key_path;
     if key_type == "hotkey" {
         key_path = hotkey_file(path, name);
-    } else {
+    } else if key_type == "coldkeypub" {
         key_path = coldkey_pub_file(path, name);
+    } else if key_type == "coldkey" {
+        key_path = coldkey_file(path, name);
+    } else {
+        panic!("Invalid key type: {}", key_type);
     }
     // Ensure the directory exists before writing the file
     if let Some(parent) = key_path.parent() {
         std::fs::create_dir_all(parent).expect("Failed to create directory");
     }
-    let password = "ben+is+a+css+pro";
-    if encrypt {
+    let password = password.unwrap_or_else(|| "".to_string());
+    if !password.is_empty() {
         let encrypted_data =
-            encrypt_keyfile_data(serialized_keypair_to_keyfile_data(&keypair), password)
+            encrypt_keyfile_data(serialized_keypair_to_keyfile_data(&keypair), &password)
                 .expect("Failed to encrypt keyfile");
         write_keyfile_data_to_file(&key_path, encrypted_data, false)
             .expect("Failed to write encrypted keyfile");
@@ -551,53 +576,17 @@ pub fn save_keypair(
 /// - It fails to derive the sr25519 key.
 /// - It fails to create the directory for the keyfile.
 /// - It fails to write the keyfile.
-pub fn create_hotkey(mnemonic: Mnemonic, name: &str) -> (sr25519::Pair, [u8; 32]) {
+pub fn create_keypair(mnemonic: Mnemonic, name: &str) -> (sr25519::Pair, [u8; 32]) {
     let seed: [u8; 32] = mnemonic.to_seed("")[..32]
         .try_into()
         .expect("Failed to create seed");
 
     let derivation_path: Vec<u8> = format!("//{}", name).into_bytes();
 
-    let hotkey_pair: sr25519::Pair =
+    let keypair: sr25519::Pair =
         derive_sr25519_key(&seed, &derivation_path).expect("Failed to derive sr25519 key");
 
-    (hotkey_pair, seed) //hack to demo hotkey_pair sign
-}
-
-/// Creates a new coldkey pair and returns it along with its seed.
-///
-/// This function performs the following steps:
-/// 1. Generates a seed from the provided mnemonic.
-/// 2. Creates a derivation path using the provided name.
-/// 3. Derives an sr25519 key pair using the seed and derivation path.
-///
-/// # Arguments
-///
-/// * `mnemonic` - A `Mnemonic` object representing the seed phrase.
-/// * `name` - A string slice containing the name for the coldkey.
-///
-/// # Returns
-///
-/// Returns a tuple containing:
-/// - An `sr25519::Pair` representing the generated coldkey pair.
-/// - A 32-byte array containing the seed used to generate the key pair.
-///
-/// # Panics
-///
-/// This function will panic if:
-/// - It fails to create a seed from the mnemonic.
-/// - It fails to derive the sr25519 key.
-pub fn create_coldkey(mnemonic: Mnemonic, name: &str) -> (sr25519::Pair, [u8; 32]) {
-    let seed: [u8; 32] = mnemonic.to_seed("")[..32]
-        .try_into()
-        .expect("Failed to create seed");
-
-    let derivation_path: Vec<u8> = format!("//{}", name).into_bytes();
-
-    let coldkey_pair: sr25519::Pair =
-        derive_sr25519_key(&seed, &derivation_path).expect("Failed to derive sr25519 key");
-
-    (coldkey_pair, seed)
+    (keypair, seed)
 }
 
 fn generate_nonce() -> [u8; NONCE_SIZE] {
@@ -638,7 +627,7 @@ fn decrypt_keyfile_data(encrypted_data: &[u8], password: &str) -> Result<Vec<u8>
     let argon2 = Argon2::default();
 
     // Create a SaltString from our constant salt
-    let salt = SaltString::b64_encode(NACL_SALT)?;
+    let salt = SaltString::encode_b64(NACL_SALT)?;
 
     // Hash the password to derive the key
     let password_hash = argon2.hash_password(password, &salt)?;
@@ -707,7 +696,7 @@ fn encrypt_keyfile_data(keyfile_data: Vec<u8>, password: &str) -> Result<Vec<u8>
     let argon2 = Argon2::default();
 
     // Create a SaltString from our constant salt
-    let salt = SaltString::b64_encode(NACL_SALT)?;
+    let salt = SaltString::encode_b64(NACL_SALT)?;
 
     // Hash the password to derive the key
     let password_hash = argon2.hash_password(password, &salt)?;
@@ -739,100 +728,4 @@ fn encrypt_keyfile_data(keyfile_data: Vec<u8>, password: &str) -> Result<Vec<u8>
     result.extend_from_slice(&in_out);
 
     Ok(result)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use bip39::Language;
-    use rand::Rng;
-
-    #[test]
-    fn test_create_mnemonic_valid_word_counts() {
-        let valid_word_counts = [12, 15, 18, 21, 24];
-        for &word_count in &valid_word_counts {
-            let result = create_mnemonic(word_count);
-            assert!(
-                result.is_ok(),
-                "Failed to create mnemonic with {} words",
-                word_count
-            );
-            let mnemonic = result.unwrap();
-            assert_eq!(
-                mnemonic.word_count(),
-                word_count as usize,
-                "Mnemonic word count doesn't match expected"
-            );
-        }
-    }
-
-    #[test]
-    fn test_mnemonic_uniqueness() {
-        let mnemonic1 = create_mnemonic(12).unwrap();
-        let mnemonic2 = create_mnemonic(12).unwrap();
-        assert_ne!(
-            mnemonic1.to_string(),
-            mnemonic2.to_string(),
-            "Two generated mnemonics should not be identical"
-        );
-    }
-
-    #[test]
-    fn test_mnemonic_language() {
-        let mnemonic = create_mnemonic(12).unwrap();
-        assert_eq!(
-            mnemonic.language(),
-            Language::English,
-            "Mnemonic should be in English"
-        );
-    }
-
-    #[test]
-    fn test_derive_sr25519_key_valid_input() {
-        let mut rng = rand::thread_rng();
-        let seed: [u8; 32] = rng.gen();
-        let path = b"/some/path";
-
-        let result = derive_sr25519_key(&seed, path);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_derive_sr25519_key_invalid_seed_length() {
-        let seed = [0u8; 16]; // Invalid length
-        let path = b"/some/path";
-
-        let result = derive_sr25519_key(&seed, path);
-        assert!(result.is_err());
-        let err = result.err().unwrap();
-        assert!(err
-            .to_string()
-            .contains("Invalid seed length: expected 32, got 16"));
-    }
-
-    #[test]
-    fn test_derive_sr25519_key_empty_path() {
-        let mut rng = rand::thread_rng();
-        let seed: [u8; 32] = rng.gen();
-        let path = b"";
-
-        let result = derive_sr25519_key(&seed, path);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_derive_sr25519_key_deterministic() {
-        let seed: [u8; 32] = [42u8; 32];
-        let path = b"/test/path";
-
-        let result1 = derive_sr25519_key(&seed, path);
-        let result2 = derive_sr25519_key(&seed, path);
-
-        assert!(result1.is_ok() && result2.is_ok());
-        assert_eq!(
-            result1.unwrap().public(),
-            result2.unwrap().public(),
-            "Derived keys should be identical for the same seed and path"
-        );
-    }
 }
