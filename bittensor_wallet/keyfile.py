@@ -38,6 +38,7 @@ from substrateinterface import Keypair
 from substrateinterface.utils.ss58 import ss58_encode
 from termcolor import colored
 
+import btwallet
 from .errors import KeyFileError
 from .utils import SS58_FORMAT
 
@@ -73,6 +74,33 @@ def serialized_keypair_to_keyfile_data(keypair: "Keypair") -> bytes:
     data = json.dumps(json_data).encode()
     return data
 
+def deserialize_keypair_from_keyfile_data_with_rust(keyfile_dict: dict) -> "Keypair":
+    """Deserializes Keypair object from passed keyfile data.
+
+    Args:
+        keyfile_data (dict): The keyfile data as dict to be loaded.
+    Returns:
+        keypair (Keypair): The Keypair loaded from bytes.
+    """
+    if "secretSeed" in keyfile_dict and keyfile_dict["secretSeed"] is not None:
+        return Keypair.create_from_seed(keyfile_dict["secretSeed"])
+
+    elif "secretPhrase" in keyfile_dict and keyfile_dict["secretPhrase"] is not None:
+        return Keypair.create_from_mnemonic(mnemonic=keyfile_dict["secretPhrase"])
+
+    elif keyfile_dict.get("private_key", None) is not None:
+        # May have the above dict keys also, but we want to preserve the first two
+        return Keypair.create_from_private_key(
+            keyfile_dict["private_key"], ss58_format=SS58_FORMAT
+        )
+
+    if "ss58_address" in keyfile_dict and keyfile_dict["ss58_address"] is not None:
+        return Keypair(ss58_address=keyfile_dict["ss58_address"])
+
+    else:
+        raise KeyFileError(
+            "Keypair could not be created from keyfile data: {}".format(keyfile_dict)
+        )
 
 def deserialize_keypair_from_keyfile_data(keyfile_data: bytes) -> "Keypair":
     """Deserializes Keypair object from passed keyfile data.
@@ -356,13 +384,39 @@ def decrypt_keyfile_data(
         decrypted_keyfile_data = json.dumps(decrypted_keyfile_data).encode()
     return decrypted_keyfile_data
 
+class KeyfileRust:
+    def __init__(self, name: str):
+        self.name = name
+        self.coldkey = None
+        self.hotkey = None
+        self.coldkey_pub = None 
+
+    def get_keypair_with_rust(self, password: Optional[str] = None, key_type: str = "coldkey") -> "Keypair":
+        """Returns the keypair from the path, decrypts data if the file is encrypted.
+
+        Args:
+            password (str, optional): The password used to decrypt the file. If ``None``, asks for user input.
+        Returns:
+            keypair (Keypair): The keypair stored under the path.
+        """
+        if key_type == "coldkey":
+            keypair_dict = btwallet.load_coldkey_keypair(self.name, password)
+            return deserialize_keypair_from_keyfile_data_with_rust(keypair_dict)
+        elif key_type == "hotkey":
+            hotkey_dict = btwallet.load_hotkey_keypair(self.name)
+            return deserialize_keypair_from_keyfile_data_with_rust(hotkey_dict)
+        elif key_type == "coldkey_pub":
+            coldkey_pub_dict = btwallet.load_coldkey_pubkey(self.name)
+            return deserialize_keypair_from_keyfile_data_with_rust(coldkey_pub_dict)
+    
 
 class Keyfile:
     """Defines an interface for a substrate interface keypair stored on device."""
 
-    def __init__(self, path: str):
+    def __init__(self, path: str, name: str):
         self.path = os.path.expanduser(path)
         self.name = Path(self.path).parent.stem
+        self._name = name
 
     def __str__(self):
         if not self.exists_on_device():
@@ -433,6 +487,7 @@ class Keyfile:
         if encrypt:
             keyfile_data = encrypt_keyfile_data(keyfile_data, password)
         self._write_keyfile_data_to_file(keyfile_data, overwrite=overwrite)
+        
 
     def get_keypair(self, password: Optional[str] = None) -> "Keypair":
         """Returns the keypair from the path, decrypts data if the file is encrypted.

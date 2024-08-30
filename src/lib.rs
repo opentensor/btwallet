@@ -164,7 +164,7 @@ fn btwallet(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(create_coldkey_pub_pair, m)?)?;
     m.add_function(wrap_pyfunction!(load_coldkey_pubkey, m)?)?;
     m.add_class::<Keyfile>()?;
-    m.add_class::<Wallet>()?;
+    // m.add_class::<Wallet>()?;
 
     Ok(())
 }

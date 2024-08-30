@@ -306,15 +306,12 @@ pub fn load_keypair(
 
     // Convert the private key to a hex string and then decode it
     let private_key_hex = hex::encode(&private_key);
-    let seed = hex::decode(private_key_hex)?;
-
-    // Validate the seed length
-    if seed.len() != 64 {
-        return Err("Invalid private key length".into());
-    }
 
     // Use the first 32 bytes of the private key as the seed
-    let seed = &seed[0..32];
+    let mnemonic =  Mnemonic::parse_in_normalized(Language::English, &keypair.mnemonic.unwrap());
+    let seed: [u8; 32] = mnemonic?.to_seed("")[..32]
+        .try_into()
+        .expect("Failed to create seed");
 
     // Final validation of the seed length
     if seed.len() != 32 {
