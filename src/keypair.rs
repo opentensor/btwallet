@@ -23,6 +23,9 @@ use std::path::Path;
 use std::path::PathBuf;
 use thiserror::Error;
 
+use libsodium_sys as sodium;
+
+use secrets::{SecretBox, SecretVec};
 const NACL_SALT: &[u8; 16] = b"\x13q\x83\xdf\xf1Z\t\xbc\x9c\x90\xb5Q\x879\xe9\xb1";
 const KEY_SIZE: usize = 32;
 const NONCE_SIZE: usize = 12;
@@ -300,15 +303,15 @@ pub fn load_keypair(
     let keypair = load_keypair_dict(name, key_type, password)?;
 
     // Extract the private key
-    let private_key = keypair
-        .private_key
-        .ok_or("Private key not found in keyfile data")?;
+    // let private_key = keypair
+    //     .private_key
+    //     .ok_or("Private key not found in keyfile data")?;
 
     // Convert the private key to a hex string and then decode it
-    let private_key_hex = hex::encode(&private_key);
+    // let private_key_hex = hex::encode(&private_key);
 
     // Use the first 32 bytes of the private key as the seed
-    let mnemonic =  Mnemonic::parse_in_normalized(Language::English, &keypair.mnemonic.unwrap());
+    let mnemonic = Mnemonic::parse_in_normalized(Language::English, &keypair.mnemonic.unwrap());
     let seed: [u8; 32] = mnemonic?.to_seed("")[..32]
         .try_into()
         .expect("Failed to create seed");
@@ -698,8 +701,8 @@ fn encrypt_keyfile_data(keyfile_data: Vec<u8>, password: &str) -> Result<Vec<u8>
     // Hash the password to derive the key
     let password_hash = argon2.hash_password(password, &salt)?;
     let hash = password_hash.hash.ok_or("Failed to generate hash")?;
-    let key = hash.as_bytes();
-    // Ensure the key is the correct length
+    let key = hash.as_bytes(); // gus go here
+                               // Ensure the key is the correct length
     if key.len() != KEY_SIZE {
         return Err("Invalid key length".into());
     }
@@ -725,4 +728,97 @@ fn encrypt_keyfile_data(keyfile_data: Vec<u8>, password: &str) -> Result<Vec<u8>
     result.extend_from_slice(&in_out);
 
     Ok(result)
+}
+
+// The purpose of SecretBox from the secrets crate is primarily for secure memory management of sensitive data, not for encryption and decryption operations as we might assume from its name. Let's break down its main features and use cases:
+
+// Secure Memory Allocation:
+// SecretBox allocates memory in a way that tries to prevent the secret data from being written to disk (e.g., in swap files or core dumps).
+// Memory Protection:
+// It uses operating system features (like mprotect on Unix systems) to protect the memory pages containing the secret data. This can help prevent other processes from reading this memory.
+// Zeroing Memory:
+// When the SecretBox is dropped (goes out of scope), it ensures that the memory is overwritten with zeros before being deallocated. This helps prevent secrets from lingering in memory.
+// Controlled Access:
+// SecretBox provides methods like borrow() and borrow_mut() that give controlled access to the secret data. When these borrows go out of scope, the memory is re-protected.
+// Prevention of Accidental Exposure:
+// By wrapping secret data in a SecretBox, you make it less likely to accidentally log or print the secret, as it doesn't implement common traits like Debug or Display.
+
+
+use ring::aead::NONCE_LEN;
+use ring::rand::{SecureRandom, SystemRandom};
+fn secret_box_demo(
+    password: &str,
+    plaintext: &[u8],
+) -> Result<(Vec<u8>, SaltString), Box<dyn Error>> {
+    use ring::aead::BoundKey;
+    use ring::aead::SealingKey;
+    use ring::aead::AES_256_GCM;
+
+    let salt = SaltString::generate(&mut OsRng);
+
+    // Derive key using Argon2
+    let argon2 = Argon2::default();
+    let password_hash = argon2.hash_password(password.as_bytes(), &salt)?;
+    let key_bytes = password_hash.hash.unwrap();
+
+    // Store the derived key securely in a SecretBox
+    let secret_key = SecretBox::<[u8; 32]>::new(|key| {
+        key.copy_from_slice(&key_bytes.as_bytes()[..32]);
+    });
+
+    // Generate a random nonce
+    let mut nonce_bytes = [0u8; NONCE_LEN];
+    SystemRandom::new()
+        .fill(&mut nonce_bytes)
+        .map_err(|e| format!("Failed to generate nonce: {:?}", e))?;
+
+    // Create an AES-256-GCM SealingKey
+    // Step 1: Borrow the secret key from the SecretBox
+    let mut sealing_key = {
+        let key_bytes = secret_key.borrow();
+
+        // Step 2: Convert the borrowed key to a slice
+        let key_slice: &[u8] = key_bytes.as_ref();
+
+        // Step 3: Create an UnboundKey using AES-256-GCM and the key slice
+        let unbound_key = UnboundKey::new(&AES_256_GCM, key_slice)
+            .map_err(|e| format!("Invalid key: {:?}", e))?;
+
+        // Step 4: Create a SealingKey using the UnboundKey and a OneNonceSequence
+        SealingKey::new(unbound_key, OneNonceSequence::new(nonce_bytes))
+    };
+
+    // Encrypt the plaintext
+    let mut in_out = plaintext.to_vec();
+    let tag = sealing_key
+        .seal_in_place_separate_tag(Aad::empty(), &mut in_out)
+        .map_err(|e| format!("Encryption failed: {:?}", e))?;
+
+    // Combine nonce, ciphertext, and tag
+    let mut ciphertext = nonce_bytes.to_vec();
+    ciphertext.extend_from_slice(&in_out);
+    ciphertext.extend_from_slice(tag.as_ref());
+
+    Ok((ciphertext, salt))
+}
+
+
+pub fn demo_secret_box() {
+    let (ciphertext, salt) = secret_box_demo("password", b"plaintext").unwrap();
+    println!("Ciphertext: {:?}", ciphertext);
+    println!("Salt: {:?}", salt);
+}
+// Custom NonceSequence implementation for a single use
+struct OneNonceSequence(Option<Nonce>);
+
+impl OneNonceSequence {
+    fn new(nonce: [u8; NONCE_LEN]) -> Self {
+        OneNonceSequence(Some(Nonce::assume_unique_for_key(nonce)))
+    }
+}
+
+impl ring::aead::NonceSequence for OneNonceSequence {
+    fn advance(&mut self) -> Result<Nonce, ring::error::Unspecified> {
+        self.0.take().ok_or(ring::error::Unspecified)
+    }
 }

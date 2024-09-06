@@ -4,7 +4,7 @@ mod keypair;
 mod wallet;
 use crate::keypair::*;
 use sp_core::Pair;
-use wallet::{Keyfile, Wallet};
+use wallet::Keyfile;
 
 #[pyfunction]
 fn create_hotkey_pair(num_words: u32, name: &str) -> PyResult<PyObject> {
@@ -99,7 +99,6 @@ fn load_coldkey_keypair(name: &str, password: Option<&str>) -> PyResult<PyObject
         keypair_dict.set_item("ss58_address", keypair.ss58_address)?;
         Ok(keypair_dict.to_object(py))
     })
-
 }
 
 #[pyfunction]
@@ -152,6 +151,12 @@ fn sign_message(message: &[u8], hotkey_name: &str) -> PyResult<String> {
     Ok(hex::encode(signature))
 }
 
+#[pyfunction]
+fn py_demo_secret_box() -> PyResult<()> {
+    let _ = demo_secret_box();
+    Ok(())
+}
+
 /// A Python module implemented in Rust.
 #[pymodule]
 fn btwallet(m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -163,6 +168,7 @@ fn btwallet(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(create_coldkey_pair, m)?)?;
     m.add_function(wrap_pyfunction!(create_coldkey_pub_pair, m)?)?;
     m.add_function(wrap_pyfunction!(load_coldkey_pubkey, m)?)?;
+    m.add_function(wrap_pyfunction!(py_demo_secret_box, m)?)?;
     m.add_class::<Keyfile>()?;
     // m.add_class::<Wallet>()?;
 
