@@ -440,6 +440,7 @@ class Wallet:
                 self._hotkey = self.hotkey_file.keypair
             except KeyFileError as error:
                 print(f"KeyFileError: {error.args[0] if error.args else str(error)}.")
+                raise
         return self._hotkey
 
     @property
@@ -458,6 +459,7 @@ class Wallet:
                 self._coldkey = self.coldkey_file.keypair
             except Exception as error:
                 print(f"Error: {error.args[0] if error.args else str(error)}.")
+                raise KeyFileError
 
         return self._coldkey
 
@@ -477,6 +479,7 @@ class Wallet:
                 self._coldkeypub = self.coldkeypub_file.keypair
             except KeyFileError as error:
                 print(f"KeyFileError: {error.args[0] if error.args else str(error)}.")
+                raise
         return self._coldkeypub
 
     def create_coldkey_from_uri(
