@@ -23,7 +23,6 @@ import stat
 from pathlib import Path
 from typing import Optional
 
-from ansible.parsing.vault import AnsibleVaultError
 from ansible_vault import Vault
 from cryptography.exceptions import InvalidSignature, InvalidKey
 from cryptography.fernet import Fernet, InvalidToken
@@ -351,7 +350,7 @@ def decrypt_keyfile_data(
                 else:
                     raise KeyFileError(f"keyfile data: {str(keyfile_data)} is corrupt")
 
-        except (InvalidSignature, InvalidKey, InvalidToken, AnsibleVaultError):
+        except (InvalidSignature, InvalidKey, InvalidToken):
             console.print("Wrong password, try again")
             password = None
 

@@ -3,7 +3,6 @@ eth-utils<2.3.0
 substrate-interface~=1.7.9
 password_strength
 cryptography~=43.0.1
-ansible~=8.5.0
 ansible_vault~=2.1
 munch~=2.5.0
 rich
