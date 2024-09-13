@@ -23,8 +23,7 @@ use std::path::Path;
 use std::path::PathBuf;
 use thiserror::Error;
 
-use libsodium_sys as sodium;
-
+use base64;
 use secrets::{SecretBox, SecretVec};
 const NACL_SALT: &[u8; 16] = b"\x13q\x83\xdf\xf1Z\t\xbc\x9c\x90\xb5Q\x879\xe9\xb1";
 const KEY_SIZE: usize = 32;
@@ -44,192 +43,51 @@ pub enum KeyFileError {
 #[derive(Debug)]
 pub struct Keypair {
     pub public_key: Option<Vec<u8>>,
-    pub private_key: Option<Vec<u8>>,
-    pub mnemonic: Option<String>,
-    pub seed_hex: Option<Vec<u8>>,
     pub ss58_address: Option<String>,
 }
 
-/// Serializes a Keypair struct into a JSON-formatted byte vector.
-///
-/// This function takes a reference to a Keypair struct and converts it into a JSON object,
-/// which is then serialized into a byte vector. The resulting data is suitable for writing
-/// to a keyfile.
-///
-/// # Arguments
-///
-/// * `keypair` - A reference to the Keypair struct to be serialized.
-///
-/// # Returns
-///
-/// * `Vec<u8>` - A byte vector containing the JSON-formatted keyfile data.
-///
-/// # Panics
-///
-/// This function will panic if the JSON serialization fails. In practice, this should not
-/// occur unless there's a fundamental issue with the data or the serialization process.
-///
-/// # Examples
-///
-/// ```
-/// let keypair = Keypair {
-///     public_key: Some(vec![1, 2, 3, 4]),
-///     private_key: Some(vec![5, 6, 7, 8]),
-///     mnemonic: Some("example mnemonic".to_string()),
-///     seed_hex: Some(vec![9, 10, 11, 12]),
-///     ss58_address: Some("exampleAddress".to_string()),
-/// };
-/// let keyfile_data = serialized_keypair_to_keyfile_data(&keypair);
-/// ```
-fn serialized_keypair_to_keyfile_data(keypair: &Keypair) -> Vec<u8> {
-    let json_data = json!({
-        "accountId": keypair.public_key.as_ref().map(|pk| format!("{}", hex::encode(pk))),
-        "publicKey": keypair.public_key.as_ref().map(|pk| format!("{}", hex::encode(pk))),
-        "privateKey": keypair.private_key.as_ref().map(|pk| format!("{}", hex::encode(pk))),
-        "secretPhrase": keypair.mnemonic.clone(),
-        "secretSeed": keypair.seed_hex.as_ref().map(|seed| format!("{}", hex::encode(seed))),
-        "ss58Address": keypair.ss58_address.clone(),
-    });
+impl Keypair {
 
-    serde_json::to_vec(&json_data).unwrap()
+    pub fn from_mnemonic(&self, mnemonic: &str) -> sr25519::Pair {
+        let mnemonic = Mnemonic::parse_in_normalized(Language::English, mnemonic)
+            .expect("Failed to parse mnemonic");
+        let seed = mnemonic.to_seed("");
+        let keypair = sr25519::Pair::from_seed_slice(&seed[..32])
+            .expect("Failed to create keypair from seed");
+        keypair
+    }
+    pub fn from_seed(&self, seed: &[u8]) -> sr25519::Pair {
+        let keypair = sr25519::Pair::from_seed_slice(seed)
+            .expect("Failed to create keypair from seed");
+        keypair
+    }
+
+    pub fn to_keyfile_data(&self) -> Vec<u8> {
+        let json_data = json!({
+            "accountId": self.public_key.as_ref().map(|pk| format!("{}", hex::encode(pk))),
+            "publicKey": self.public_key.as_ref().map(|pk| format!("{}", hex::encode(pk))),
+            "ss58Address": self.ss58_address.clone(),
+        });
+
+        serde_json::to_vec(&json_data).unwrap()
+    }
+
+    pub fn deserialize_from_keyfile_data(keyfile_data: &[u8]) -> Result<Self, serde_json::Error> {
+        let json_data: serde_json::Value = serde_json::from_slice(keyfile_data)?;
+
+        Ok(Self {
+            public_key: json_data["publicKey"]
+                .as_str()
+                .and_then(|s| hex::decode(s).ok()),
+
+            ss58_address: json_data["ss58Address"].as_str().map(String::from),
+        })
+    }
 }
 
-/// Deserializes keyfile data into a Keypair struct.
-///
-/// This function takes a byte slice containing JSON-formatted keyfile data and
-/// attempts to deserialize it into a Keypair struct.
-///
-/// # Arguments
-///
-/// * `keyfile_data` - A byte slice containing the JSON-formatted keyfile data.
-///
-/// # Returns
-///
-/// * `Result<Keypair, serde_json::Error>` - A Result containing either:
-///   - `Ok(Keypair)`: A successfully deserialized Keypair struct.
-///   - `Err(serde_json::Error)`: An error if deserialization fails.
-///
-/// # Examples
-///
-/// ```
-/// let keyfile_data = r#"{"publicKey":"0123...", "privateKey":"abcd...", ...}"#.as_bytes();
-/// match deserialize_keyfile_data_to_keypair(keyfile_data) {
-///     Ok(keypair) => println!("Deserialized keypair: {:?}", keypair),
-///     Err(e) => eprintln!("Failed to deserialize: {}", e),
-/// }
-/// ```
-pub fn deserialize_keyfile_data_to_keypair(
-    keyfile_data: &[u8],
-) -> Result<Keypair, serde_json::Error> {
-    let json_data: serde_json::Value = serde_json::from_slice(keyfile_data)?;
 
-    Ok(Keypair {
-        public_key: json_data["publicKey"]
-            .as_str()
-            .and_then(|s| hex::decode(s).ok()),
-        private_key: json_data["privateKey"]
-            .as_str()
-            .and_then(|s| hex::decode(s).ok()),
-        mnemonic: json_data["secretPhrase"].as_str().map(String::from),
-        seed_hex: json_data["secretSeed"]
-            .as_str()
-            .and_then(|s| hex::decode(s).ok()),
-        ss58_address: json_data["ss58Address"].as_str().map(String::from),
-    })
-}
 
-/// Constructs the file path for a hotkey within a wallet.
-///
-/// This function takes a base path and a name, expands any tilde in the path,
-/// and constructs a `PathBuf` representing the location of a hotkey file
-/// within the wallet's directory structure.
-///
-/// # Arguments
-///
-/// * `path` - A string slice representing the base path of the wallet.
-/// * `name` - A string slice representing the name of the wallet and hotkey.
-///
-/// # Returns
-///
-/// * `PathBuf` - The constructed path to the hotkey file.
-///
-/// # Examples
-///
-/// ```
-/// let path = "~/wallets";
-/// let name = "my_wallet";
-/// let hotkey_path = hotkey_file(path, name);
-/// assert_eq!(hotkey_path, PathBuf::from("/home/user/wallets/my_wallet/hotkeys/my_wallet"));
-/// ```
-fn hotkey_file(path: &str, name: &str) -> PathBuf {
-    let wallet_path = PathBuf::from(shellexpand::tilde(path).into_owned()).join(name);
-    wallet_path.join("hotkeys").join(name)
-}
 
-/// Constructs the file path for a coldkey public key within a wallet.
-///
-/// This function takes a base path and a name, expands any tilde in the path,
-/// and constructs a `PathBuf` representing the location of a coldkey public key file
-/// within the wallet's directory structure.
-///
-/// # Arguments
-///
-/// * `path` - A string slice representing the base path of the wallet.
-/// * `name` - A string slice representing the name of the wallet.
-///
-/// # Returns
-///
-/// * `PathBuf` - The constructed path to the coldkey public key file.
-///
-/// # Examples
-///
-/// ```
-/// let path = "~/wallets";
-/// let name = "my_wallet";
-/// let coldkeypub_path = coldkey_pub_file(path, name);
-/// assert_eq!(coldkeypub_path, PathBuf::from("/home/user/wallets/my_wallet/coldkeypub.txt"));
-/// ```
-fn coldkey_pub_file(path: &str, name: &str) -> PathBuf {
-    let wallet_path = PathBuf::from(shellexpand::tilde(path).into_owned()).join(name);
-    wallet_path.join("coldkeypub.txt")
-}
-
-fn coldkey_file(path: &str, name: &str) -> PathBuf {
-    let wallet_path = PathBuf::from(shellexpand::tilde(path).into_owned()).join(name);
-    wallet_path.join("coldkey")
-}
-/// Writes keyfile data to a file with specific permissions.
-///
-/// This function writes the provided keyfile data to a file at the specified path.
-/// It can optionally overwrite an existing file and sets the file permissions to be
-/// readable and writable only by the owner.
-///
-/// # Arguments
-///
-/// * `path` - A reference to a `Path` where the keyfile should be written.
-/// * `keyfile_data` - A `Vec<u8>` containing the data to be written to the file.
-/// * `overwrite` - A boolean flag indicating whether to overwrite an existing file.
-///
-/// # Returns
-///
-/// * `Result<(), KeyFileError>` - Ok(()) if the operation is successful, or an error of type `KeyFileError`.
-///
-/// # Errors
-///
-/// This function will return an error if:
-/// - The file already exists and `overwrite` is set to `false`.
-/// - There are issues opening, writing to, or setting permissions on the file.
-///
-/// # Examples
-///
-/// ```
-/// use std::path::Path;
-/// use your_crate::keypair::write_keyfile_data_to_file;
-///
-/// let path = Path::new("/path/to/keyfile");
-/// let data = vec![1, 2, 3, 4, 5];
-/// let result = write_keyfile_data_to_file(path, data, true);
-/// ```
 pub fn write_keyfile_data_to_file(
     path: &Path,
     keyfile_data: Vec<u8>,
@@ -266,9 +124,9 @@ pub fn load_keypair_dict(
     let keyfile_data = get_keypair_from_file(name, key_type)?;
     let keypair = if let Some(pass) = password {
         let decrypted_data = decrypt_keyfile_data(&keyfile_data, pass)?;
-        deserialize_keyfile_data_to_keypair(&decrypted_data)?
+        Keypair::deserialize_from_keyfile_data(&decrypted_data)?
     } else {
-        deserialize_keyfile_data_to_keypair(&keyfile_data)?
+        Keypair::deserialize_from_keyfile_data(&keyfile_data)?
     };
 
     Ok(keypair)
@@ -298,6 +156,7 @@ pub fn load_keypair(
     name: &str,
     key_type: &str,
     password: Option<&str>,
+    mnemonic: Option<&str>,
 ) -> Result<sr25519::Pair, Box<dyn std::error::Error>> {
     // Load and deserialize the keyfile data
     let keypair = load_keypair_dict(name, key_type, password)?;
@@ -309,10 +168,11 @@ pub fn load_keypair(
 
     // Convert the private key to a hex string and then decode it
     // let private_key_hex = hex::encode(&private_key);
-
+    let mnemonic = Mnemonic::parse_in_normalized(Language::English, &mnemonic.unwrap())
+        .expect("Failed to parse mnemonic");
     // Use the first 32 bytes of the private key as the seed
-    let mnemonic = Mnemonic::parse_in_normalized(Language::English, &keypair.mnemonic.unwrap());
-    let seed: [u8; 32] = mnemonic?.to_seed("")[..32]
+    let seed: [u8; 32] = mnemonic.to_seed("")
+        .as_slice()[..32]
         .try_into()
         .expect("Failed to create seed");
 
@@ -513,9 +373,6 @@ pub fn save_keypair(
 ) -> Keypair {
     let keypair = Keypair {
         public_key: Some(key_pair.public().to_vec()),
-        private_key: Some(key_pair.to_raw_vec()),
-        mnemonic: Some(mnemonic.to_string()),
-        seed_hex: Some(seed.to_vec()),
         ss58_address: Some(key_pair.public().to_ss58check()),
     };
     let path = BT_WALLET_PATH;
@@ -536,14 +393,14 @@ pub fn save_keypair(
     let password = password.unwrap_or_else(|| "".to_string());
     if !password.is_empty() {
         let encrypted_data =
-            encrypt_keyfile_data(serialized_keypair_to_keyfile_data(&keypair), &password)
+            encrypt_keyfile_data(keypair.to_keyfile_data(), &password)
                 .expect("Failed to encrypt keyfile");
         write_keyfile_data_to_file(&key_path, encrypted_data, false)
             .expect("Failed to write encrypted keyfile");
     } else {
         write_keyfile_data_to_file(
             &key_path,
-            serialized_keypair_to_keyfile_data(&keypair),
+            keypair.to_keyfile_data(),
             false,
         )
         .expect("Failed to write keyfile");
@@ -746,7 +603,7 @@ fn encrypt_keyfile_data(keyfile_data: Vec<u8>, password: &str) -> Result<Vec<u8>
 
 use ring::aead::NONCE_LEN;
 use ring::rand::{SecureRandom, SystemRandom};
-fn secret_box_demo(
+fn secret_box_encrypt_demo(
     password: &str,
     plaintext: &[u8],
 ) -> Result<(Vec<u8>, SaltString), Box<dyn Error>> {
@@ -802,12 +659,105 @@ fn secret_box_demo(
     Ok((ciphertext, salt))
 }
 
+fn secret_box_decrypt_demo(
+    password: &str,
+    ciphertext: &[u8],
+    salt: &SaltString,
+) -> Result<Vec<u8>, Box<dyn Error>> {
+    use ring::aead::{BoundKey, OpeningKey, AES_256_GCM, NONCE_LEN};
+    
+    println!("Starting decryption process");
+
+    // Derive key using Argon2
+    let argon2 = Argon2::default();
+    let password_hash = argon2.hash_password(password.as_bytes(), salt)
+        .map_err(|e| format!("Failed to hash password: {:?}", e))?;
+    let key_bytes = password_hash.hash.ok_or("Failed to get hash bytes")?;
+
+    println!("Key derived successfully");
+
+    // Store the derived key securely in a SecretBox
+    let secret_key = SecretBox::<[u8; 32]>::new(|key| {
+        key.copy_from_slice(&key_bytes.as_bytes()[..32]);
+    });
+
+    // Extract nonce from ciphertext
+    let nonce_bytes: [u8; NONCE_LEN] = ciphertext.get(..NONCE_LEN)
+        .ok_or("Ciphertext too short for nonce")?
+        .try_into()
+        .map_err(|_| "Failed to extract nonce")?;
+
+    println!("Nonce extracted successfully");
+
+    // Create an AES-256-GCM OpeningKey
+    let mut opening_key = {
+        let key_bytes = secret_key.borrow();
+        let key_slice: &[u8] = key_bytes.as_ref();
+        let unbound_key = UnboundKey::new(&AES_256_GCM, key_slice)
+            .map_err(|e| format!("Invalid key: {:?}", e))?;
+        OpeningKey::new(unbound_key, OneNonceSequence::new(nonce_bytes))
+    };
+
+    println!("OpeningKey created successfully");
+
+    // Separate ciphertext and tag
+    let tag_start = ciphertext.len().checked_sub(AES_256_GCM.tag_len())
+        .ok_or("Ciphertext too short for tag")?;
+    let mut in_out = ciphertext.get(NONCE_LEN..tag_start)
+        .ok_or("Invalid ciphertext length")?
+        .to_vec();
+    let tag = ciphertext.get(tag_start..)
+        .ok_or("Failed to extract tag")?
+        .to_vec();
+
+    println!("Ciphertext and tag separated successfully");
+    println!("in_out length: {}", in_out.len());
+    println!("tag length: {}", tag.len());
+
+    // Decrypt the ciphertext
+    match opening_key.open_in_place(Aad::empty(), &mut in_out) {
+        Ok(_) => {
+            println!("Decryption successful");
+            println!("Decrypted data: {:?}", in_out);
+            Ok(in_out)
+        },
+        Err(e) => {
+            println!("Decryption failed with error: {:?}", e);
+            Err(format!("Decryption failed: {:?}", e).into())
+        }
+    }
+}
+
+pub fn secret_box_encrypt_decrypt_demo(password: &str, plaintext: &str) -> Result<(), Box<dyn Error>> {
+    println!("Original plaintext: {}", plaintext);
+
+    // Encrypt the plaintext
+    let (ciphertext, salt) = secret_box_encrypt_demo(password, plaintext.as_bytes())?;
+    println!("Encrypted ciphertext (base64): {}", base64::encode(&ciphertext));
+    println!("Salt (base64): {}", salt.as_str());
+
+    // Decrypt the ciphertext
+    let decrypted = secret_box_decrypt_demo(password, &ciphertext, &salt)?;
+    let decrypted_text = String::from_utf8(decrypted)?;
+    println!("Decrypted text: {}", decrypted_text);
+
+    // Verify that the decrypted text matches the original plaintext
+    assert_eq!(plaintext, decrypted_text, "Decrypted text does not match original plaintext");
+    println!("Encryption and decryption successful!");
+
+    Ok(())
+}
 
 pub fn demo_secret_box() {
-    let (ciphertext, salt) = secret_box_demo("password", b"plaintext").unwrap();
-    println!("Ciphertext: {:?}", ciphertext);
-    println!("Salt: {:?}", salt);
+    let password = "my_secure_password";
+    let plaintext = "This is a secret message";
+
+    match secret_box_encrypt_decrypt_demo(password, plaintext) {
+        Ok(_) => println!("Demo completed successfully"),
+        Err(e) => eprintln!("Error during demo: {}", e),
+    }
 }
+
 // Custom NonceSequence implementation for a single use
 struct OneNonceSequence(Option<Nonce>);
 
