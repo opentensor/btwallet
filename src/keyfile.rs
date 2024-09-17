@@ -1,19 +1,47 @@
+use crate::keypair::{load_keypair, Pair};
 use pyo3::prelude::*;
-use std::path::PathBuf;
 use shellexpand;
-use crate::keypair::{Pair, load_keypair};
-#[pyclass]
+use std::path::PathBuf;
+
 pub struct Keyfile {
     name: String,
     path: PathBuf,
     password: Option<String>,
-    mnemonic: Option<String>
+    mnemonic: Option<String>,
 }
 
+#[derive(Debug)]
+pub enum KeyfileType {
+    Hotkey,
+    Coldkey,
+    Coldkeypub,
+}
 
 impl Keyfile {
-    pub fn new(name: String, path: PathBuf, password: Option<String>, mnemonic: Option<String>) -> Self {
-        Keyfile { name, path, password, mnemonic }
+    /// Creates a new Keyfile instance.
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - The name of the keyfile.
+    /// * `path` - The path to the keyfile.
+    /// * `password` - An optional password for the keyfile.
+    /// * `mnemonic` - An optional mnemonic phrase for the keyfile.
+    ///
+    /// # Returns
+    ///
+    /// A new `Keyfile` instance.
+    pub fn new(
+        name: String,
+        path: PathBuf,
+        password: Option<String>,
+        mnemonic: Option<String>,
+    ) -> Self {
+        Keyfile {
+            name,
+            path,
+            password,
+            mnemonic,
+        }
     }
 
     fn path(&self) -> PyResult<String> {
@@ -38,17 +66,27 @@ impl Keyfile {
         keypair
     }
 
-    fn coldkey_pub_file(&self) -> PathBuf {
-        let wallet_path = PathBuf::from(shellexpand::tilde(&self.path.to_string_lossy().into_owned()).into_owned()).join("coldkeypub.txt");
+    pub fn coldkey_pub_file(&self) -> PathBuf {
+        let wallet_path = PathBuf::from(
+            shellexpand::tilde(&self.path.to_string_lossy().into_owned()).into_owned(),
+        )
+        .join("coldkeypub.txt");
         wallet_path
     }
-    fn hotkey_file(&self) -> PathBuf {
-        let wallet_path = PathBuf::from(shellexpand::tilde(&self.path.to_string_lossy().into_owned()).into_owned()).join("hotkeys").join("hotkey");
+    pub fn hotkey_file(&self) -> PathBuf {
+        let wallet_path = PathBuf::from(
+            shellexpand::tilde(&self.path.to_string_lossy().into_owned()).into_owned(),
+        )
+        .join("hotkeys")
+        .join("hotkey");
         wallet_path
     }
-    
-    fn coldkey_file(&self) -> PathBuf {
-        let wallet_path = PathBuf::from(shellexpand::tilde(&self.path.to_string_lossy().into_owned()).into_owned()).join("coldkey");
+
+    pub fn coldkey_file(&self) -> PathBuf {
+        let wallet_path = PathBuf::from(
+            shellexpand::tilde(&self.path.to_string_lossy().into_owned()).into_owned(),
+        )
+        .join("coldkey");
         wallet_path
-    }    
+    }
 }
