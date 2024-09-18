@@ -4,64 +4,16 @@ use pyo3::prelude::*;
 use pyo3::exceptions::PyException;
 use serde::{Deserialize, Serialize};
 use std::fmt;
+use std::string::ToString;
 use pyo3::create_exception;
 use crate::keypair::Keypair;
 
 
 const BT_WALLET_NAME: &str = "default";
+const BT_WALLET_HOTKEY: &str = "default";
 pub const BT_WALLET_PATH: &str = "~/.bittensor/wallets/";
 
-#[pyclass]
-pub struct Keyfile {
-    path: PathBuf,
-}
 
-#[pymethods]
-impl Keyfile {
-    #[new]
-    fn new(path: PathBuf) -> Self {
-        Keyfile { path }
-    }
-
-    #[getter]
-    fn path(&self) -> PyResult<String> {
-        Ok(self.path.to_string_lossy().into_owned())
-    }
-}
-
-#[derive(Debug)]
-pub enum WalletError {
-    KeyError(String),
-    ConfigError(String),
-    IOError(String),
-}
-
-impl fmt::Display for WalletError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            WalletError::KeyError(msg) => write!(f, "Key Error: {}", msg),
-            WalletError::ConfigError(msg) => write!(f, "Config Error: {}", msg),
-            WalletError::IOError(msg) => write!(f, "IO Error: {}", msg),
-        }
-    }
-}
-
-impl std::error::Error for WalletError {}
-
-create_exception!(wallet, WalletException, PyException);
-
-
-#[derive(Clone, Serialize, Deserialize)]
-pub struct Config {
-    pub wallet: WalletConfig,
-}
-
-#[derive(Clone, Serialize, Deserialize)]
-pub struct WalletConfig {
-    pub name: String,
-    pub hotkey: String,
-    pub path: String,
-}
 #[pyclass]
 pub struct Wallet {
     config: Config,
@@ -210,9 +162,7 @@ impl Wallet {
     fn path(&self) -> PyResult<String> {
         Ok(self.path.to_string_lossy().into_owned())
     }
-}
 
-impl Wallet {
     pub fn default_config() -> Config {
         Config {
             wallet: WalletConfig {

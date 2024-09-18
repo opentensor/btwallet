@@ -2,6 +2,10 @@ use pyo3::prelude::*;
 
 mod keypair;
 mod wallet;
+mod config;
+mod errors;
+mod keyfile;
+
 use crate::keypair::*;
 use sp_core::Pair;
 use wallet::Keyfile;
@@ -169,18 +173,6 @@ fn py_demo_secret_box() -> PyResult<()> {
 /// A Python module implemented in Rust.
 #[pymodule]
 fn btwallet(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(create_hotkey_pair, m)?)?;
-    m.add_function(wrap_pyfunction!(load_hotkey_keypair, m)?)?;
-    m.add_function(wrap_pyfunction!(load_coldkey_keypair, m)?)?;
-    m.add_function(wrap_pyfunction!(sign_message, m)?)?;
-    m.add_function(wrap_pyfunction!(verify_signature, m)?)?;
-    m.add_function(wrap_pyfunction!(create_coldkey_pair, m)?)?;
-    m.add_function(wrap_pyfunction!(create_coldkey_pub_pair, m)?)?;
-    m.add_function(wrap_pyfunction!(load_coldkey_pubkey, m)?)?;
-    m.add_function(wrap_pyfunction!(py_demo_secret_box, m)?)?;
-    m.add_function(wrap_pyfunction!(create_wallet, m)?)?;
-    m.add_class::<Keyfile>()?;
     m.add_class::<Wallet>()?;
-
     Ok(())
 }

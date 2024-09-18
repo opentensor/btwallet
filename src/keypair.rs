@@ -57,7 +57,7 @@ pub struct Keypair {
 impl Keypair {
     #[new]
     pub fn new() -> Self {
-        Keypair
+        Keypair {}
     }
 }
 
@@ -71,6 +71,7 @@ impl fmt::Display for Keypair {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Keypair")
     }
+}
 
 /// Serializes a Keypair struct into a JSON-formatted byte vector.
 ///
