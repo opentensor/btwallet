@@ -22,6 +22,8 @@ use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 use std::path::PathBuf;
 use thiserror::Error;
+use pyo3::prelude::*;
+use std::fmt;
 
 use libsodium_sys as sodium;
 
@@ -42,6 +44,7 @@ pub enum KeyFileError {
     InvalidKeyType(String),
 }
 #[derive(Debug)]
+#[pyclass]
 pub struct Keypair {
     pub public_key: Option<Vec<u8>>,
     pub private_key: Option<Vec<u8>>,
@@ -49,6 +52,25 @@ pub struct Keypair {
     pub seed_hex: Option<Vec<u8>>,
     pub ss58_address: Option<String>,
 }
+
+#[pymethods]
+impl Keypair {
+    #[new]
+    pub fn new() -> Self {
+        Keypair
+    }
+}
+
+impl fmt::Debug for Keypair {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Keypair")
+    }
+}
+
+impl fmt::Display for Keypair {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Keypair")
+    }
 
 /// Serializes a Keypair struct into a JSON-formatted byte vector.
 ///

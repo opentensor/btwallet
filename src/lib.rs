@@ -5,6 +5,15 @@ mod wallet;
 use crate::keypair::*;
 use sp_core::Pair;
 use wallet::Keyfile;
+use wallet::Wallet;
+use pyo3::prelude::*;
+use pyo3::wrap_pyfunction;
+
+
+#[pyfunction]
+fn create_wallet(name: Option<String>, hotkey: Option<String>, path: Option<String>, config: Option<wallet::Config>) -> PyResult<Wallet> {
+    Ok(Wallet::new(name, hotkey, path, config)?)
+}
 
 #[pyfunction]
 fn create_hotkey_pair(num_words: u32, name: &str) -> PyResult<PyObject> {
@@ -169,8 +178,9 @@ fn btwallet(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(create_coldkey_pub_pair, m)?)?;
     m.add_function(wrap_pyfunction!(load_coldkey_pubkey, m)?)?;
     m.add_function(wrap_pyfunction!(py_demo_secret_box, m)?)?;
+    m.add_function(wrap_pyfunction!(create_wallet, m)?)?;
     m.add_class::<Keyfile>()?;
-    // m.add_class::<Wallet>()?;
+    m.add_class::<Wallet>()?;
 
     Ok(())
 }
