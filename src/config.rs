@@ -2,7 +2,7 @@ use pyo3::prelude::*;
 use crate::constants::{BT_WALLET_NAME, BT_WALLET_HOTKEY, BT_WALLET_PATH};
 
 
-#[pyclass]
+#[pyclass(name = "Config", get_all)]
 #[derive(Clone)]
 pub struct Config {
     pub name: String,

@@ -6,7 +6,7 @@ mod constants;
 mod keypair;
 mod keyfile;
 
-#[pymodule]
+#[pymodule(name = "bittensor_wallet")]
 fn bittensor_wallet(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<config::Config>()?;
     m.add_class::<keyfile::Keyfile>()?;

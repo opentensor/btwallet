@@ -4,7 +4,7 @@ use crate::constants::{BT_WALLET_NAME, BT_WALLET_HOTKEY, BT_WALLET_PATH};
 use crate::keypair::Keypair;
 use colored::Colorize;
 
-#[pyclass]
+#[pyclass(name = "Wallet", get_all)]
 pub struct Wallet {
     pub name: String,
     pub path: String,
