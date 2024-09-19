@@ -7,7 +7,7 @@ use sp_core::crypto::Ss58Codec;
 use hex;
 
 
-#[pyclass(name = "Keypair", get_all)]
+#[pyclass(name = "Keypair")]
 pub struct Keypair {
     pub pair: sr25519::Pair,
 }
