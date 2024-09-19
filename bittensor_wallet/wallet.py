@@ -33,7 +33,6 @@ from .utils import (
     get_ss58_format,
     SS58_FORMAT,
 )
-import btwallet
 
 BT_WALLET_NAME = "default"
 BT_WALLET_PATH = "~/.bittensor/wallets/"

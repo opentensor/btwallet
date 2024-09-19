@@ -1,95 +1,89 @@
-use crate::keyfile::Keyfile;
 use pyo3::prelude::*;
-use sp_core::{sr25519, Pair};
-use std::path::PathBuf;
-const BT_WALLET_NAME: &str = "default";
-pub const BT_WALLET_PATH: &str = "~/.bittensor/wallets/";
+use crate::config::Config;
+use crate::constants::{BT_WALLET_NAME, BT_WALLET_HOTKEY, BT_WALLET_PATH};
+use crate::keypair::Keypair;
+use colored::Colorize;
 
 #[pyclass]
 pub struct Wallet {
-    name: String,
-    path: PathBuf,
-    keypair: sr25519::Pair,
-    hotkey_str: Option<String>,
-    _hotkey: Option<sr25519::Pair>,
-    _coldkey: Option<sr25519::Pair>,
-    _coldkeypub: Option<sr25519::Pair>,
+    pub name: String,
+    pub path: String,
+    pub hotkey: String,
+    pub config: Option<Config>,
 }
 
 #[pymethods]
 impl Wallet {
-    /// Creates a new Wallet instance.
-    ///
-    /// # Arguments
-    /// * `name` - Optional wallet name. Defaults to "default".
-    /// * `path` - Optional wallet path. Defaults to "~/.bittensor/wallets/".
-    ///
-    /// # Returns
-    /// A PyResult containing the new Wallet instance.
+
     #[new]
-    #[pyo3(signature = (name = None, path = None))]
-    fn new(name: Option<String>, path: Option<String>) -> PyResult<Self> {
-        let keypair = sr25519::Pair::from_string("", None)
-            .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
-
-        Ok(Wallet {
+    #[pyo3(signature = (name = None, hotkey = None, path = None, config = None))]
+    fn new(name: Option<String>, hotkey: Option<String>, path: Option<String>, config: Option<Config>) -> Self {
+        Wallet {
             name: name.unwrap_or_else(|| BT_WALLET_NAME.to_string()),
-            path: path
-                .map(PathBuf::from)
-                .unwrap_or_else(|| PathBuf::from(BT_WALLET_PATH)),
-            keypair,
-            hotkey_str: None,
-            _hotkey: None,
-            _coldkey: None,
-            _coldkeypub: None,
-        })
+            hotkey: hotkey.unwrap_or_else(|| BT_WALLET_HOTKEY.to_string()),
+            path: path.unwrap_or_else(|| BT_WALLET_PATH.to_string()),
+            config: config.or_else(|| None)
+        }
     }
 
-    /// Returns the Keyfile for the coldkey.
-    ///
-    /// # Returns
-    /// A PyResult containing the Keyfile for the coldkey.
-    #[getter]
-    fn coldkey_file(&self) -> PyResult<Keyfile> {
-        let wallet_path = self.wallet_path();
-        let coldkey_path = wallet_path.join("coldkey");
-        Ok(Keyfile::new(self.name.clone(), coldkey_path, None, None))
+    fn __repr__(&self) -> PyResult<String> {
+        Ok(format!(
+            "Wallet(name='{:}', path='{:}', hotkey='{:}')",
+            self.name, self.path, self.hotkey
+        ))
     }
 
-    /// Returns the Keyfile for the coldkeypub.
-    ///
-    /// # Returns
-    /// A PyResult containing the Keyfile for the coldkeypub.
-    #[getter]
-    fn coldkeypub_file(&self) -> PyResult<Keyfile> {
-        let wallet_path = self.wallet_path();
-        let coldkeypub_path = wallet_path.join("coldkeypub.txt");
-        Ok(Keyfile::new(self.name.clone(), coldkeypub_path, None, None))
+    fn __str__(&self) -> PyResult<String> {
+        self.__repr__()
     }
 
-    /// Returns the full path to the wallet directory.
-    ///
-    /// # Returns
-    /// A PathBuf representing the wallet directory path.
-    fn wallet_path(&self) -> PathBuf {
-        self.path.join(&self.name)
+    #[pyo3(signature = (coldkey_use_password=true, hotkey_use_password=false))]
+    fn create(&self, coldkey_use_password: bool, hotkey_use_password: bool) -> PyResult<Self> {
+        println!(">>> create {:?}, {:?}", coldkey_use_password, hotkey_use_password);
+        Ok(Wallet::new(None, None, None, None))
     }
 
-    /// Returns the name of the wallet.
-    ///
-    /// # Returns
-    /// A PyResult containing the wallet name as a String.
-    #[getter]
-    fn name(&self) -> PyResult<String> {
-        Ok(self.name.clone())
+    #[pyo3(signature = (n_words=12, use_password=true, overwrite=false, suppress=false))]
+    fn create_new_coldkey(&self, n_words: usize, use_password: bool, overwrite: bool, suppress: bool) -> PyResult<(usize, bool, bool, bool, String)> {
+        // println!(">>> create_new_coldkey {:?}, {:?}, {:?}, {:?}", n_words, use_password, overwrite, suppress);
+
+        //+ mnemonic = Keypair.generate_mnemonic(n_words)
+        //+ keypair = Keypair.create_from_mnemonic(mnemonic)
+        //+ if not suppress:
+        //+     display_mnemonic_msg(keypair, "coldkey")
+
+        // self.set_coldkey(keypair, encrypt=use_password, overwrite=overwrite)
+        // self.set_coldkeypub(keypair, overwrite=overwrite)
+
+        let mnemonic = Keypair::generate_mnemonic(n_words)?;
+        let _keypair = Keypair::create_from_mnemonic(mnemonic.clone().as_str())?;
+
+        if !suppress {
+            self.display_mnemonic_msg(mnemonic.clone(), "coldkey");
+        }
+
+        Ok((n_words, use_password, overwrite, suppress, mnemonic))
+        // Wallet::new(None, None, None, None)
     }
 
-    /// Returns the base path of the wallet.
+    #[pyo3(signature = (n_words=12, use_password=true, overwrite=false, suppress=false))]
+    fn create_new_hotkey(&self, n_words: u8, use_password: bool, overwrite: bool, suppress: bool) -> PyResult<Self> {
+        println!(">>> create_new_hotkey {:?}, {:?}, {:?}, {:?}", n_words, use_password, overwrite, suppress);
+
+        Ok(Wallet::new(None, None, None, None))
+    }
+
+    #[pyo3(signature = (mnemonic, key_type))]
+    #[pyo3(text_signature = "(self, mnemonic, key_type)")]
+    /// Display the mnemonic and a warning message to keep the mnemonic safe.
     ///
-    /// # Returns
-    /// A PyResult containing the wallet base path as a String.
-    #[getter]
-    fn path(&self) -> PyResult<String> {
-        Ok(self.path.to_string_lossy().into_owned())
+    /// Args:
+    ///     keypair (Keypair): Keypair object.
+    ///     key_type (str): Type of the key (coldkey or hotkey).
+    fn display_mnemonic_msg(&self, mnemonic: String, key_type: &str) {
+        println!("{}", "\nIMPORTANT: Store this mnemonic in a secure (preferable offline place), as anyone who has possession of this mnemonic can use it to regenerate the key and access your tokens.".red());
+
+        println!("\nThe mnemonic to the new {} is: {}", key_type.blue(), mnemonic.green());
+        println!("\nYou can use the mnemonic to recreate the key with `{}` in case it gets lost.", "btcli".green());
     }
 }
