@@ -63,12 +63,6 @@ impl Keypair {
         Ok(self.pair.public().to_ss58check())
     }
 
-    /// Returns the public key as a Vec<u8>
-    #[getter]
-    pub fn public_key_vec8(&self) -> PyResult<Vec<u8>> {
-        Ok(self.pair.public().to_vec())
-    }
-
     /// Returns the public key as a bytes
     #[getter]
     pub fn public_key(&self, py: Python) -> PyResult<PyObject> {
@@ -76,11 +70,17 @@ impl Keypair {
         Ok(PyBytes::new_bound(py, &public_key_bytes).into())
     }
 
+    /// Returns the public key as a Vec<u8>
+    #[getter]
+    pub fn public_key_vec8(&self) -> PyResult<Vec<u8>> {
+        Ok(self.pair.public().to_vec())
+    }
+
     /// Returns the private key as a hex string.
     /// TODO (Roman): remove this when Wallet is ready
     #[getter]
-    pub fn private_key(&self) -> PyResult<String> {
+    pub fn private_key(&self, py: Python) -> PyResult<PyObject> {
         let seed = self.pair.to_raw_vec();
-        Ok(hex::encode(seed))
+        Ok(PyBytes::new_bound(py, &seed).into())
     }
 }
