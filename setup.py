@@ -57,7 +57,7 @@ with codecs.open(
     version_string = version_match.group(1)
 
 setup(
-    name="bittensor-wallet",
+    name="btwallet",
     version=version_string,
     description="",
     long_description=long_description,
