@@ -27,7 +27,7 @@ from termcolor import colored
 
 from .config import Config
 from .errors import KeyFileError
-from .keyfile import Keyfile, KeyfileRust
+from .keyfile import Keyfile
 from .utils import (
     is_valid_bittensor_address_or_public_key,
     get_ss58_format,
@@ -249,25 +249,25 @@ class Wallet:
         """
         return self.create(coldkey_use_password, hotkey_use_password)
 
-    def create_with_rust(
-        self, mnemonic_num_words: int = 12, cold_key_password: Optional[str] = None
-    ) -> "Wallet":
-        try:
-            btwallet.create_hotkey_pair(num_words=mnemonic_num_words, name=self.name)
-        except Exception as e:
-            print(f"Error creating hotkey: {e}")
-        
-        try:
-            btwallet.create_coldkey_pair(num_words=mnemonic_num_words, name=self.name, password=cold_key_password)
-        except Exception as e:
-            print(f"Error creating coldkey: {e}")
-        
-        try:
-            btwallet.create_coldkey_pub_pair(num_words=mnemonic_num_words,name=self.name)
-        except Exception as e:
-            print(f"Error creating coldkeypub: {e}")
-
-        print(f"Wallet created: {self}")
+    # def create_with_rust(
+    #     self, mnemonic_num_words: int = 12, cold_key_password: Optional[str] = None
+    # ) -> "Wallet":
+    #     try:
+    #         btwallet.create_hotkey_pair(num_words=mnemonic_num_words, name=self.name)
+    #     except Exception as e:
+    #         print(f"Error creating hotkey: {e}")
+    #
+    #     try:
+    #         btwallet.create_coldkey_pair(num_words=mnemonic_num_words, name=self.name, password=cold_key_password)
+    #     except Exception as e:
+    #         print(f"Error creating coldkey: {e}")
+    #
+    #     try:
+    #         btwallet.create_coldkey_pub_pair(num_words=mnemonic_num_words,name=self.name)
+    #     except Exception as e:
+    #         print(f"Error creating coldkeypub: {e}")
+    #
+    #     print(f"Wallet created: {self}")
 
     def create(
         self, coldkey_use_password: bool = True, hotkey_use_password: bool = False
@@ -419,31 +419,31 @@ class Wallet:
         """
         return self.coldkey_file.get_keypair(password=password)
 
-    def get_coldkey_with_rust(self, password: Optional[str] = None) -> "Keypair":
-        """
-        Gets the coldkey from the wallet.
+    # def get_coldkey_with_rust(self, password: Optional[str] = None) -> "Keypair":
+    #     """
+    #     Gets the coldkey from the wallet.
+    #
+    #     Args:
+    #         password (str, optional): The password to decrypt the coldkey. Defaults to ``None``.
+    #
+    #     Returns:
+    #         Keypair: The coldkey keypair.
+    #     """
+    #     coldkey_file = KeyfileRust(name=self.name)
+    #     return coldkey_file.get_keypair_with_rust(key_type="coldkey", password=password)
 
-        Args:
-            password (str, optional): The password to decrypt the coldkey. Defaults to ``None``.
-
-        Returns:
-            Keypair: The coldkey keypair.
-        """
-        coldkey_file = KeyfileRust(name=self.name)
-        return coldkey_file.get_keypair_with_rust(key_type="coldkey", password=password)
-
-    def get_hotkey_with_rust(self, password: Optional[str] = None) -> "Keypair":
-        """
-        Gets the coldkey from the wallet.
-
-        Args:
-            password (str, optional): The password to decrypt the coldkey. Defaults to ``None``.
-
-        Returns:
-            Keypair: The coldkey keypair.
-        """
-        hotkey_file = KeyfileRust(name=self.name)
-        return hotkey_file.get_keypair_with_rust(key_type="hotkey")
+    # def get_hotkey_with_rust(self, password: Optional[str] = None) -> "Keypair":
+    #     """
+    #     Gets the coldkey from the wallet.
+    #
+    #     Args:
+    #         password (str, optional): The password to decrypt the coldkey. Defaults to ``None``.
+    #
+    #     Returns:
+    #         Keypair: The coldkey keypair.
+    #     """
+    #     hotkey_file = KeyfileRust(name=self.name)
+    #     return hotkey_file.get_keypair_with_rust(key_type="hotkey")
 
     def get_hotkey(self, password: Optional[str] = None) -> "Keypair":
         """
@@ -469,9 +469,9 @@ class Wallet:
         """
         return self.coldkeypub_file.get_keypair(password=password)
 
-    def get_coldkey_pub_with_rust(self, password: Optional[str] = None) -> "Keypair":
-        coldkey_pub_file = KeyfileRust(name=self.name)
-        return coldkey_pub_file.get_keypair_with_rust(key_type="coldkey_pub")
+    # def get_coldkey_pub_with_rust(self, password: Optional[str] = None) -> "Keypair":
+    #     coldkey_pub_file = KeyfileRust(name=self.name)
+    #     return coldkey_pub_file.get_keypair_with_rust(key_type="coldkey_pub")
 
     @property
     def hotkey(self) -> "Keypair":

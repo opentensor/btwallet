@@ -38,7 +38,6 @@ from substrateinterface import Keypair
 from substrateinterface.utils.ss58 import ss58_encode
 from termcolor import colored
 
-import btwallet
 from .errors import KeyFileError
 from .utils import SS58_FORMAT
 
@@ -384,31 +383,6 @@ def decrypt_keyfile_data(
         decrypted_keyfile_data = json.dumps(decrypted_keyfile_data).encode()
     return decrypted_keyfile_data
 
-class KeyfileRust:
-    def __init__(self, name: str):
-        self.name = name
-        self.coldkey = None
-        self.hotkey = None
-        self.coldkey_pub = None 
-
-    def get_keypair_with_rust(self, password: Optional[str] = None, key_type: str = "coldkey") -> "Keypair":
-        """Returns the keypair from the path, decrypts data if the file is encrypted.
-
-        Args:
-            password (str, optional): The password used to decrypt the file. If ``None``, asks for user input.
-        Returns:
-            keypair (Keypair): The keypair stored under the path.
-        """
-        if key_type == "coldkey":
-            keypair_dict = btwallet.load_coldkey_keypair(self.name, password)
-            return deserialize_keypair_from_keyfile_data_with_rust(keypair_dict)
-        elif key_type == "hotkey":
-            hotkey_dict = btwallet.load_hotkey_keypair(self.name)
-            return deserialize_keypair_from_keyfile_data_with_rust(hotkey_dict)
-        elif key_type == "coldkey_pub":
-            coldkey_pub_dict = btwallet.load_coldkey_pubkey(self.name)
-            return deserialize_keypair_from_keyfile_data_with_rust(coldkey_pub_dict)
-    
 
 class Keyfile:
     """Defines an interface for a substrate interface keypair stored on device."""
