@@ -1,9 +1,12 @@
 use pyo3::prelude::*;
+use pyo3::types::{PyBytes};
+use pyo3::PyObject;
+use pyo3::exceptions::PyException;
+
 use sp_core::{Pair, sr25519};
+use sp_core::crypto::Ss58Codec;
 
 use bip39::Mnemonic;
-use pyo3::exceptions::PyException;
-use sp_core::crypto::Ss58Codec;
 use hex;
 
 
@@ -66,12 +69,11 @@ impl Keypair {
         Ok(self.pair.public().to_vec())
     }
 
-    /// Returns the public key as a hex
+    /// Returns the public key as a bytes
     #[getter]
-    pub fn public_key(&self) -> PyResult<String> {
+    pub fn public_key(&self, py: Python) -> PyResult<PyObject> {
         let public_key_bytes = self.pair.public().to_vec();
-        let hex_string = format!("0x{}", hex::encode(public_key_bytes));
-        Ok(hex_string)
+        Ok(PyBytes::new_bound(py, &public_key_bytes).into())
     }
 
     /// Returns the private key as a hex string.
