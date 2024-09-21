@@ -1,6 +1,6 @@
 use std::os::unix::process::parent_id;
 use pyo3::prelude::*;
-use pyo3::types::{PyBytes};
+use pyo3::types::{PyBytes, PyString};
 use pyo3::PyObject;
 use pyo3::exceptions::PyException;
 
@@ -16,7 +16,7 @@ pub struct Keypair {
     public_key: Option<String>,
     private_key: Option<String>,
     ss58_format: u8,
-    seed_hex: Option<String>,
+    seed_hex: Option<Vec<u8>>,
     crypto_type: u8,
     mnemonic: Option<String>,
     pair: Option<sr25519::Pair>,
@@ -31,7 +31,7 @@ impl Keypair {
         public_key: Option<String>,
         private_key: Option<String>,
         ss58_format: u8,
-        seed_hex: Option<String>,
+        seed_hex: Option<Vec<u8>>,
         crypto_type: u8,
     ) -> PyResult<Self> {
         Ok(
@@ -56,18 +56,18 @@ impl Keypair {
     }
 
     #[staticmethod]
-    pub fn create_from_mnemonic(mnemonic: &str) -> PyResult<Self> {
-        let (pair, _) = sr25519::Pair::from_phrase(mnemonic, None)
+    pub fn create_from_mnemonic(mnemonic: &str, py: Python) -> PyResult<Self> {
+
+        let (pair, seed_vec) = sr25519::Pair::from_phrase(mnemonic, None)
             .map_err(|e| PyErr::new::<PyException, _>(e.to_string()))?;
+        // let hex_string = format!("0x{}", hex::encode(seed_vec));
+
         let kp = Keypair {
-            ss58_address: None,
-            public_key: None,
-            private_key: None,
-            seed_hex: None,
             mnemonic: Some(mnemonic.to_string()),
+            seed_hex: Some(seed_vec.to_vec()),
+            pair: Some(pair),
             ..Default::default()
         };
-        println!("{:?}", pair.public());
         Ok(kp)
     }
 
@@ -109,8 +109,16 @@ impl Keypair {
 
     /// Returns the SS58 address
     #[getter]
-    pub fn ss58_address(&self) -> PyResult<Option<&String>> {
-        Ok(self.ss58_address.as_ref())
+    pub fn ss58_address(&self, py: Python) -> PyResult<Option<PyObject>> {
+        match &self.pair {
+            Some(pair) => {
+                let ss58_address = pair.public().to_ss58check();
+                Ok(Some(PyString::new_bound(py, &*ss58_address).into_py(py)))
+            }
+            None => {
+                Ok(None)
+            }
+        }
     }
 
     /// Returns the public key as a bytes
@@ -139,10 +147,20 @@ impl Keypair {
     pub fn ss58_format(&self) -> PyResult<u8> {
         Ok(self.ss58_format)
     }
+
+    /// Returns seed_hex as bytes.
     #[getter]
-    pub fn seed_hex(&self) -> PyResult<Option<&String>> {
-        Ok(self.seed_hex.as_ref())
+    pub fn seed_hex(&self, py: Python) -> PyResult<Option<PyObject>> {
+        match &self.seed_hex {
+            Some(seed_hex) => {
+                Ok(Some(PyBytes::new_bound(py, &seed_hex).into_py(py)))
+            }
+            None => {
+                Ok(None)
+            }
+        }
     }
+
 
     /// Returns crypto_type key as an int.
     #[getter]
@@ -153,7 +171,11 @@ impl Keypair {
     /// Returns mnemonic key as a string.
     #[getter]
     pub fn mnemonic(&self) -> PyResult<Option<&String>> {
-        Ok(self.mnemonic.as_ref())
+        if self.mnemonic.is_none() {
+            Ok(None)
+        } else {
+            Ok(self.mnemonic.as_ref())
+        }
     }
 }
 
