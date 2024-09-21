@@ -45,7 +45,7 @@ impl Wallet {
 
     #[pyo3(signature = (n_words=12, use_password=true, overwrite=false, suppress=false))]
     fn create_new_coldkey(&self, n_words: usize, use_password: bool, overwrite: bool, suppress: bool) -> PyResult<Self> {
-        // println!(">>> create_new_coldkey {:?}, {:?}, {:?}, {:?}", n_words, use_password, overwrite, suppress);
+        println!(">>> create_new_coldkey {:?}, {:?}, {:?}, {:?}", n_words, use_password, overwrite, suppress);
 
         //+ mnemonic = Keypair.generate_mnemonic(n_words)
         //+ keypair = Keypair.create_from_mnemonic(mnemonic)
