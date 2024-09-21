@@ -1,3 +1,4 @@
+use std::os::unix::process::parent_id;
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes};
 use pyo3::PyObject;
@@ -10,7 +11,6 @@ use bip39::Mnemonic;
 use hex;
 
 
-#[derive(Default)]
 #[pyclass(name = "Keypair")]
 pub struct Keypair {
     ss58_address: Option<String>,
@@ -47,35 +47,33 @@ impl Keypair {
         )
     }
 
+    // #[staticmethod]
+    // pub fn get_fields(pair: sr25519::Pair) {
+    //
+    // }
+
     #[staticmethod]
-    pub fn create() -> PyResult<Self> {
-        Ok(
-            Keypair {..Default::default()}
-        )
+    pub fn generate_mnemonic(n_words: usize) -> PyResult<String> {
+        let mnemonic = Mnemonic::generate(n_words)
+            .map_err(|e| PyErr::new::<PyException, _>(e.to_string()))?;
+        Ok(mnemonic.to_string())
     }
 
-    // #[staticmethod]
-    // pub fn generate_mnemonic(n_words: usize) -> PyResult<String> {
-    //     let mnemonic = Mnemonic::generate(n_words)
-    //         .map_err(|e| PyErr::new::<PyException, _>(e.to_string()))?;
-    //     Ok(mnemonic.to_string())
-    // }
-    //
-    // #[staticmethod]
-    // pub fn create_from_mnemonic(mnemonic: &str) -> PyResult<Self> {
-    //     let (pair, _) = sr25519::Pair::from_phrase(mnemonic, None)
-    //         .map_err(|e| PyErr::new::<PyException, _>(e.to_string()))?;
-    //     let kp = Keypair {
-    //         ss58_address: None,
-    //         public_key: None,
-    //         private_key: None,
-    //         ss58_format,
-    //         seed_hex: None,
-    //         crypto_type,
-    //         mnemonic: Some(mnemonic.to_string()),
-    //     };
-    //     Ok(kp)
-    // }
+    #[staticmethod]
+    pub fn create_from_mnemonic(mnemonic: &str) -> PyResult<Self> {
+        let (pair, _) = sr25519::Pair::from_phrase(mnemonic, None)
+            .map_err(|e| PyErr::new::<PyException, _>(e.to_string()))?;
+        let kp = Keypair {
+            ss58_address: None,
+            public_key: None,
+            private_key: None,
+            seed_hex: None,
+            mnemonic: Some(mnemonic.to_string()),
+            ..Default::default()
+        };
+        println!("{:?}", pair.public());
+        Ok(kp)
+    }
 
     // #[staticmethod]
     // pub fn create_from_seed(seed: &str) -> PyResult<Self> {
@@ -125,6 +123,15 @@ impl Keypair {
         Ok(self.public_key.as_ref())
     }
 
+    // #[getter]
+    // pub fn public_key<'py>(&self, py: Python<'py>) -> PyResult<Option<&'py PyBytes>> {
+    //     if let Some(ref key) = self.public_key {
+    //         Ok(Some(PyBytes::new(py, key.as_bytes())))
+    //     } else {
+    //         Ok(None)
+    //     }
+    // }
+
     /// Returns the private key as a hex string.
     /// TODO (Roman): remove this when Wallet is ready
     #[getter]
@@ -141,14 +148,29 @@ impl Keypair {
         Ok(self.seed_hex.as_ref())
     }
 
+    /// Returns crypto_type key as an int.
     #[getter]
     pub fn crypto_type(&self) -> PyResult<u8> {
         Ok(self.crypto_type)
     }
 
+    /// Returns mnemonic key as a string.
     #[getter]
     pub fn mnemonic(&self) -> PyResult<Option<&String>> {
         Ok(self.mnemonic.as_ref())
     }
 }
 
+impl Default for Keypair {
+    fn default() -> Self {
+        Keypair {
+            ss58_address: None,
+            public_key: None,
+            private_key: None,
+            ss58_format: 42,
+            seed_hex: None,
+            crypto_type: 1,
+            mnemonic: None,
+        }
+    }
+}
