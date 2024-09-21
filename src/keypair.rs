@@ -10,7 +10,6 @@ use sp_core::crypto::{Ss58Codec};
 use bip39::Mnemonic;
 use hex;
 
-
 #[pyclass(name = "Keypair")]
 pub struct Keypair {
     ss58_address: Option<String>,
@@ -20,6 +19,7 @@ pub struct Keypair {
     seed_hex: Option<String>,
     crypto_type: u8,
     mnemonic: Option<String>,
+    pair: Option<sr25519::Pair>,
 }
 
 #[pymethods]
@@ -43,14 +43,10 @@ impl Keypair {
                 seed_hex,
                 crypto_type,
                 mnemonic: None,
+                pair: None,
             }
         )
     }
-
-    // #[staticmethod]
-    // pub fn get_fields(pair: sr25519::Pair) {
-    //
-    // }
 
     #[staticmethod]
     pub fn generate_mnemonic(n_words: usize) -> PyResult<String> {
@@ -171,6 +167,7 @@ impl Default for Keypair {
             seed_hex: None,
             crypto_type: 1,
             mnemonic: None,
+            pair: None,
         }
     }
 }
