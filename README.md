@@ -74,6 +74,41 @@ using - create_hotkey, use sr25519::Pair =
         let signature = keypair.sign(message);
 
 
+## KeyPair
 
+### Perfect test for Keypair
+```python
+from bittensor_wallet import Keypair as WKeypair
+from substrateinterface import Keypair as SKeypair
+
+kps = SKeypair.create_from_mnemonic("stool feel open east woman high can denial forget screen trust salt")
+kpw = WKeypair.create_from_mnemonic("stool feel open east woman high can denial forget screen trust salt")
+assert kps.ss58_address == kpw.ss58_address
+assert kps.seed_hex == kpw.seed_hex
+assert kps.public_key == kpw.public_key
+assert kps.private_key == kpw.private_key
+
+kps = SKeypair.create_from_seed("0x023d5fbd7981676587a9f7232aeae1087ac7c265f9658fb643b6f5e61961dfbf")
+kpw = WKeypair.create_from_seed("0x023d5fbd7981676587a9f7232aeae1087ac7c265f9658fb643b6f5e61961dfbf")
+assert kps.ss58_address == kpw.ss58_address
+assert kps.seed_hex == kpw.seed_hex
+assert kps.public_key == kpw.public_key
+assert kps.private_key == kpw.private_key
+
+# substrateinterface has a bug -> can't create the KP without `ss58_format` passed
+kps = SKeypair.create_from_private_key("0x2b400f61c21cbaad4d5cb2dcbb4ef4fcdc238b98d04d48c6d2a451ebfd306c0eed845edcc69b0a19a6905afed0dd84c16ebd0f458928f2e91a6b67b95fc0b42f", ss58_format=42)
+kpw = WKeypair.create_from_private_key("0x2b400f61c21cbaad4d5cb2dcbb4ef4fcdc238b98d04d48c6d2a451ebfd306c0eed845edcc69b0a19a6905afed0dd84c16ebd0f458928f2e91a6b67b95fc0b42f")
+assert kps.ss58_address == kpw.ss58_address
+assert kps.seed_hex == kpw.seed_hex
+assert kps.public_key == kpw.public_key
+assert kps.private_key == kpw.private_key
+
+kps = SKeypair.create_from_uri("//Alice")
+kpw = WKeypair.create_from_uri("//Alice")
+assert kps.ss58_address == kpw.ss58_address
+assert kps.seed_hex == kpw.seed_hex
+assert kps.public_key == kpw.public_key
+assert kps.private_key == kpw.private_key
+```
 
 
