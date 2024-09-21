@@ -1,5 +1,5 @@
 use pyo3::prelude::*;
-use pyo3::types::{PyBytes, PyString};
+use pyo3::types::{PyBytes};
 use pyo3::PyObject;
 use pyo3::exceptions::PyException;
 
@@ -7,9 +7,9 @@ use sp_core::{sr25519, Pair};
 use sp_core::crypto::{Ss58Codec};
 
 use bip39::Mnemonic;
-// use hex;
 
-#[pyclass(name = "Keypair")]
+
+#[pyclass]
 pub struct Keypair {
     ss58_address: Option<String>,
     public_key: Option<String>,
@@ -62,7 +62,7 @@ impl Keypair {
         self.__str__()
     }
 
-    /// Creates mnemonic from amount of words (12, 15, 18, 21 or 24)
+    /// Creates mnemonic from amount of words (accepted: 12, 15, 18, 21 or 24).
     #[staticmethod]
     pub fn generate_mnemonic(n_words: usize) -> PyResult<String> {
         let mnemonic = Mnemonic::generate(n_words)
@@ -70,7 +70,7 @@ impl Keypair {
         Ok(mnemonic.to_string())
     }
 
-    /// Creates Keypair from a mnemonic
+    /// Creates Keypair from a mnemonic.
     #[staticmethod]
     pub fn create_from_mnemonic(mnemonic: &str) -> PyResult<Self> {
 
@@ -86,7 +86,7 @@ impl Keypair {
         Ok(kp)
     }
 
-    /// Creates Keypair from a seed
+    /// Creates Keypair from a seed.
     #[staticmethod]
     pub fn create_from_seed(seed: &str) -> PyResult<Self> {
         let seed_vec = hex::decode(seed.trim_start_matches("0x"))
@@ -96,39 +96,45 @@ impl Keypair {
             .map_err(|e| PyException::new_err(format!("Failed to create pair from seed: {}", e)))?;
 
         let kp = Keypair {
-            seed_hex: Some(seed_vec.to_vec()),
+            seed_hex: Some(seed_vec),
             pair: Some(pair),
             ..Default::default()
         };
         Ok(kp)
     }
 
-    // #[staticmethod]
-    // pub fn create_from_private_key(private_key_hex: &str) -> PyResult<Self> {
-    //
-    //     let private_key_bytes = hex::decode(private_key_hex.trim_start_matches("0x"))
-    //         .map_err(|e| PyException::new_err(format!("Invalid hex string: {}", e)))?;
-    //
-    //     let pair = sr25519::Pair::from_seed_slice(&private_key_bytes)
-    //         .map_err(|e| PyException::new_err(format!("Failed to create pair from private key: {}", e)))?;
-    //     Ok(Keypair { pair })
-    // }
-    //
-    // #[staticmethod]
-    // fn create_from_uri(uri: &str) -> PyResult<Self> {
-    //     let pair = Pair::from_string(uri, None)
-    //         .map_err(|e| PyErr::new::<PyException, _>(e.to_string()))?;
-    //     Ok(Keypair { pair })
-    // }
-    //
-    // /// Returns the SS58 address
-    // #[getter]
-    // pub fn ss58_address(&self) -> PyResult<String> {
-    //     Ok(self.pair.public().to_ss58check())
-    // }
-    //
+    /// Creates Keypair from `private key`.
+    #[staticmethod]
+    pub fn create_from_private_key(private_key: &str) -> PyResult<Self> {
 
-    /// Returns the SS58 address
+        let private_key_vec = hex::decode(private_key.trim_start_matches("0x"))
+            .map_err(|e| PyException::new_err(format!("Invalid `private_key` string: {}", e)))?;
+
+        let pair = sr25519::Pair::from_seed_slice(&private_key_vec)
+            .map_err(|e| PyException::new_err(format!("Failed to create pair from private key: {}", e)))?;
+
+        let kp = Keypair {
+            // seed_hex: Some(private_key_vec.to_vec()),
+            pair: Some(pair),
+            ..Default::default()
+        };
+        Ok(kp)
+    }
+
+    /// Creates Keypair from create_from_uri as string.
+    #[staticmethod]
+    fn create_from_uri(uri: &str) -> PyResult<Self> {
+        let pair = Pair::from_string(uri, None)
+            .map_err(|e| PyErr::new::<PyException, _>(e.to_string()))?;
+
+        let kp = Keypair {
+            pair: Some(pair),
+            ..Default::default()
+        };
+        Ok(kp)
+    }
+
+    /// Returns the SS58 address.
     #[getter]
     pub fn ss58_address(&self) -> PyResult<Option<String>> {
         match &self.pair {
@@ -140,7 +146,7 @@ impl Keypair {
         }
     }
 
-    /// Returns the public key as a bytes
+    /// Returns the public key as a bytes.
     #[getter]
     pub fn public_key(&self, py: Python) -> PyResult<Option<PyObject>> {
         match &self.pair {
@@ -154,7 +160,8 @@ impl Keypair {
         }
     }
 
-    /// Returns the private key as a hex string
+    /// TODO (Roman): remove this when Wallet is ready
+    /// Returns the private key as a bytes.
     #[getter]
     pub fn private_key(&self, py: Python) -> PyResult<Option<PyObject>> {
         match &self.pair {
@@ -167,13 +174,8 @@ impl Keypair {
             }
         }
     }
-    //
-    // /// TODO (Roman): remove this when Wallet is ready
-    // #[getter]
-    // pub fn private_key(&self) -> PyResult<Option<&String>> {
-    //     Ok(self.private_key.as_ref())
-    // }
 
+    /// Returns the ss58_format as integer.
     #[getter]
     pub fn ss58_format(&self) -> PyResult<u8> {
         Ok(self.ss58_format)
@@ -192,7 +194,6 @@ impl Keypair {
         }
     }
 
-
     /// Returns crypto_type key as an int.
     #[getter]
     pub fn crypto_type(&self) -> PyResult<u8> {
@@ -210,6 +211,7 @@ impl Keypair {
     }
 }
 
+// Default values for Keypair
 impl Default for Keypair {
     fn default() -> Self {
         Keypair {
