@@ -1,4 +1,3 @@
-use std::os::unix::process::parent_id;
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyString};
 use pyo3::PyObject;
@@ -8,7 +7,7 @@ use sp_core::{sr25519, Pair};
 use sp_core::crypto::{Ss58Codec};
 
 use bip39::Mnemonic;
-use hex;
+// use hex;
 
 #[pyclass(name = "Keypair")]
 pub struct Keypair {
@@ -56,11 +55,10 @@ impl Keypair {
     }
 
     #[staticmethod]
-    pub fn create_from_mnemonic(mnemonic: &str, py: Python) -> PyResult<Self> {
+    pub fn create_from_mnemonic(mnemonic: &str) -> PyResult<Self> {
 
         let (pair, seed_vec) = sr25519::Pair::from_phrase(mnemonic, None)
             .map_err(|e| PyErr::new::<PyException, _>(e.to_string()))?;
-        // let hex_string = format!("0x{}", hex::encode(seed_vec));
 
         let kp = Keypair {
             mnemonic: Some(mnemonic.to_string()),
@@ -123,25 +121,37 @@ impl Keypair {
 
     /// Returns the public key as a bytes
     #[getter]
-    pub fn public_key(&self) -> PyResult<Option<&String>> {
-        Ok(self.public_key.as_ref())
+    pub fn public_key(&self, py: Python) -> PyResult<Option<PyObject>> {
+        match &self.pair {
+            Some(pair) => {
+                let public_key_vec = pair.public().to_vec();
+                Ok(Some(PyBytes::new_bound(py, &public_key_vec).into_py(py)))
+            }
+            None => {
+                Ok(None)
+            }
+        }
     }
 
-    // #[getter]
-    // pub fn public_key<'py>(&self, py: Python<'py>) -> PyResult<Option<&'py PyBytes>> {
-    //     if let Some(ref key) = self.public_key {
-    //         Ok(Some(PyBytes::new(py, key.as_bytes())))
-    //     } else {
-    //         Ok(None)
-    //     }
-    // }
-
-    /// Returns the private key as a hex string.
-    /// TODO (Roman): remove this when Wallet is ready
+    /// Returns the private key as a hex string
     #[getter]
-    pub fn private_key(&self) -> PyResult<Option<&String>> {
-        Ok(self.private_key.as_ref())
+    pub fn private_key(&self, py: Python) -> PyResult<Option<PyObject>> {
+        match &self.pair {
+            Some(pair) => {
+                let seed = pair.to_raw_vec();
+                Ok(Some(PyBytes::new_bound(py, &seed).into_py(py)))
+            }
+            None => {
+                Ok(None)
+            }
+        }
     }
+    //
+    // /// TODO (Roman): remove this when Wallet is ready
+    // #[getter]
+    // pub fn private_key(&self) -> PyResult<Option<&String>> {
+    //     Ok(self.private_key.as_ref())
+    // }
 
     #[getter]
     pub fn ss58_format(&self) -> PyResult<u8> {
