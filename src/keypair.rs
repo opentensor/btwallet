@@ -47,6 +47,22 @@ impl Keypair {
         )
     }
 
+    fn __str__(&self) -> PyResult<String> {
+        if self.pair.is_none() {
+            Ok("<Empty Keypair instance>".to_string())
+        } else {
+            match self.ss58_address()? {
+                Some(address) => Ok(format!("<Keypair (address={})>", address)),
+                None => Ok("<Keypair (address=None)>".to_string()),
+            }
+        }
+    }
+
+    fn __repr__(&self) -> PyResult<String> {
+        self.__str__()
+    }
+
+    /// Creates mnemonic from amount of words (12, 15, 18, 21 or 24)
     #[staticmethod]
     pub fn generate_mnemonic(n_words: usize) -> PyResult<String> {
         let mnemonic = Mnemonic::generate(n_words)
@@ -54,6 +70,7 @@ impl Keypair {
         Ok(mnemonic.to_string())
     }
 
+    /// Creates Keypair from a mnemonic
     #[staticmethod]
     pub fn create_from_mnemonic(mnemonic: &str) -> PyResult<Self> {
 
@@ -69,17 +86,23 @@ impl Keypair {
         Ok(kp)
     }
 
-    // #[staticmethod]
-    // pub fn create_from_seed(seed: &str) -> PyResult<Self> {
-    //     let seed_bytes = hex::decode(seed.trim_start_matches("0x"))
-    //         .map_err(|e| PyException::new_err(format!("Invalid hex string: {}", e)))?;
-    //
-    //     let pair = sr25519::Pair::from_seed_slice(&seed_bytes)
-    //         .map_err(|e| PyException::new_err(format!("Failed to create pair from seed: {}", e)))?;
-    //
-    //     Ok(Keypair { pair })
-    // }
-    //
+    /// Creates Keypair from a seed
+    #[staticmethod]
+    pub fn create_from_seed(seed: &str) -> PyResult<Self> {
+        let seed_vec = hex::decode(seed.trim_start_matches("0x"))
+            .map_err(|e| PyException::new_err(format!("Invalid hex string: {}", e)))?;
+
+        let pair = sr25519::Pair::from_seed_slice(&seed_vec)
+            .map_err(|e| PyException::new_err(format!("Failed to create pair from seed: {}", e)))?;
+
+        let kp = Keypair {
+            seed_hex: Some(seed_vec.to_vec()),
+            pair: Some(pair),
+            ..Default::default()
+        };
+        Ok(kp)
+    }
+
     // #[staticmethod]
     // pub fn create_from_private_key(private_key_hex: &str) -> PyResult<Self> {
     //
@@ -107,15 +130,13 @@ impl Keypair {
 
     /// Returns the SS58 address
     #[getter]
-    pub fn ss58_address(&self, py: Python) -> PyResult<Option<PyObject>> {
+    pub fn ss58_address(&self) -> PyResult<Option<String>> {
         match &self.pair {
             Some(pair) => {
                 let ss58_address = pair.public().to_ss58check();
-                Ok(Some(PyString::new_bound(py, &*ss58_address).into_py(py)))
+                Ok(Some(ss58_address))
             }
-            None => {
-                Ok(None)
-            }
+            None => Ok(None),
         }
     }
 
