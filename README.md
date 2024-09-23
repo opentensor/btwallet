@@ -127,6 +127,9 @@ assert kps_from_address.private_key == kpw_from_address.private_key
 
 # check signature
 assert kps.verify("asd", kpw.sign("asd")) == True
+
+# check verify
+assert kpw.verify("asd", kps.sign("asd")) == True
 ```
 
 

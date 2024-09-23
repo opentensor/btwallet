@@ -3,9 +3,10 @@ use pyo3::types::{PyBytes};
 use pyo3::PyObject;
 use pyo3::exceptions::PyException;
 
-use sp_core::{sr25519, Pair};
+use sp_core::{sr25519, Pair, ByteArray};
 use sp_core::crypto::Ss58Codec;
 use sp_core::sr25519::Public;
+use sp_core::sr25519::Signature;
 
 use bip39::Mnemonic;
 use hex;
@@ -192,6 +193,82 @@ impl Keypair {
         Ok(PyBytes::new_bound(py, &signature).into_py(py))
     }
 
+    // The same logic as in python version `substrateinterface.keypair.Keypair.verify`
+    /// Verifies data with specified signature.
+    pub fn verify(&self, data: PyObject, signature: PyObject, py: Python) -> PyResult<bool> {
+        // Convert data to bytes (data can be a string, hex, or bytes)
+        let data_bytes = if let Ok(s) = data.extract::<String>(py) {
+            if s.starts_with("0x") {
+                hex::decode(s.trim_start_matches("0x"))
+                    .map_err(|e| PyException::new_err(format!("Invalid hex string: {:?}", e)))?
+            } else {
+                s.into_bytes()
+            }
+        } else if let Ok(bytes) = data.extract::<Vec<u8>>(py) {
+            bytes
+        } else {
+            return Err(PyException::new_err("Unsupported data format. Expected str or bytes."));
+        };
+
+        // Convert signature to bytes
+        let signature_bytes = if let Ok(s) = signature.extract::<String>(py) {
+            if s.starts_with("0x") {
+                hex::decode(s.trim_start_matches("0x"))
+                    .map_err(|e| PyException::new_err(format!("Invalid hex string: {:?}", e)))?
+            } else {
+                return Err(PyException::new_err("Invalid signature format. Expected hex string."));
+            }
+        } else if let Ok(bytes) = signature.extract::<Vec<u8>>(py) {
+            bytes
+        } else {
+            return Err(PyException::new_err("Unsupported signature format. Expected str or bytes."));
+        };
+
+        // Check if public key is exist
+        let public_key = if let Some(public_key_str) = &self.public_key {
+            hex::decode(public_key_str.trim_start_matches("0x"))
+                .map_err(|e| PyException::new_err(format!("Invalid `public_key` string: {:?}", e)))?
+        } else if let Some(pair) = &self.pair {
+            pair.public().to_vec()
+        } else {
+            return Err(PyException::new_err("No public key or pair available."));
+        };
+
+
+        let public = Public::from_raw(<[u8; 32]>::try_from(public_key)
+            .map_err(|e| PyException::new_err(format!("Invalid public key length: {:?}", e)))?);
+
+        // Convert signature bytes to the type expected by the verify function
+        let signature = Signature::from_slice(&signature_bytes)
+            .map_err(|_| PyException::new_err("Invalid signature"))?;
+
+        // Verify signature depending on the type of crypto key
+        let verified = match self.crypto_type {
+            1 => { // SR25519
+                sr25519::Pair::verify(&signature, &data_bytes, &public)
+            }
+            _ => {
+                return Err(PyException::new_err("Crypto type not supported"));
+            }
+        };
+
+        // If not verified, try to verify with data wrapper
+        if !verified {
+            let wrapped_data = [b"<Bytes>", data_bytes.as_slice(), b"</Bytes>"].concat();
+            let verified_wrapped = match self.crypto_type {
+                1 => { // SR25519
+                    sr25519::Pair::verify(&signature, &wrapped_data, &public)
+                }
+                _ => {
+                    return Err(PyException::new_err("Crypto type not supported"));
+                }
+            };
+
+            Ok(verified_wrapped)
+        } else {
+            Ok(verified)
+        }
+    }
     /// Returns the SS58 address.
     #[getter]
     pub fn ss58_address(&self) -> PyResult<Option<String>> {
