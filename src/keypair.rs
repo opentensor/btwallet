@@ -35,9 +35,11 @@ impl Keypair {
         seed_hex: Option<Vec<u8>>,
         crypto_type: u8,
     ) -> PyResult<Self> {
-        let mut ss58_address_res = ss58_address;
+        let mut ss58_address_res = ss58_address.clone();
+        let mut public_key_res = public_key;
 
-        if let Some(public_key_str) = &public_key {
+        // if public_key is passed
+        if let Some(public_key_str) = &public_key_res {
             let public_key_vec = hex::decode(public_key_str.trim_start_matches("0x"))
                 .map_err(|e| PyException::new_err(format!("Invalid `private_key` string: {}", e)))?;
 
@@ -46,10 +48,19 @@ impl Keypair {
             ss58_address_res = Option::from(public_key.to_ss58check());
         }
 
+        // If ss58_address is passed, decode the public key
+        if let Some(ss58_address_str) = ss58_address.clone() {
+
+            let public_key = Public::from_ss58check(&ss58_address_str)
+                .map_err(|e| PyException::new_err(format!("Invalid SS58 address: {}", e)))?;
+
+            public_key_res = Some(hex::encode(public_key.to_raw()));
+        }
+
         Ok(
             Keypair {
                 ss58_address: ss58_address_res,
-                public_key,
+                public_key: public_key_res,
                 private_key,
                 ss58_format,
                 seed_hex,
