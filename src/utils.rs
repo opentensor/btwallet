@@ -86,9 +86,16 @@ pub fn is_valid_ss58_address(address: &str) -> PyResult<bool> {
 //     }
 // }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-#[test]
-fn test_get_ss58_format() {
-    let test_address = "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty";
-    assert_eq!(super::is_valid_ss58_address(test_address).unwrap(), true);
+    #[test]
+    fn test_get_ss58_format_success() {
+        let test_address = "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty";
+        match is_valid_ss58_address(test_address) {
+            Ok(result) => assert_eq!(result, true),
+            Err(err) => panic!("Test failed with error: {:?}", err),
+        }
+    }
 }
