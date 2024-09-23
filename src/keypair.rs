@@ -4,9 +4,11 @@ use pyo3::PyObject;
 use pyo3::exceptions::PyException;
 
 use sp_core::{sr25519, Pair};
-use sp_core::crypto::{Ss58Codec};
+use sp_core::crypto::Ss58Codec;
+use sp_core::sr25519::Public;
 
 use bip39::Mnemonic;
+use hex;
 
 
 #[pyclass]
@@ -33,9 +35,20 @@ impl Keypair {
         seed_hex: Option<Vec<u8>>,
         crypto_type: u8,
     ) -> PyResult<Self> {
+        let mut ss58_address_res = ss58_address;
+
+        if let Some(public_key_str) = &public_key {
+            let public_key_vec = hex::decode(public_key_str.trim_start_matches("0x"))
+                .map_err(|e| PyException::new_err(format!("Invalid `private_key` string: {}", e)))?;
+
+            let public_key = Public::from_raw(<[u8; 32]>::try_from(public_key_vec).unwrap());
+
+            ss58_address_res = Option::from(public_key.to_ss58check());
+        }
+
         Ok(
             Keypair {
-                ss58_address,
+                ss58_address: ss58_address_res,
                 public_key,
                 private_key,
                 ss58_format,
@@ -48,13 +61,9 @@ impl Keypair {
     }
 
     fn __str__(&self) -> PyResult<String> {
-        if self.pair.is_none() {
-            Ok("<Empty Keypair instance>".to_string())
-        } else {
-            match self.ss58_address()? {
-                Some(address) => Ok(format!("<Keypair (address={})>", address)),
-                None => Ok("<Keypair (address=None)>".to_string()),
-            }
+        match self.ss58_address()? {
+            Some(address) => Ok(format!("<Keypair (address={})>", address)),
+            None => Ok("<Keypair (address=None)>".to_string()),
         }
     }
 
@@ -142,21 +151,32 @@ impl Keypair {
                 let ss58_address = pair.public().to_ss58check();
                 Ok(Some(ss58_address))
             }
-            None => Ok(None),
+            None => {
+                if self.ss58_address.is_none() {
+                    Ok(None)
+                } else {
+                    Ok(self.ss58_address.clone())
+                }
+            }
         }
     }
 
     /// Returns the public key as a bytes.
     #[getter]
     pub fn public_key(&self, py: Python) -> PyResult<Option<PyObject>> {
-        match &self.pair {
-            Some(pair) => {
-                let public_key_vec = pair.public().to_vec();
-                Ok(Some(PyBytes::new_bound(py, &public_key_vec).into_py(py)))
-            }
-            None => {
-                Ok(None)
-            }
+        // Если public_key отсутствует
+        if let Some(pair) = &self.pair {
+            // Используем публичный ключ из пары
+            let public_key_vec = pair.public().to_vec();
+            Ok(Some(PyBytes::new_bound(py, &public_key_vec).into_py(py)))
+        } else if let Some(public_key) = &self.public_key {
+            // Если public_key есть, декодируем его из hex
+            let public_key_vec = hex::decode(public_key.trim_start_matches("0x"))
+                .map_err(|e| PyException::new_err(format!("Invalid `public_key` string: {}", e)))?;
+            Ok(Some(PyBytes::new_bound(py, &public_key_vec).into_py(py)))
+        } else {
+            // Если нет ни пары, ни публичного ключа
+            Ok(None)
         }
     }
 
