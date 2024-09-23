@@ -164,18 +164,18 @@ impl Keypair {
     /// Returns the public key as a bytes.
     #[getter]
     pub fn public_key(&self, py: Python) -> PyResult<Option<PyObject>> {
-        // Если public_key отсутствует
         if let Some(pair) = &self.pair {
-            // Используем публичный ключ из пары
+
             let public_key_vec = pair.public().to_vec();
             Ok(Some(PyBytes::new_bound(py, &public_key_vec).into_py(py)))
+
         } else if let Some(public_key) = &self.public_key {
-            // Если public_key есть, декодируем его из hex
+
             let public_key_vec = hex::decode(public_key.trim_start_matches("0x"))
                 .map_err(|e| PyException::new_err(format!("Invalid `public_key` string: {}", e)))?;
             Ok(Some(PyBytes::new_bound(py, &public_key_vec).into_py(py)))
+
         } else {
-            // Если нет ни пары, ни публичного ключа
             Ok(None)
         }
     }
