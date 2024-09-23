@@ -130,6 +130,16 @@ assert kps.verify("asd", kpw.sign("asd")) == True
 
 # check verify
 assert kpw.verify("asd", kps.sign("asd")) == True
+
+# check utils functions
+from bittensor_wallet import get_ss58_format, is_valid_ss58_address
+
+# check get_ss58_format
+assert get_ss58_format("5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY") == 42
+
+# check is_valid_ss58_address
+assert is_valid_ss58_address("5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY") == True
+assert is_valid_ss58_address("blabla") == False
 ```
 
 

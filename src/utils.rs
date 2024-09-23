@@ -1,7 +1,7 @@
-use sp_core::crypto::Ss58Codec;
 use pyo3::prelude::*;
 use std::str;
 
+use sp_core::crypto::{Ss58Codec, AccountId32};
 // use pyo3::exceptions::PyException;
 // use crate::keypair::Keypair;
 // use pyo3::{pyfunction, pymethods, pymodule, wrap_pyfunction, PyErr, PyResult, Python};
@@ -15,30 +15,14 @@ use std::str;
 // const SS58_FORMAT: u8 = 42;
 
 
-// /// Returns the SS58 format of the given address string.
-// #[pyfunction]
-// pub fn get_ss58_format(ss58_address: &str) -> PyResult<u16> {
-//     // Decode the SS58 address
-//     let maybe_address = Ss58Codec::from_string(ss58_address);
-//     match maybe_address {
-//         Ok(decoded_address) => {
-//             // The version (or format) information is stored in the decoded_address.
-//             // Use `decoded_address.ss58_version()` to access it.
-//             Ok(10)
-//         },
-//         Err(e) => {
-//             Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-//                 format!("error while decoding SS58 address: {}", e)
-//             ))
-//         },
-//     }
-// }
-
-// #[pymodule(name="utils")]
-// fn utils(m: &Bound<'_, PyModule>) -> PyResult<()> {
-//     m.add_function(wrap_pyfunction!(get_ss58_format, m)?)?;
-//     Ok(())
-// }
+/// Returns the SS58 format of the given address string.
+#[pyfunction]
+pub fn get_ss58_format(ss58_address: &str) -> PyResult<u16> {
+    match <AccountId32 as sp_core::crypto::Ss58Codec>::from_ss58check_with_version(ss58_address) {
+        Ok((_, format)) => Ok(u16::from(format)),
+        Err(_) => Err(pyo3::exceptions::PyValueError::new_err("Invalid SS58 address.")),
+    }
+}
 
 /// Function to validate a given SS58 address
 #[pyfunction]
