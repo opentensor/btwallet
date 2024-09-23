@@ -7,7 +7,6 @@ mod keypair;
 mod keyfile;
 mod utils;
 
-use utils::*;
 
 #[pymodule(name = "bittensor_wallet")]
 fn bittensor_wallet(m: &Bound<'_, PyModule>) -> PyResult<()> {

@@ -1,15 +1,18 @@
-// use crate::keypair::Keypair;
+use sp_core::crypto::Ss58Codec;
 use pyo3::prelude::*;
 use std::str;
+
+// use pyo3::exceptions::PyException;
+// use crate::keypair::Keypair;
 // use pyo3::{pyfunction, pymethods, pymodule, wrap_pyfunction, PyErr, PyResult, Python};
 // use pyo3::prelude::PyModule;
-use sp_core::crypto::Ss58Codec;
-use sp_core::crypto::Ss58AddressFormat;
+// use sp_core::crypto::Ss58Codec;
+// use sp_core::crypto::Ss58AddressFormat;
 // use sp_core::crypto::Pair;
 // use sp_core::sr25519;
 
 
-const SS58_FORMAT: u8 = 42;
+// const SS58_FORMAT: u8 = 42;
 
 
 // /// Returns the SS58 format of the given address string.
@@ -41,21 +44,21 @@ const SS58_FORMAT: u8 = 42;
 #[pyfunction]
 pub fn is_valid_ss58_address(address: &str) -> PyResult<bool> {
     if address.is_empty() {
-        println!("The given address is empty");
+        // hypothetically there could be a debug log, but not a print
+        // println!("The given address is empty");
         return Ok(false);
     }
-    let address_format: bool = match Ss58AddressFormat::try_from(address) {
-        Ok(format) => {
-            return Ok(true);
-        },
-        Err(e) => {
-            println!("Cannot convert address to the format: {}", e);
-            return Ok(false);
-        },
-    };
 
-    return Ok(address_format)
+    match sp_core::sr25519::Public::from_ss58check(address) {
+        Ok(_) => Ok(true),
+        Err(_) => {
+            // hypothetically there could be a debug log, but not a print
+            // println!("Invalid SS58 address format");
+            Ok(false)
+        }
+    }
 }
+
 //
 // fn is_valid_ed25519_pubkey(public_key: &str) -> bool {
 //     let valid_length = public_key.len() == 64 || public_key.len() == 66;
