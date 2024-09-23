@@ -62,7 +62,7 @@ setup(
     description="",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/opentensor/bittensor",
+    url="https://github.com/opentensor/btwallet",
     author="bittensor.com",
     packages=find_packages(exclude=["tests", "tests.*", "test_*.py"]),
     include_package_data=True,
