@@ -159,6 +159,39 @@ impl Keypair {
         Ok(kp)
     }
 
+    /// Creates a signature for given data.
+    pub fn sign(&self, data: PyObject, py: Python) -> PyResult<PyObject> {
+        // Convert data to bytes (data can be a string, hex, or bytes)
+        let data_bytes = if let Ok(s) = data.extract::<String>(py) {
+            if s.starts_with("0x") {
+                hex::decode(s.trim_start_matches("0x"))
+                    .map_err(|e| PyException::new_err(format!("Invalid hex string: {}", e)))?
+            } else {
+                s.into_bytes()
+            }
+        } else if let Ok(bytes) = data.extract::<Vec<u8>>(py) {
+            bytes
+        } else {
+            return Err(PyException::new_err("Unsupported data format. Expected str or bytes."));
+        };
+
+        // Check if private key is exist
+        let pair = self.pair.as_ref().ok_or_else(|| PyException::new_err("No private key set to create signatures"))?;
+
+        // Generate a signature depending on the type of cryptographic key
+        let signature = match self.crypto_type {
+            1 => { // SR25519
+                pair.sign(&data_bytes)
+            }
+            _ => {
+                return Err(PyException::new_err("Crypto type not supported."));
+            }
+        };
+
+        // Return the signature as a Python object (bytes)
+        Ok(PyBytes::new_bound(py, &signature).into_py(py))
+    }
+
     /// Returns the SS58 address.
     #[getter]
     pub fn ss58_address(&self) -> PyResult<Option<String>> {
