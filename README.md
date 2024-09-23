@@ -109,6 +109,15 @@ assert kps.ss58_address == kpw.ss58_address
 assert kps.seed_hex == kpw.seed_hex
 assert kps.public_key == kpw.public_key
 assert kps.private_key == kpw.private_key
+
+# Check the creation from public_key argument
+# substrateinterface has a bug -> can't create the KP without `ss58_format` passed
+new_kps = SKeypair(public_key=kps.public_key.hex(), ss58_format=42)
+new_kpw = WKeypair(public_key=kps.public_key.hex())
+assert new_kps.ss58_address == new_kpw.ss58_address
+assert new_kps.seed_hex == new_kpw.seed_hex
+assert new_kps.public_key == new_kpw.public_key
+assert new_kps.private_key == new_kpw.private_key
 ```
 
 
