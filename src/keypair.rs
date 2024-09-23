@@ -57,18 +57,23 @@ impl Keypair {
             public_key_res = Some(hex::encode(public_key.to_raw()));
         }
 
-        Ok(
-            Keypair {
-                ss58_address: ss58_address_res,
-                public_key: public_key_res,
-                private_key,
-                ss58_format,
-                seed_hex,
-                crypto_type,
-                mnemonic: None,
-                pair: None,
-            }
-        )
+        let kp = Keypair {
+            ss58_address: ss58_address_res,
+            public_key: public_key_res,
+            private_key,
+            ss58_format,
+            seed_hex,
+            crypto_type,
+            mnemonic: None,
+            pair: None,
+        };
+
+        // If public_key is missing (ss58_address wasn't created), return an error
+        if kp.public_key.is_none() {
+            return Err(PyException::new_err("No SS58 formatted address or public key provided."));
+        }
+
+        Ok(kp)
     }
 
     fn __str__(&self) -> PyResult<String> {
