@@ -1,8 +1,179 @@
 use pyo3::prelude::*;
 use crate::keypair::Keypair;
 
+use std::env;
 use std::fs;
 use std::path::Path;
+
+const NACL_SALT: &[u8] = b"\x13q\x83\xdf\xf1Z\t\xbc\x9c\x90\xb5Q\x879\xe9\xb1";
+
+/// Serializes keypair object into keyfile data.
+///
+///     Args:
+///         keypair (Keypair): The keypair object to be serialized.
+///     Returns:
+///         data (bytes): Serialized keypair data.
+#[pyfunction]
+pub fn serialized_keypair_to_keyfile_data(_py: Python, keypair: &Keypair) -> PyResult<Vec<u8>> {
+    // TODO: implement this function
+    unimplemented!();
+}
+
+/// Deserializes Keypair object from passed keyfile data.
+///
+///     Args:
+///         keyfile_data (bytes): The keyfile data as bytes to be loaded.
+///     Returns:
+///         keypair (Keypair): The Keypair loaded from bytes.
+///     Raises:
+///         KeyFileError: Raised if the passed bytes cannot construct a keypair object.
+#[pyfunction]
+pub fn deserialize_keypair_from_keyfile_data(_py: Python, keyfile_data: Vec<u8>) -> PyResult<Keypair> {
+    // TODO: implement this function
+    unimplemented!();
+}
+
+/// Validates the password against a password policy.
+///
+///     Args:
+///         password (str): The password to verify.
+///     Returns:
+///         valid (bool): ``True`` if the password meets validity requirements.
+#[pyfunction]
+pub fn validate_password(_py: Python, password: &str) -> PyResult<bool> {
+    // TODO: implement this function
+    unimplemented!();
+}
+
+
+/// Returns `true` if the keyfile data is NaCl encrypted.
+///
+/// # Arguments
+///
+/// * `keyfile_data` - Bytes to validate
+///
+/// # Returns
+///
+/// * `is_nacl` - `true` if the data is ansible encrypted.
+#[pyfunction]
+pub fn keyfile_data_is_encrypted_nacl(_py: Python, keyfile_data: Vec<u8>) -> PyResult<bool> {
+    // TODO: Implement the function
+    unimplemented!();
+}
+
+/// Returns true if the keyfile data is ansible encrypted.
+///
+/// # Args
+/// * `keyfile_data` - The bytes to validate.
+///
+/// # Returns
+/// * `is_ansible` - True if the data is ansible encrypted.
+#[pyfunction]
+pub fn keyfile_data_is_encrypted_ansible(_py: Python, keyfile_data: Vec<u8>) -> PyResult<bool> {
+    // TODO: Implement the function
+    unimplemented!()
+}
+
+/// Returns true if the keyfile data is legacy encrypted.
+///
+/// # Args
+/// * `keyfile_data` - The bytes to validate.
+///
+/// # Returns
+/// * `is_legacy` - `true` if the data is legacy encrypted.
+#[pyfunction]
+pub fn keyfile_data_is_encrypted_legacy(_py: Python, keyfile_data: Vec<u8>) -> PyResult<bool> {
+    // TODO: Implement the function
+    unimplemented!()
+}
+
+/// Returns `true` if the keyfile data is encrypted.
+///
+/// # Args
+/// * `keyfile_data` - The bytes to validate.
+///
+/// # Returns
+/// * `is_encrypted` - `true` if the data is encrypted.
+#[pyfunction]
+pub fn keyfile_data_is_encrypted(_py: Python, keyfile_data: Vec<u8>) -> PyResult<bool> {
+    // TODO: Implement the function
+    unimplemented!()
+}
+
+/// Returns type of encryption method as a string.
+///
+/// # Args
+///
+/// * `keyfile_data` - Bytes to validate.
+///
+/// # Returns
+///
+/// * A string representing the name of encryption method.
+#[pyfunction]
+pub fn keyfile_data_encryption_method(_py: Python, keyfile_data: Vec<u8>) -> PyResult<String> {
+    // TODO: Implement the function.
+    unimplemented!()
+}
+
+/// legacy_encrypt_keyfile_data.
+///
+/// # Args
+///
+/// * `keyfile_data` - Bytes of data from the keyfile.
+///
+/// * `password` - Optional string that represents the password.
+///
+/// # Returns
+///
+/// * `encrypted_data` - The encrypted keyfile data in bytes.
+#[pyfunction]
+pub fn legacy_encrypt_keyfile_data(_py: Python, keyfile_data: Vec<u8>, password: Option<String>, ) -> PyResult<Vec<u8>> {
+    // TODO: Implement the body of the function
+    unimplemented!()
+}
+
+/// Encrypts the passed keyfile data using ansible vault.
+///
+/// # Args
+/// * `keyfile_data` - The bytes to encrypt.
+/// * `password` - The password used to encrypt the data. If `None`, asks for user input.
+///
+/// # Returns
+/// * `encrypted_data` - The encrypted data.
+#[pyfunction]
+pub fn encrypt_keyfile_data(_py: Python, keyfile_data: Vec<u8>, password: Option<String>) -> PyResult<Vec<u8>> {
+    // TODO: Implement the function
+    unimplemented!()
+}
+
+/// Retrieves the cold key password from the environment variables.
+///
+/// # Args
+/// * `coldkey_name` - The name of the cold key.
+///
+/// # Returns
+/// * `Option<String>` - The password retrieved from the environment variables, or `None` if not found.
+#[pyfunction]
+pub fn get_coldkey_password_from_environment(_py: Python, coldkey_name: String) -> PyResult<Option<String>> {
+    let password = env::var(coldkey_name).ok();
+    Ok(password)
+}
+
+/// Decrypts the passed keyfile data using ansible vault.
+///
+/// # Args
+/// * `keyfile_data` - The bytes to decrypt.
+/// * `password` - The password used to decrypt the data. If `None`, asks for user input.
+/// * `coldkey_name` - The name of the cold key. If provided, retrieves the password from environment variables.
+///
+/// # Returns
+/// * `decrypted_data` - The decrypted data.
+#[pyfunction]
+pub fn decrypt_keyfile_data(_py: Python, keyfile_data: Vec<u8>, password: Option<String>, coldkey_name: Option<String>, ) -> PyResult<Vec<u8>> {
+    // TODO: Implement the function
+    unimplemented!()
+}
+
 
 
 #[pyclass]
