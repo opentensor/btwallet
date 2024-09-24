@@ -256,11 +256,7 @@ impl Keyfile {
 
     /// Returns ``True`` if the file exists on the device.
     pub fn exists_on_device(&self) -> PyResult<bool> {
-        let path: &Path = self.path.as_ref();
-        match fs::metadata(path) {
-            Ok(metadata) => Ok(metadata.is_file()),
-            Err(_) => Ok(false),
-        }
+        Ok(Path::new(&self.path).exists())
     }
 
     /// Returns ``True`` if the file under path is readable.
