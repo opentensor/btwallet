@@ -60,37 +60,9 @@ pub fn is_valid_ss58_address(address: &str) -> PyResult<bool> {
     }
 }
 
-// #[pyfunction]
-// pub fn is_valid_ed25519_pubkey(public_key: Option<&PyAny>) -> PyResult<bool> {
-//     if let Some(pub_key) = public_key {
-//         if pub_key.is_instance::<PyString>().unwrap() {
-//             let pub_key_string: &str = pub_key.extract()?;
-//             if pub_key_string.len() != 64 && pub_key_string.len() != 66 {
-//                 return Ok(false);
-//             }
-//         } else if pub_key.is_instance::<PyBytes>().unwrap() {
-//             let pub_key_bytes: &[u8] = pub_key.extract()?;
-//             if pub_key_bytes.len() != 32 {
-//                 return Ok(false);
-//             }
-//         } else {
-//             return Ok(false);
-//         }
-//
-//         let keypair_result = Keypair::from_public_key(pub_key.to_string());
-//         match keypair_result {
-//             Ok(keypair) => Ok(keypair.ss58_address().is_some()),
-//             Err(_) => Ok(false),
-//         }
-//     } else {
-//         Ok(false)
-//     }
-// }
-
-
 #[pyfunction]
 pub fn is_valid_ed25519_pubkey(public_key: Option<&PyAny>) -> PyResult<bool> {
-    Python::with_gil(|py| {
+    Python::with_gil(|_py| {
         if let Some(pub_key) = public_key {
             if pub_key.is_instance_of::<PyString>() {
                 let pub_key_string: &str = pub_key.extract()?;
@@ -105,15 +77,19 @@ pub fn is_valid_ed25519_pubkey(public_key: Option<&PyAny>) -> PyResult<bool> {
             } else {
                 return Ok(false);
             }
+            let pub_key_var = Some(pub_key.to_string());
+            println!("{:?}", pub_key_var);
+            let keypair_result = Keypair::new(None, pub_key_var, None, 42, None, 1);
+            return match keypair_result {
+                Ok(keypair) => {
+                    if keypair.ss58_address()?.is_some() {
+                        return Ok(true);
+                    }
+                        return Ok(false);
+                },
 
-            // Making an assumption that the public key can be converted to a string
-            // let pub_key_string = pub_key.str()?.to_str()?;
-            // let keypair_result = Keypair::new(None, pub_key_string, None, 42, None, 1);
-            //
-            // match keypair_result {
-            //     Ok(keypair) => Ok(keypair.ss58_address().is_some()),
-            //     Err(_) => Ok(false),
-            // }
+                Err(_) =>  Ok(false),
+            };
         }
         Ok(false)
     })
