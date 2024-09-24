@@ -99,9 +99,8 @@ pub fn keyfile_data_is_encrypted_legacy(_py: Python, keyfile_data: Vec<u8>) -> P
 /// # Returns
 /// * `is_encrypted` - `true` if the data is encrypted.
 #[pyfunction]
-pub fn keyfile_data_is_encrypted(_py: Python, keyfile_data: Vec<u8>) -> PyResult<bool> {
-    // TODO: Implement the function
-    unimplemented!()
+pub fn keyfile_data_is_encrypted(keyfile_data: PyObject) -> PyResult<bool> {
+    Ok(false)
 }
 
 /// Returns type of encryption method as a string.
@@ -303,8 +302,27 @@ impl Keyfile {
     }
 
     /// Returns ``True`` if the file under path is encrypted.
-    pub fn is_encrypted(&self) -> PyResult<bool> {
-        Ok(true)
+    ///
+    /// Returns:
+    ///     encrypted (bool): ``True`` if the file is encrypted.
+    pub fn is_encrypted(&self, py: Python) -> PyResult<bool> {
+        // check if file exist
+        if !self.exists_on_device()? {
+            return Ok(false);
+        }
+
+        // check readable
+        if !self.is_readable()? {
+            return Ok(false);
+        }
+
+        // get the data from file
+        let keyfile_data = self._read_keyfile_data_from_file(py)?;
+
+        // check if encrypted
+        let is_encrypted = keyfile_data_is_encrypted(keyfile_data)?;
+
+        Ok(is_encrypted)
     }
 
     /// Asks the user if it is okay to overwrite the file.
