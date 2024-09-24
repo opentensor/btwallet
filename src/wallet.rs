@@ -22,6 +22,7 @@ impl Wallet {
         path: Option<String>,
         config: Option<Config>,
     ) -> Self {
+
         Wallet {
             name: name.unwrap_or_else(|| BT_WALLET_NAME.to_string()),
             hotkey: hotkey.unwrap_or_else(|| BT_WALLET_HOTKEY.to_string()),
