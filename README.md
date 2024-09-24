@@ -111,19 +111,19 @@ assert kps.public_key == kpw.public_key
 assert kps.private_key == kpw.private_key
 
 # substrateinterface has a bug -> can't create the KP without `ss58_format` passed
-new_kps = SKeypair(public_key=kps.public_key.hex(), ss58_format=42)
-new_kpw = WKeypair(public_key=kps.public_key.hex())
-assert new_kps.ss58_address == new_kpw.ss58_address
-assert new_kps.seed_hex == new_kpw.seed_hex
-assert new_kps.public_key == new_kpw.public_key
-assert new_kps.private_key == new_kpw.private_key
+from_private_key_new_kps = SKeypair(public_key=kps.public_key.hex(), ss58_format=42)
+from_private_key_new_kpw = WKeypair(public_key=kps.public_key.hex())
+assert from_private_key_new_kps.ss58_address == from_private_key_new_kpw.ss58_address
+assert from_private_key_new_kps.seed_hex == from_private_key_new_kpw.seed_hex
+assert from_private_key_new_kps.public_key == from_private_key_new_kpw.public_key
+assert from_private_key_new_kps.private_key == from_private_key_new_kpw.private_key
 
-kps_from_address = SKeypair(ss58_address="5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY")
-kpw_from_address = WKeypair(ss58_address="5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY")
-assert kps_from_address.ss58_address == kpw_from_address.ss58_address
-assert kps_from_address.seed_hex == kpw_from_address.seed_hex
-assert kps_from_address.public_key == kpw_from_address.public_key
-assert kps_from_address.private_key == kpw_from_address.private_key
+from_address_kps = SKeypair(ss58_address="5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY")
+from_address_kpw = WKeypair(ss58_address="5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY")
+assert from_address_kps.ss58_address == from_address_kpw.ss58_address
+assert from_address_kps.seed_hex == from_address_kpw.seed_hex
+assert from_address_kps.public_key == from_address_kpw.public_key
+assert from_address_kps.private_key == from_address_kpw.private_key
 
 # check signature
 assert kps.verify("asd", kpw.sign("asd")) == True
