@@ -26,7 +26,7 @@ impl Wallet {
             name: name.unwrap_or_else(|| BT_WALLET_NAME.to_string()),
             hotkey: hotkey.unwrap_or_else(|| BT_WALLET_HOTKEY.to_string()),
             path: path.unwrap_or_else(|| BT_WALLET_PATH.to_string()),
-            config: config.or_else(|| None),
+            config: config.or(None),
         }
     }
 

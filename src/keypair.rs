@@ -7,7 +7,7 @@ use sp_core::crypto::Ss58Codec;
 use sp_core::{sr25519, ByteArray, Pair};
 
 use bip39::Mnemonic;
-use hex;
+
 
 #[pyclass]
 pub struct Keypair {
@@ -342,7 +342,7 @@ impl Keypair {
                     Ok(None)
                 } else {
                     Ok(Some(
-                        PyBytes::new_bound(py, &self.private_key.as_ref().unwrap().as_bytes())
+                        PyBytes::new_bound(py, self.private_key.as_ref().unwrap().as_bytes())
                             .into_py(py),
                     ))
                 }
@@ -360,7 +360,7 @@ impl Keypair {
     #[getter]
     pub fn seed_hex(&self, py: Python) -> PyResult<Option<PyObject>> {
         match &self.seed_hex {
-            Some(seed_hex) => Ok(Some(PyBytes::new_bound(py, &seed_hex).into_py(py))),
+            Some(seed_hex) => Ok(Some(PyBytes::new_bound(py, seed_hex).into_py(py))),
             None => Ok(None),
         }
     }
