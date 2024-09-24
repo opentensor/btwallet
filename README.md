@@ -132,7 +132,7 @@ assert kps.verify("asd", kpw.sign("asd")) == True
 assert kpw.verify("asd", kps.sign("asd")) == True
 
 # check utils functions
-from bittensor_wallet import get_ss58_format, is_valid_ss58_address
+from bittensor_wallet import get_ss58_format, is_valid_ss58_address, is_valid_ed25519_pubkey, is_valid_bittensor_address_or_public_key
 
 # check get_ss58_format
 assert get_ss58_format("5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY") == 42
@@ -140,6 +140,24 @@ assert get_ss58_format("5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY") == 42
 # check is_valid_ss58_address
 assert is_valid_ss58_address("5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY") == True
 assert is_valid_ss58_address("blabla") == False
+
+# check is_valid_ed25519_pubkey
+assert is_valid_ed25519_pubkey("a"*64) == True
+assert is_valid_ed25519_pubkey("5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY") == False
+assert is_valid_ed25519_pubkey("0x86eb46a3f42935d901acc3b8910ca301d969b76cfc2a80f0eac733a8eda7ed24") == True
+assert is_valid_ed25519_pubkey("86eb46a3f42935d901acc3b8910ca301d969b76cfc2a80f0eac733a8eda7ed24") == True
+assert is_valid_ed25519_pubkey("") ==  False
+try:
+        is_valid_ed25519_pubkey()
+except TypeError:
+        # TypeError: is_valid_ed25519_pubkey() missing 1 required positional argument: 'public_key'
+        ...
+# check is_valid_bittensor_address_or_public_key
+assert is_valid_bittensor_address_or_public_key("blabla") == False
+assert is_valid_bittensor_address_or_public_key("a"*64) == False
+assert is_valid_bittensor_address_or_public_key(b"5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY") == False
+assert is_valid_bittensor_address_or_public_key("5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY") == True
+assert is_valid_bittensor_address_or_public_key(100) == False
 ```
 
 
