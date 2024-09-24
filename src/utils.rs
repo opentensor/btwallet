@@ -5,15 +5,8 @@ use sp_core::crypto::{Ss58Codec, AccountId32};
 
 use crate::keypair::Keypair;
 
-// use pyo3::exceptions::PyException;
-// use pyo3::prelude::PyModule;
-// use sp_core::crypto::Ss58Codec;
-// use sp_core::crypto::Ss58AddressFormat;
-// use sp_core::crypto::Pair;
-// use sp_core::sr25519;
 
-
-// const SS58_FORMAT: u8 = 42;
+const SS58_FORMAT: u8 = 42;
 
 
 /// Returns the SS58 format of the given address string.
@@ -79,7 +72,7 @@ pub fn is_valid_ed25519_pubkey(public_key: &Bound<'_, PyAny>) -> PyResult<bool> 
 
         let pub_key_var = Some(public_key.to_string());
 
-        let keypair_result = Keypair::new(None, pub_key_var, None, 42, None, 1);
+        let keypair_result = Keypair::new(None, pub_key_var, None, SS58_FORMAT, None, 1);
 
         match keypair_result {
             Ok(keypair) => {
