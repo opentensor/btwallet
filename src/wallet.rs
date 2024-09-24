@@ -1,8 +1,8 @@
-use pyo3::prelude::*;
 use crate::config::Config;
-use crate::constants::{BT_WALLET_NAME, BT_WALLET_HOTKEY, BT_WALLET_PATH};
+use crate::constants::{BT_WALLET_HOTKEY, BT_WALLET_NAME, BT_WALLET_PATH};
 use crate::keypair::Keypair;
 use colored::Colorize;
+use pyo3::prelude::*;
 
 #[pyclass(name = "Wallet", get_all)]
 pub struct Wallet {
@@ -14,15 +14,19 @@ pub struct Wallet {
 
 #[pymethods]
 impl Wallet {
-
     #[new]
     #[pyo3(signature = (name = None, hotkey = None, path = None, config = None))]
-    fn new(name: Option<String>, hotkey: Option<String>, path: Option<String>, config: Option<Config>) -> Self {
+    fn new(
+        name: Option<String>,
+        hotkey: Option<String>,
+        path: Option<String>,
+        config: Option<Config>,
+    ) -> Self {
         Wallet {
             name: name.unwrap_or_else(|| BT_WALLET_NAME.to_string()),
             hotkey: hotkey.unwrap_or_else(|| BT_WALLET_HOTKEY.to_string()),
             path: path.unwrap_or_else(|| BT_WALLET_PATH.to_string()),
-            config: config.or_else(|| None)
+            config: config.or_else(|| None),
         }
     }
 
@@ -39,13 +43,25 @@ impl Wallet {
 
     #[pyo3(signature = (coldkey_use_password=true, hotkey_use_password=false))]
     fn create(&self, coldkey_use_password: bool, hotkey_use_password: bool) -> PyResult<Self> {
-        println!(">>> create {:?}, {:?}", coldkey_use_password, hotkey_use_password);
+        println!(
+            ">>> create {:?}, {:?}",
+            coldkey_use_password, hotkey_use_password
+        );
         Ok(Wallet::new(None, None, None, None))
     }
 
     #[pyo3(signature = (n_words=12, use_password=true, overwrite=false, suppress=false))]
-    fn create_new_coldkey(&self, n_words: usize, use_password: bool, overwrite: bool, suppress: bool) -> PyResult<Self> {
-        println!(">>> create_new_coldkey {:?}, {:?}, {:?}, {:?}", n_words, use_password, overwrite, suppress);
+    fn create_new_coldkey(
+        &self,
+        n_words: usize,
+        use_password: bool,
+        overwrite: bool,
+        suppress: bool,
+    ) -> PyResult<Self> {
+        println!(
+            ">>> create_new_coldkey {:?}, {:?}, {:?}, {:?}",
+            n_words, use_password, overwrite, suppress
+        );
 
         //+ mnemonic = Keypair.generate_mnemonic(n_words)
         //+ keypair = Keypair.create_from_mnemonic(mnemonic)
@@ -67,8 +83,17 @@ impl Wallet {
     }
 
     #[pyo3(signature = (n_words=12, use_password=true, overwrite=false, suppress=false))]
-    fn create_new_hotkey(&self, n_words: u8, use_password: bool, overwrite: bool, suppress: bool) -> PyResult<Self> {
-        println!(">>> create_new_hotkey {:?}, {:?}, {:?}, {:?}", n_words, use_password, overwrite, suppress);
+    fn create_new_hotkey(
+        &self,
+        n_words: u8,
+        use_password: bool,
+        overwrite: bool,
+        suppress: bool,
+    ) -> PyResult<Self> {
+        println!(
+            ">>> create_new_hotkey {:?}, {:?}, {:?}, {:?}",
+            n_words, use_password, overwrite, suppress
+        );
 
         Ok(Wallet::new(None, None, None, None))
     }
@@ -83,7 +108,14 @@ impl Wallet {
     fn display_mnemonic_msg(&self, mnemonic: String, key_type: &str) {
         println!("{}", "\nIMPORTANT: Store this mnemonic in a secure (preferable offline place), as anyone who has possession of this mnemonic can use it to regenerate the key and access your tokens.".red());
 
-        println!("\nThe mnemonic to the new {} is: {}", key_type.blue(), mnemonic.green());
-        println!("\nYou can use the mnemonic to recreate the key with `{}` in case it gets lost.", "btcli".green());
+        println!(
+            "\nThe mnemonic to the new {} is: {}",
+            key_type.blue(),
+            mnemonic.green()
+        );
+        println!(
+            "\nYou can use the mnemonic to recreate the key with `{}` in case it gets lost.",
+            "btcli".green()
+        );
     }
 }

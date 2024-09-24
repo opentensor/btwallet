@@ -1,14 +1,13 @@
-use pyo3::prelude::*;
-use pyo3::types::{PyBytes};
-use pyo3::PyObject;
 use pyo3::exceptions::PyException;
+use pyo3::prelude::*;
+use pyo3::types::PyBytes;
+use pyo3::PyObject;
 
-use sp_core::{sr25519, Pair, ByteArray};
 use sp_core::crypto::Ss58Codec;
+use sp_core::{sr25519, ByteArray, Pair};
 
 use bip39::Mnemonic;
 use hex;
-
 
 #[pyclass]
 pub struct Keypair {
@@ -34,9 +33,11 @@ impl Keypair {
         seed_hex: Option<Vec<u8>>,
         crypto_type: u8,
     ) -> PyResult<Self> {
-
         if crypto_type != 1 {
-            return Err(PyException::new_err(format!("Unsupported crypto type: {}.", crypto_type)));
+            return Err(PyException::new_err(format!(
+                "Unsupported crypto type: {}.",
+                crypto_type
+            )));
         }
 
         let mut ss58_address_res = ss58_address.clone();
@@ -44,8 +45,10 @@ impl Keypair {
 
         // if public_key is passed
         if let Some(public_key_str) = &public_key_res {
-            let public_key_vec = hex::decode(public_key_str.trim_start_matches("0x"))
-                .map_err(|e| PyException::new_err(format!("Invalid `private_key` string: {}", e)))?;
+            let public_key_vec =
+                hex::decode(public_key_str.trim_start_matches("0x")).map_err(|e| {
+                    PyException::new_err(format!("Invalid `private_key` string: {}", e))
+                })?;
 
             let public_key_array: [u8; 32] = public_key_vec
                 .try_into()
@@ -58,7 +61,6 @@ impl Keypair {
 
         // If ss58_address is passed, decode the public key
         if let Some(ss58_address_str) = ss58_address.clone() {
-
             let public_key = sr25519::Public::from_ss58check(&ss58_address_str)
                 .map_err(|e| PyException::new_err(format!("Invalid SS58 address: {}", e)))?;
 
@@ -78,7 +80,9 @@ impl Keypair {
 
         // If public_key is missing (ss58_address wasn't created), return an error
         if kp.public_key.is_none() {
-            return Err(PyException::new_err("No SS58 formatted address or public key provided."));
+            return Err(PyException::new_err(
+                "No SS58 formatted address or public key provided.",
+            ));
         }
 
         Ok(kp)
@@ -98,15 +102,14 @@ impl Keypair {
     /// Creates mnemonic from amount of words (accepted: 12, 15, 18, 21 or 24).
     #[staticmethod]
     pub fn generate_mnemonic(n_words: usize) -> PyResult<String> {
-        let mnemonic = Mnemonic::generate(n_words)
-            .map_err(|e| PyErr::new::<PyException, _>(e.to_string()))?;
+        let mnemonic =
+            Mnemonic::generate(n_words).map_err(|e| PyErr::new::<PyException, _>(e.to_string()))?;
         Ok(mnemonic.to_string())
     }
 
     /// Creates Keypair from a mnemonic.
     #[staticmethod]
     pub fn create_from_mnemonic(mnemonic: &str) -> PyResult<Self> {
-
         let (pair, seed_vec) = sr25519::Pair::from_phrase(mnemonic, None)
             .map_err(|e| PyErr::new::<PyException, _>(e.to_string()))?;
 
@@ -139,12 +142,12 @@ impl Keypair {
     /// Creates Keypair from `private key`.
     #[staticmethod]
     pub fn create_from_private_key(private_key: &str) -> PyResult<Self> {
-
         let private_key_vec = hex::decode(private_key.trim_start_matches("0x"))
             .map_err(|e| PyException::new_err(format!("Invalid `private_key` string: {}", e)))?;
 
-        let pair = sr25519::Pair::from_seed_slice(&private_key_vec)
-            .map_err(|e| PyException::new_err(format!("Failed to create pair from private key: {}", e)))?;
+        let pair = sr25519::Pair::from_seed_slice(&private_key_vec).map_err(|e| {
+            PyException::new_err(format!("Failed to create pair from private key: {}", e))
+        })?;
 
         let kp = Keypair {
             // seed_hex: Some(private_key_vec.to_vec()),
@@ -180,15 +183,21 @@ impl Keypair {
         } else if let Ok(bytes) = data.extract::<Vec<u8>>(py) {
             bytes
         } else {
-            return Err(PyException::new_err("Unsupported data format. Expected str or bytes."));
+            return Err(PyException::new_err(
+                "Unsupported data format. Expected str or bytes.",
+            ));
         };
 
         // Check if private key is exist
-        let pair = self.pair.as_ref().ok_or_else(|| PyException::new_err("No private key set to create signatures"))?;
+        let pair = self
+            .pair
+            .as_ref()
+            .ok_or_else(|| PyException::new_err("No private key set to create signatures"))?;
 
         // Generate a signature depending on the type of cryptographic key
         let signature = match self.crypto_type {
-            1 => { // SR25519
+            1 => {
+                // SR25519
                 pair.sign(&data_bytes)
             }
             _ => {
@@ -214,7 +223,9 @@ impl Keypair {
         } else if let Ok(bytes) = data.extract::<Vec<u8>>(py) {
             bytes
         } else {
-            return Err(PyException::new_err("Unsupported data format. Expected str or bytes."));
+            return Err(PyException::new_err(
+                "Unsupported data format. Expected str or bytes.",
+            ));
         };
 
         // Convert signature to bytes
@@ -223,27 +234,33 @@ impl Keypair {
                 hex::decode(s.trim_start_matches("0x"))
                     .map_err(|e| PyException::new_err(format!("Invalid hex string: {:?}", e)))?
             } else {
-                return Err(PyException::new_err("Invalid signature format. Expected hex string."));
+                return Err(PyException::new_err(
+                    "Invalid signature format. Expected hex string.",
+                ));
             }
         } else if let Ok(bytes) = signature.extract::<Vec<u8>>(py) {
             bytes
         } else {
-            return Err(PyException::new_err("Unsupported signature format. Expected str or bytes."));
+            return Err(PyException::new_err(
+                "Unsupported signature format. Expected str or bytes.",
+            ));
         };
 
         // Check if public key is exist
         let public_key = if let Some(public_key_str) = &self.public_key {
-            hex::decode(public_key_str.trim_start_matches("0x"))
-                .map_err(|e| PyException::new_err(format!("Invalid `public_key` string: {:?}", e)))?
+            hex::decode(public_key_str.trim_start_matches("0x")).map_err(|e| {
+                PyException::new_err(format!("Invalid `public_key` string: {:?}", e))
+            })?
         } else if let Some(pair) = &self.pair {
             pair.public().to_vec()
         } else {
             return Err(PyException::new_err("No public key or pair available."));
         };
 
-
-        let public = sr25519::Public::from_raw(<[u8; 32]>::try_from(public_key)
-            .map_err(|e| PyException::new_err(format!("Invalid public key length: {:?}", e)))?);
+        let public =
+            sr25519::Public::from_raw(<[u8; 32]>::try_from(public_key).map_err(|e| {
+                PyException::new_err(format!("Invalid public key length: {:?}", e))
+            })?);
 
         // Convert signature bytes to the type expected by the verify function
         let signature = sr25519::Signature::from_slice(&signature_bytes)
@@ -251,7 +268,8 @@ impl Keypair {
 
         // Verify signature depending on the type of crypto key
         let verified = match self.crypto_type {
-            1 => { // SR25519
+            1 => {
+                // SR25519
                 sr25519::Pair::verify(&signature, &data_bytes, &public)
             }
             _ => {
@@ -263,7 +281,8 @@ impl Keypair {
         if !verified {
             let wrapped_data = [b"<Bytes>", data_bytes.as_slice(), b"</Bytes>"].concat();
             let verified_wrapped = match self.crypto_type {
-                1 => { // SR25519
+                1 => {
+                    // SR25519
                     sr25519::Pair::verify(&signature, &wrapped_data, &public)
                 }
                 _ => {
@@ -298,16 +317,12 @@ impl Keypair {
     #[getter]
     pub fn public_key(&self, py: Python) -> PyResult<Option<PyObject>> {
         if let Some(pair) = &self.pair {
-
             let public_key_vec = pair.public().to_vec();
             Ok(Some(PyBytes::new_bound(py, &public_key_vec).into_py(py)))
-
         } else if let Some(public_key) = &self.public_key {
-
             let public_key_vec = hex::decode(public_key.trim_start_matches("0x"))
                 .map_err(|e| PyException::new_err(format!("Invalid `public_key` string: {}", e)))?;
             Ok(Some(PyBytes::new_bound(py, &public_key_vec).into_py(py)))
-
         } else {
             Ok(None)
         }
@@ -326,7 +341,10 @@ impl Keypair {
                 if self.private_key.is_none() {
                     Ok(None)
                 } else {
-                    Ok(Some(PyBytes::new_bound(py, &self.private_key.as_ref().unwrap().as_bytes()).into_py(py)))
+                    Ok(Some(
+                        PyBytes::new_bound(py, &self.private_key.as_ref().unwrap().as_bytes())
+                            .into_py(py),
+                    ))
                 }
             }
         }
@@ -342,12 +360,8 @@ impl Keypair {
     #[getter]
     pub fn seed_hex(&self, py: Python) -> PyResult<Option<PyObject>> {
         match &self.seed_hex {
-            Some(seed_hex) => {
-                Ok(Some(PyBytes::new_bound(py, &seed_hex).into_py(py)))
-            }
-            None => {
-                Ok(None)
-            }
+            Some(seed_hex) => Ok(Some(PyBytes::new_bound(py, &seed_hex).into_py(py))),
+            None => Ok(None),
         }
     }
 
