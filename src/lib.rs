@@ -15,5 +15,6 @@ fn bittensor_wallet(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<keypair::Keypair>()?;
     m.add_class::<wallet::Wallet>()?;
     m.add_function(wrap_pyfunction!(utils::is_valid_ss58_address, m)?)?;
+    m.add_function(wrap_pyfunction!(utils::is_valid_ed25519_pubkey, m)?)?;
     Ok(())
 }

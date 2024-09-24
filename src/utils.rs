@@ -1,7 +1,8 @@
 use sp_core::crypto::Ss58Codec;
 use pyo3::prelude::*;
 use std::str;
-
+use pyo3::types::{PyBytes, PyString, PyAny};
+use crate::keypair::Keypair;
 // use pyo3::exceptions::PyException;
 // use crate::keypair::Keypair;
 // use pyo3::{pyfunction, pymethods, pymodule, wrap_pyfunction, PyErr, PyResult, Python};
@@ -59,18 +60,64 @@ pub fn is_valid_ss58_address(address: &str) -> PyResult<bool> {
     }
 }
 
+// #[pyfunction]
+// pub fn is_valid_ed25519_pubkey(public_key: Option<&PyAny>) -> PyResult<bool> {
+//     if let Some(pub_key) = public_key {
+//         if pub_key.is_instance::<PyString>().unwrap() {
+//             let pub_key_string: &str = pub_key.extract()?;
+//             if pub_key_string.len() != 64 && pub_key_string.len() != 66 {
+//                 return Ok(false);
+//             }
+//         } else if pub_key.is_instance::<PyBytes>().unwrap() {
+//             let pub_key_bytes: &[u8] = pub_key.extract()?;
+//             if pub_key_bytes.len() != 32 {
+//                 return Ok(false);
+//             }
+//         } else {
+//             return Ok(false);
+//         }
 //
-// fn is_valid_ed25519_pubkey(public_key: &str) -> bool {
-//     let valid_length = public_key.len() == 64 || public_key.len() == 66;
-//     if valid_length { // TODO: when keypair supports
-//         // let keypair = Keypair::public_key(public_key);
-//         // match keypair {
-//         //     Ok(_) => return true,
-//         //     Err(_) => return false,
-//         // }
+//         let keypair_result = Keypair::from_public_key(pub_key.to_string());
+//         match keypair_result {
+//             Ok(keypair) => Ok(keypair.ss58_address().is_some()),
+//             Err(_) => Ok(false),
+//         }
+//     } else {
+//         Ok(false)
 //     }
-//     false
 // }
+
+
+#[pyfunction]
+pub fn is_valid_ed25519_pubkey(public_key: Option<&PyAny>) -> PyResult<bool> {
+    Python::with_gil(|py| {
+        if let Some(pub_key) = public_key {
+            if pub_key.is_instance_of::<PyString>() {
+                let pub_key_string: &str = pub_key.extract()?;
+                if pub_key_string.len() != 64 && pub_key_string.len() != 66 {
+                    return Ok(false);
+                }
+            } else if pub_key.is_instance_of::<PyBytes>() {
+                let pub_key_bytes: &[u8] = pub_key.extract()?;
+                if pub_key_bytes.len() != 32 {
+                    return Ok(false);
+                }
+            } else {
+                return Ok(false);
+            }
+
+            // Making an assumption that the public key can be converted to a string
+            // let pub_key_string = pub_key.str()?.to_str()?;
+            // let keypair_result = Keypair::new(None, pub_key_string, None, 42, None, 1);
+            //
+            // match keypair_result {
+            //     Ok(keypair) => Ok(keypair.ss58_address().is_some()),
+            //     Err(_) => Ok(false),
+            // }
+        }
+        Ok(false)
+    })
+}
 
 // // #[pyfunction]
 // fn is_valid_bittensor_address_or_public_key(address: &[u8]) -> Result<bool, &'static str> {
@@ -89,7 +136,6 @@ pub fn is_valid_ss58_address(address: &str) -> PyResult<bool> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
     #[test]
     fn test_get_ss58_format_success() {
         let test_address = "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty";
@@ -97,5 +143,18 @@ mod tests {
             Ok(result) => assert_eq!(result, true),
             Err(err) => panic!("Test failed with error: {:?}", err),
         }
+    }
+
+    #[test]
+    fn test_is_valid_ed25519_pubkey() {
+        Python::with_gil(|py| {
+            let valid_key = PyString::new(py, "0891abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234");
+            let res = is_valid_ed25519_pubkey(Some(valid_key.as_ref()));
+            assert_eq!(res.unwrap(), true);
+
+            let invalid_key = PyString::new(py, "invalid_key");
+            let res = is_valid_ed25519_pubkey(Some(invalid_key.as_ref()));
+            assert_eq!(res.unwrap(), false);
+        });
     }
 }
