@@ -67,8 +67,17 @@ impl Keyfile {
     // }
 
     /// Creates directories for the path if they do not exist.
-    pub fn make_dir(&self) {
-        // make a dir
+    pub fn make_dirs(&self) -> PyResult<()> {
+        // convert String to Path
+        let path: &Path = self.path.as_ref();
+        if let Some(directory) = path.parent() {
+            // check if the dir is exit already
+            if !directory.exists() {
+                // create the dir if not
+                fs::create_dir_all(directory)?;
+            }
+        }
+        Ok(())
     }
 
     /// Returns ``True`` if the file exists on the device.
