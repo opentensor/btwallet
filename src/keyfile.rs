@@ -1,12 +1,13 @@
 use pyo3::prelude::*;
-use crate::keypair::Keypair;
+use pyo3::types::PyBytes;
 
 use std::env;
 use std::fs;
-use std::io::{self, Write};
+use std::io::{self, Read, Write};
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 
+use crate::keypair::Keypair;
 
 const NACL_SALT: &[u8] = b"\x13q\x83\xdf\xf1Z\t\xbc\x9c\x90\xb5Q\x879\xe9\xb1";
 
@@ -255,6 +256,9 @@ impl Keyfile {
     }
 
     /// Returns ``True`` if the file exists on the device.
+    ///
+    /// Returns:
+    ///     readable (bool): ``True`` if the file is readable.
     pub fn exists_on_device(&self) -> PyResult<bool> {
         Ok(Path::new(&self.path).exists())
     }
@@ -278,8 +282,24 @@ impl Keyfile {
     }
 
     /// Returns ``True`` if the file under path is writable.
+    ///
+    /// Returns:
+    ///     writable (bool): ``True`` if the file is writable.
     pub fn is_writable(&self) -> PyResult<bool> {
-        Ok(true)
+        // check if file exist
+        if !self.exists_on_device()? {
+            return Ok(false);
+        }
+
+        // get file metadata
+        let metadata = fs::metadata(&self.path)
+            .map_err(|e| pyo3::exceptions::PyIOError::new_err(format!("Failed to get metadata for file: {}", e)))?;
+
+        // check the permissions
+        let permissions = metadata.permissions();
+        let writable = permissions.mode() & 0o222 != 0; // check if file is writable
+
+        Ok(writable)
     }
 
     /// Returns ``True`` if the file under path is encrypted.
@@ -321,8 +341,32 @@ impl Keyfile {
     }
 
     /// Reads the keyfile data from the file.
-    fn _read_keyfile_data_from_file(&self) {
-        // do something
+    ///
+    /// Returns:
+    ///     keyfile_data (bytes): The keyfile data stored under the path.
+    ///
+    /// Raises:
+    ///     PyPermissionError: Raised if the file does not exist or is not readable.
+    pub fn _read_keyfile_data_from_file(&self, py: Python) -> PyResult<PyObject> {
+        // check file exist
+        if !self.exists_on_device()? {
+            return Err(pyo3::exceptions::PyFileNotFoundError::new_err(format!("Keyfile at: {} does not exist.", self.path)));
+        }
+
+        // check if file readable
+        if !self.is_readable()? {
+            return Err(pyo3::exceptions::PyPermissionError::new_err(format!("Keyfile at: {} is not readable.", self.path)));
+        }
+
+        // open and read the file
+        let mut file = fs::File::open(&self.path)
+            .map_err(|e| pyo3::exceptions::PyOSError::new_err(format!("Failed to open file: {}.", e)))?;
+        let mut data_vec = Vec::new();
+        file.read_to_end(&mut data_vec)
+            .map_err(|e| pyo3::exceptions::PyOSError::new_err(format!("Failed to read file: {}.", e)))?;
+
+        let data_bytes = PyBytes::new_bound(py, &*data_vec).into_py(py);
+        Ok(data_bytes)
     }
 
     /// Writes the keyfile data to the file.
@@ -331,7 +375,7 @@ impl Keyfile {
     ///     overwrite (bool, optional): If ``True``, overwrites the data without asking for permission from the user. Default is ``False``.
     ///
     /// Raises:
-    ///     KeyFileError: Raised if the file is not writable or the user responds No to the overwrite prompt.
+    ///     PyPermissionError: Raised if the file is not writable or the user responds No to the overwrite prompt.
     #[pyo3(signature = (keyfile_data, overwrite = false))]
     pub fn _write_keyfile_data_to_file(&self, keyfile_data: &[u8], overwrite: bool) -> PyResult<()> {
         // ask user for rewriting
