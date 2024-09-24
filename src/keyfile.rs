@@ -31,8 +31,8 @@ impl Keyfile {
 
     /// Returns the keypair from path, decrypts data if the file is encrypted.
     #[getter]
-    pub fn keypair(&self) -> PyResult<Self> {
-        Ok(self.get_keypair(None)?)
+    pub fn keypair(&self) -> PyResult<bool> {
+        Ok(true)
     }
 
     /// Returns the keyfile data under path.
@@ -54,20 +54,13 @@ impl Keyfile {
         println!("{:?} {:?} {:?} {:?}", keypair.ss58_address(), encrypt, overwrite, password);
     }
 
-    /// Returns the keypair from the path, decrypts data if the file is encrypted.
-    #[pyo3(signature = (password = None))]
-    pub fn get_keypair(&self, password: Option<String>) -> PyResult<Self> {
-        let path = "path";
-        let name = "name";
-        println!("{:?}", password);
-
-        let kf = Keyfile {
-            name: name.to_string(),
-            path: path.to_string(),
-        };
-
-        Ok(kf)
-    }
+    // TODO (devs): rust creates the same function automatically by `keypair` getter function and the error accuses. We need to understand how to avoid this.
+    // /// Returns the keypair from the path, decrypts data if the file is encrypted.
+    // #[pyo3(signature = (password = None))]
+    // pub fn get_keypair(&self, password: Option<String>) -> PyResult<bool> {
+    //     println!("{:?}", password);
+    //     Ok(true)
+    // }
 
     /// Creates directories for the path if they do not exist.
     pub fn make_dir(&self) {
