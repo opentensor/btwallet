@@ -14,3 +14,5 @@ bip39 = { version = "2.0.0", features = ["rand"] }
 rand = "0.8.5"
 hex = "0.4.3"
 colored = "2.1.0"
+serde_json = "1.0.128"
+passwords = "3.1.16"

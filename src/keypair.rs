@@ -16,7 +16,7 @@ pub struct Keypair {
     public_key: Option<String>,
     private_key: Option<String>,
     ss58_format: u8,
-    seed_hex: Option<Vec<u8>>,
+    pub(crate) seed_hex: Option<Vec<u8>>,
     crypto_type: u8,
     mnemonic: Option<String>,
     pair: Option<sr25519::Pair>,

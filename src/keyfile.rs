@@ -1,6 +1,12 @@
-use std::env;
-use pyo3::prelude::*;
 use crate::keypair::Keypair;
+use passwords::analyzer;
+use passwords::scorer;
+use pyo3::exceptions::PyException;
+use pyo3::prelude::*;
+use serde_json::json;
+use std::collections::HashMap;
+use std::env;
+use std::str::from_utf8;
 
 
 const NACL_SALT: &[u8] = b"\x13q\x83\xdf\xf1Z\t\xbc\x9c\x90\xb5Q\x879\xe9\xb1";
@@ -13,8 +19,42 @@ const NACL_SALT: &[u8] = b"\x13q\x83\xdf\xf1Z\t\xbc\x9c\x90\xb5Q\x879\xe9\xb1";
 ///         data (bytes): Serialized keypair data.
 #[pyfunction]
 pub fn serialized_keypair_to_keyfile_data(_py: Python, keypair: &Keypair) -> PyResult<Vec<u8>> {
-    // TODO: implement this function
-    unimplemented!();
+    let mut data: HashMap<&str, serde_json::Value> = HashMap::new();
+
+    // publicKey and privateKey fields are optional. If they exist, hex prefix "0x" is added to them.
+    if let Ok(Some(public_key)) = keypair.public_key(_py) {
+        data.insert("accountId", json!(format!("0x{}", public_key)));
+    }
+    if let Ok(Some(public_key)) = &keypair.public_key(_py) {
+        data.insert("publicKey", json!(format!("0x{}", public_key)));
+    }
+    if let Ok(Some(private_key)) = &keypair.private_key(_py) {
+        data.insert("privateKey", json!(format!("0x{}", private_key)));
+    }
+
+    // mnemonic and ss58_address fields are optional.
+    if let Ok(Some(mnemonic)) = &keypair.mnemonic() {
+        data.insert("secretPhrase", json!(mnemonic));
+    }
+
+    // the seed_hex field is optional. If it exists, hex prefix "0x" is added to it.
+    if let Ok(Some(seed_hex_obj)) = keypair.seed_hex(_py) {
+        let seed_hex = seed_hex_obj.extract::<Vec<u8>>(_py).unwrap_or_else(|_| Vec::new());
+        let seed_hex_str = match std::str::from_utf8(&seed_hex) {
+            Ok(s) => s.to_string(),
+            Err(_) => hex::encode(seed_hex),
+        };
+        data.insert("secretSeed", json!(format!("0x{}", seed_hex_str)));
+    }
+
+    if let Ok(Some(ss58_address)) = &keypair.ss58_address() {
+        data.insert("ss58Address", json!(ss58_address));
+    }
+
+    // Serialize the data into JSON string and return it as bytes
+    let json_data = serde_json::to_string(&data)
+        .map_err(|e| pyo3::exceptions::PyException::new_err(format!("Serialization error: {}", e)))?;
+    Ok(json_data.into_bytes())
 }
 
 /// Deserializes Keypair object from passed keyfile data.
@@ -26,9 +66,34 @@ pub fn serialized_keypair_to_keyfile_data(_py: Python, keypair: &Keypair) -> PyR
 ///     Raises:
 ///         KeyFileError: Raised if the passed bytes cannot construct a keypair object.
 #[pyfunction]
-pub fn deserialize_keypair_from_keyfile_data(_py: Python, keyfile_data: Vec<u8>) -> PyResult<Keypair> {
-    // TODO: implement this function
-    unimplemented!();
+pub fn deserialize_keypair_from_keyfile_data(py: Python, keyfile_data: Vec<u8>) -> PyResult<Keypair> {
+    // Decode the keyfile data from bytes to a string
+    let decoded = from_utf8(&keyfile_data)
+        .map_err(|_| PyException::new_err("Failed to decode keyfile data."))?;
+
+    // Parse the JSON string into a HashMap
+    let keyfile_dict: HashMap<String, Option<String>> = serde_json::from_str(decoded)
+        .map_err(|_| PyException::new_err("Failed to parse keyfile data."))?;
+
+    // Extract data from the keyfile
+    let secret_seed = keyfile_dict.get("secretSeed").and_then(|v| v.clone());
+    let secret_phrase = keyfile_dict.get("secretPhrase").and_then(|v| v.clone());
+    let private_key = keyfile_dict.get("privateKey").and_then(|v| v.clone());
+    let ss58_address = keyfile_dict.get("ss58Address").and_then(|v| v.clone());
+
+    // Create the `Keypair` based on the available data
+    let keypair = if secret_seed.is_some() {
+        Keypair::create_from_seed(secret_seed.unwrap().as_str())
+    } else if secret_phrase.is_some() {
+        Keypair::create_from_mnemonic(secret_phrase.unwrap().as_str())
+    } else if private_key.is_some() {
+        Keypair::create_from_private_key(private_key.unwrap().as_str())
+    } else if ss58_address.is_some() {
+        Ok(Keypair::new(ss58_address, None, None, 42, None, 1)?)
+    } else {
+        return Err(PyException::new_err("Keypair could not be created from keyfile data."));
+    };
+    keypair
 }
 
 /// Validates the password against a password policy.
@@ -39,8 +104,40 @@ pub fn deserialize_keypair_from_keyfile_data(_py: Python, keyfile_data: Vec<u8>)
 ///         valid (bool): ``True`` if the password meets validity requirements.
 #[pyfunction]
 pub fn validate_password(_py: Python, password: &str) -> PyResult<bool> {
-    // TODO: implement this function
-    unimplemented!();
+    // Check for an empty password
+    if password.is_empty() {
+        return Ok(false);
+    }
+
+    // Define the password policy
+    let min_length = 6;
+    let min_score = 20.0; // Adjusted based on the scoring system described in the documentation
+
+    // Analyze the password
+    let analyzed = analyzer::analyze(password);
+    let score = scorer::score(&analyzed);
+
+    // Check conditions
+    if password.len() >= min_length && score >= min_score {
+        // Prompt user to retype the password
+        let mut password_verification = String::new();
+
+        println!("Retype your password:");
+        std::io::stdin().read_line(&mut password_verification).expect("Failed to read line");
+
+        // Remove potential newline or whitespace at the end
+        let password_verification = password_verification.trim();
+
+        if password == password_verification {
+            Ok(true)
+        } else {
+            println!("Passwords do not match");
+            Ok(false)
+        }
+    } else {
+        println!("Password not strong enough. Try increasing the length of the password or the password complexity.");
+        Ok(false)
+    }
 }
 
 
@@ -171,8 +268,6 @@ pub fn decrypt_keyfile_data(_py: Python, keyfile_data: Vec<u8>, password: Option
     // TODO: Implement the function
     unimplemented!()
 }
-
-
 
 #[pyclass]
 pub struct Keyfile {
