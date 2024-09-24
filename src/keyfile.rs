@@ -4,7 +4,9 @@ use crate::keypair::Keypair;
 use std::env;
 use std::fs;
 use std::io::{self, Write};
+use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
+
 
 const NACL_SALT: &[u8] = b"\x13q\x83\xdf\xf1Z\t\xbc\x9c\x90\xb5Q\x879\xe9\xb1";
 
@@ -315,7 +317,37 @@ impl Keyfile {
     }
 
     /// Writes the keyfile data to the file.
-    fn write_keyfile_data_to_file(&self) {
-        // do something
+    /// Args:
+    ///     keyfile_data (bytes): The byte data to store under the path.
+    ///     overwrite (bool, optional): If ``True``, overwrites the data without asking for permission from the user. Default is ``False``.
+    ///
+    /// Raises:
+    ///     KeyFileError: Raised if the file is not writable or the user responds No to the overwrite prompt.
+    #[pyo3(signature = (keyfile_data, overwrite = false))]
+    pub fn _write_keyfile_data_to_file(&self, keyfile_data: &[u8], overwrite: bool) -> PyResult<()> {
+        // ask user for rewriting
+        if self.exists_on_device()? && !overwrite {
+            if !self._may_overwrite()? {
+                return Err(pyo3::exceptions::PyUserWarning::new_err(format!("Keyfile at: {} is not writable", self.path)));
+            }
+        }
+
+        let mut keyfile = fs::OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(true)  // cleanup if rewrite
+            .open(&self.path)
+            .map_err(|e| pyo3::exceptions::PyIOError::new_err(format!("Failed to open file: {}.", e)))?;
+
+        // write data
+        keyfile.write_all(keyfile_data)
+            .map_err(|e| pyo3::exceptions::PyIOError::new_err(format!("Failed to write to file: {}.", e)))?;
+
+        // set permissions
+        let mut permissions = fs::metadata(&self.path)?.permissions();
+        permissions.set_mode(0o600); // just for owner
+        fs::set_permissions(&self.path, permissions)
+            .map_err(|e| pyo3::exceptions::PyPermissionError::new_err(format!("Failed to set permissions: {}.", e)))?;
+        Ok(())
     }
 }
