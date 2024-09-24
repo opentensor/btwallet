@@ -261,7 +261,20 @@ impl Keyfile {
 
     /// Returns ``True`` if the file under path is readable.
     pub fn is_readable(&self) -> PyResult<bool> {
-        Ok(true)
+        // check file exist
+        if !self.exists_on_device()? {
+            return Ok(false);
+        }
+
+        // get file metadata
+        let metadata = fs::metadata(&self.path)
+            .map_err(|e| pyo3::exceptions::PyIOError::new_err(format!("Failed to get metadata for file: {}.", e)))?;
+
+        // check permissions
+        let permissions = metadata.permissions();
+        let readable = permissions.mode() & 0o444 != 0; // check readability
+
+        Ok(readable)
     }
 
     /// Returns ``True`` if the file under path is writable.
