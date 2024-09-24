@@ -1,6 +1,10 @@
 use pyo3::prelude::*;
 use crate::keypair::Keypair;
 
+use std::fs;
+use std::path::Path;
+
+
 #[pyclass]
 pub struct Keyfile {
     path: String,
@@ -69,7 +73,11 @@ impl Keyfile {
 
     /// Returns ``True`` if the file exists on the device.
     pub fn exists_on_device(&self) -> PyResult<bool> {
-        Ok(true)
+        let path: &Path = self.path.as_ref();
+        match fs::metadata(path) {
+            Ok(metadata) => Ok(metadata.is_file()),
+            Err(_) => Ok(false),
+        }
     }
 
     /// Returns ``True`` if the file under path is readable.
