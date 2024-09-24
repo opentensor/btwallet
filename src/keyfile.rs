@@ -3,6 +3,7 @@ use crate::keypair::Keypair;
 
 use std::env;
 use std::fs;
+use std::io::{self, Write};
 use std::path::Path;
 
 const NACL_SALT: &[u8] = b"\x13q\x83\xdf\xf1Z\t\xbc\x9c\x90\xb5Q\x879\xe9\xb1";
@@ -276,8 +277,15 @@ impl Keyfile {
     }
 
     /// Asks the user if it is okay to overwrite the file.
-    fn _may_overwrite(&self) -> PyResult<bool> {
-        Ok(true)
+    pub fn _may_overwrite(&self) -> PyResult<bool> {
+
+        print!("File {} already exists. Overwrite? (y/N) ", self.path);
+        io::stdout().flush()?;
+
+        let mut choice = String::new();
+        io::stdin().read_line(&mut choice).expect("Failed to read input");
+
+        Ok(choice.trim().to_lowercase() == "y")
     }
 
     /// Check the version of keyfile and update if needed.
