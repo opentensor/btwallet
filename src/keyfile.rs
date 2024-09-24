@@ -1,21 +1,20 @@
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
+use pyo3::exceptions::PyException;
 
+use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::io::{self, Read, Write};
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
-
-use crate::keypair::Keypair;
-use passwords::analyzer;
-use passwords::scorer;
-use pyo3::exceptions::PyException;
-use pyo3::prelude::*;
-use serde_json::json;
-use std::collections::HashMap;
 use std::str::from_utf8;
 
+use passwords::analyzer;
+use passwords::scorer;
+use serde_json::json;
+
+use crate::keypair::Keypair;
 
 const NACL_SALT: &[u8] = b"\x13q\x83\xdf\xf1Z\t\xbc\x9c\x90\xb5Q\x879\xe9\xb1";
 
@@ -59,6 +58,7 @@ pub fn serialized_keypair_to_keyfile_data(_py: Python, keypair: &Keypair) -> PyR
         data.insert("ss58Address", json!(ss58_address));
     }
 
+    // TODO: consider to use pyo3::exceptions::Py* errors instead of `PyException`
     // Serialize the data into JSON string and return it as bytes
     let json_data = serde_json::to_string(&data)
         .map_err(|e| pyo3::exceptions::PyException::new_err(format!("Serialization error: {}", e)))?;
@@ -75,10 +75,12 @@ pub fn serialized_keypair_to_keyfile_data(_py: Python, keypair: &Keypair) -> PyR
 ///         KeyFileError: Raised if the passed bytes cannot construct a keypair object.
 #[pyfunction]
 pub fn deserialize_keypair_from_keyfile_data(py: Python, keyfile_data: Vec<u8>) -> PyResult<Keypair> {
+    // TODO: consider to use pyo3::exceptions::Py* errors instead of `PyException`
     // Decode the keyfile data from bytes to a string
     let decoded = from_utf8(&keyfile_data)
         .map_err(|_| PyException::new_err("Failed to decode keyfile data."))?;
 
+    // TODO: consider to use pyo3::exceptions::Py* errors instead of `PyException`
     // Parse the JSON string into a HashMap
     let keyfile_dict: HashMap<String, Option<String>> = serde_json::from_str(decoded)
         .map_err(|_| PyException::new_err("Failed to parse keyfile data."))?;
@@ -99,6 +101,7 @@ pub fn deserialize_keypair_from_keyfile_data(py: Python, keyfile_data: Vec<u8>) 
     } else if ss58_address.is_some() {
         Ok(Keypair::new(ss58_address, None, None, 42, None, 1)?)
     } else {
+        // TODO: consider to use pyo3::exceptions::Py* errors instead of `PyException`
         return Err(PyException::new_err("Keypair could not be created from keyfile data."));
     };
     keypair
