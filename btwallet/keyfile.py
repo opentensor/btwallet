@@ -45,6 +45,9 @@ NACL_SALT = b"\x13q\x83\xdf\xf1Z\t\xbc\x9c\x90\xb5Q\x879\xe9\xb1"
 console = Console()
 
 
+# sdk - deprecated import
+# cli - no
+# wallet - inside keyfile.py
 def serialized_keypair_to_keyfile_data(keypair: "Keypair") -> bytes:
     """Serializes keypair object into keyfile data.
 
@@ -73,34 +76,9 @@ def serialized_keypair_to_keyfile_data(keypair: "Keypair") -> bytes:
     data = json.dumps(json_data).encode()
     return data
 
-def deserialize_keypair_from_keyfile_data_with_rust(keyfile_dict: dict) -> "Keypair":
-    """Deserializes Keypair object from passed keyfile data.
-
-    Args:
-        keyfile_data (dict): The keyfile data as dict to be loaded.
-    Returns:
-        keypair (Keypair): The Keypair loaded from bytes.
-    """
-    if "secretSeed" in keyfile_dict and keyfile_dict["secretSeed"] is not None:
-        return Keypair.create_from_seed(keyfile_dict["secretSeed"])
-
-    elif "secretPhrase" in keyfile_dict and keyfile_dict["secretPhrase"] is not None:
-        return Keypair.create_from_mnemonic(mnemonic=keyfile_dict["secretPhrase"])
-
-    elif keyfile_dict.get("private_key", None) is not None:
-        # May have the above dict keys also, but we want to preserve the first two
-        return Keypair.create_from_private_key(
-            keyfile_dict["private_key"], ss58_format=SS58_FORMAT
-        )
-
-    if "ss58_address" in keyfile_dict and keyfile_dict["ss58_address"] is not None:
-        return Keypair(ss58_address=keyfile_dict["ss58_address"])
-
-    else:
-        raise KeyFileError(
-            "Keypair could not be created from keyfile data: {}".format(keyfile_dict)
-        )
-
+# sdk - deprecated import
+# cli - no
+# wallet - inside keyfile.py
 def deserialize_keypair_from_keyfile_data(keyfile_data: bytes) -> "Keypair":
     """Deserializes Keypair object from passed keyfile data.
 
@@ -151,7 +129,9 @@ def deserialize_keypair_from_keyfile_data(keyfile_data: bytes) -> "Keypair":
             "Keypair could not be created from keyfile data: {}".format(keyfile_dict)
         )
 
-
+# sdk - deprecated import
+# cli - no
+# wallet - inside keyfile.py
 def validate_password(password: str) -> bool:
     """Validates the password against a password policy.
 
@@ -178,7 +158,9 @@ def validate_password(password: str) -> bool:
         return False
     return True
 
-
+# sdk - deprecated import
+# cli - no
+# wallet - inside keyfile.py
 def ask_password_to_encrypt() -> str:
     """Prompts the user to enter a password for key encryption.
 
@@ -191,7 +173,9 @@ def ask_password_to_encrypt() -> str:
         valid = validate_password(password)
     return password
 
-
+# sdk - deprecated import
+# cli - no
+# wallet - inside keyfile.py
 def keyfile_data_is_encrypted_nacl(keyfile_data: bytes) -> bool:
     """Returns true if the keyfile data is NaCl encrypted.
 
@@ -204,7 +188,9 @@ def keyfile_data_is_encrypted_nacl(keyfile_data: bytes) -> bool:
     """
     return keyfile_data[: len("$NACL")] == b"$NACL"
 
-
+# sdk - deprecated import
+# cli - no
+# wallet - inside keyfile.py
 def keyfile_data_is_encrypted_ansible(keyfile_data: bytes) -> bool:
     """Returns true if the keyfile data is ansible encrypted.
 
@@ -215,7 +201,9 @@ def keyfile_data_is_encrypted_ansible(keyfile_data: bytes) -> bool:
     """
     return keyfile_data[:14] == b"$ANSIBLE_VAULT"
 
-
+# sdk - deprecated import
+# cli - no
+# wallet - inside keyfile.py
 def keyfile_data_is_encrypted_legacy(keyfile_data: bytes) -> bool:
     """Returns true if the keyfile data is legacy encrypted.
     Args:
@@ -225,7 +213,9 @@ def keyfile_data_is_encrypted_legacy(keyfile_data: bytes) -> bool:
     """
     return keyfile_data[:6] == b"gAAAAA"
 
-
+# sdk - deprecated import
+# cli - no
+# wallet - inside keyfile.py
 def keyfile_data_is_encrypted(keyfile_data: bytes) -> bool:
     """Returns ``true`` if the keyfile data is encrypted.
 
@@ -240,7 +230,9 @@ def keyfile_data_is_encrypted(keyfile_data: bytes) -> bool:
         or keyfile_data_is_encrypted_legacy(keyfile_data)
     )
 
-
+# sdk - deprecated import
+# cli - no
+# wallet - inside keyfile.py
 def keyfile_data_encryption_method(keyfile_data: bytes) -> str:
     """Returns type of encryption method as a string.
 
@@ -257,7 +249,9 @@ def keyfile_data_encryption_method(keyfile_data: bytes) -> str:
     elif keyfile_data_is_encrypted_legacy(keyfile_data):
         return "legacy"
 
-
+# sdk - deprecated import
+# cli - no
+# wallet - inside keyfile.py
 def legacy_encrypt_keyfile_data(
     keyfile_data: bytes, password: Optional[str] = None
 ) -> bytes:
@@ -268,7 +262,9 @@ def legacy_encrypt_keyfile_data(
         vault = Vault(password)
     return vault.vault.encrypt(keyfile_data)
 
-
+# sdk - deprecated import
+# cli - no
+# wallet - inside keyfile.py
 def encrypt_keyfile_data(keyfile_data: bytes, password: Optional[str] = None) -> bytes:
     """Encrypts the passed keyfile data using ansible vault.
 
@@ -292,7 +288,9 @@ def encrypt_keyfile_data(keyfile_data: bytes, password: Optional[str] = None) ->
     encrypted = box.encrypt(keyfile_data)
     return b"$NACL" + encrypted
 
-
+# sdk - deprecated import
+# cli - no
+# wallet - inside keyfile.py
 def get_coldkey_password_from_environment(coldkey_name: str) -> Optional[str]:
     """Retrieves the cold key password from the environment variables.
 
@@ -308,7 +306,9 @@ def get_coldkey_password_from_environment(coldkey_name: str) -> Optional[str]:
     }
     return envs.get(f"BT_COLD_PW_{coldkey_name.replace('-', '_').upper()}")
 
-
+# sdk - deprecated import
+# cli - no
+# wallet - inside keyfile.py
 def decrypt_keyfile_data(
     keyfile_data: bytes,
     password: Optional[str] = None,
@@ -384,6 +384,9 @@ def decrypt_keyfile_data(
     return decrypted_keyfile_data
 
 
+# wallet - Wallet, Keyfile
+# sdk - deprecated, test deprecated ? Passably the pyo3/maturing impl not so important, BUT GOOD TO HAVE
+# cli - bittensor_cli/src/commands/wallets.py
 class Keyfile:
     """Defines an interface for a substrate interface keypair stored on device."""
 
