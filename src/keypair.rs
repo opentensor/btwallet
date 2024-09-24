@@ -5,8 +5,6 @@ use pyo3::exceptions::PyException;
 
 use sp_core::{sr25519, Pair, ByteArray};
 use sp_core::crypto::Ss58Codec;
-use sp_core::sr25519::Public;
-use sp_core::sr25519::Signature;
 
 use bip39::Mnemonic;
 use hex;
@@ -36,6 +34,11 @@ impl Keypair {
         seed_hex: Option<Vec<u8>>,
         crypto_type: u8,
     ) -> PyResult<Self> {
+
+        if crypto_type != 1 {
+            return Err(PyException::new_err(format!("Unsupported crypto type: {}.", crypto_type)));
+        }
+
         let mut ss58_address_res = ss58_address.clone();
         let mut public_key_res = public_key;
 
@@ -44,7 +47,11 @@ impl Keypair {
             let public_key_vec = hex::decode(public_key_str.trim_start_matches("0x"))
                 .map_err(|e| PyException::new_err(format!("Invalid `private_key` string: {}", e)))?;
 
-            let public_key = Public::from_raw(<[u8; 32]>::try_from(public_key_vec).unwrap());
+            let public_key_array: [u8; 32] = public_key_vec
+                .try_into()
+                .map_err(|_| PyException::new_err("Public key must be 32 bytes long."))?;
+
+            let public_key = sr25519::Public::from_raw(public_key_array);
 
             ss58_address_res = Option::from(public_key.to_ss58check());
         }
@@ -52,7 +59,7 @@ impl Keypair {
         // If ss58_address is passed, decode the public key
         if let Some(ss58_address_str) = ss58_address.clone() {
 
-            let public_key = Public::from_ss58check(&ss58_address_str)
+            let public_key = sr25519::Public::from_ss58check(&ss58_address_str)
                 .map_err(|e| PyException::new_err(format!("Invalid SS58 address: {}", e)))?;
 
             public_key_res = Some(hex::encode(public_key.to_raw()));
@@ -235,11 +242,11 @@ impl Keypair {
         };
 
 
-        let public = Public::from_raw(<[u8; 32]>::try_from(public_key)
+        let public = sr25519::Public::from_raw(<[u8; 32]>::try_from(public_key)
             .map_err(|e| PyException::new_err(format!("Invalid public key length: {:?}", e)))?);
 
         // Convert signature bytes to the type expected by the verify function
-        let signature = Signature::from_slice(&signature_bytes)
+        let signature = sr25519::Signature::from_slice(&signature_bytes)
             .map_err(|_| PyException::new_err("Invalid signature"))?;
 
         // Verify signature depending on the type of crypto key
@@ -316,7 +323,11 @@ impl Keypair {
                 Ok(Some(PyBytes::new_bound(py, &seed).into_py(py)))
             }
             None => {
-                Ok(None)
+                if self.private_key.is_none() {
+                    Ok(None)
+                } else {
+                    Ok(Some(PyBytes::new_bound(py, &self.private_key.as_ref().unwrap().as_bytes()).into_py(py)))
+                }
             }
         }
     }
