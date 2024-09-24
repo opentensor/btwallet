@@ -20,5 +20,17 @@ fn bittensor_wallet(m: &Bound<'_, PyModule>) -> PyResult<()> {
         utils::is_valid_bittensor_address_or_public_key,
         m
     )?)?;
+    m.add_function(wrap_pyfunction!(keyfile::serialized_keypair_to_keyfile_data, m)?)?;
+    m.add_function(wrap_pyfunction!(keyfile::validate_password, m)?)?;
+    m.add_function(wrap_pyfunction!(keyfile::deserialize_keypair_from_keyfile_data, m)?)?;
+    m.add_function(wrap_pyfunction!(keyfile::keyfile_data_is_encrypted_nacl, m)?)?;
+    m.add_function(wrap_pyfunction!(keyfile::keyfile_data_is_encrypted_ansible, m)?)?;
+    m.add_function(wrap_pyfunction!(keyfile::keyfile_data_is_encrypted_legacy, m)?)?;
+    m.add_function(wrap_pyfunction!(keyfile::keyfile_data_is_encrypted, m)?)?;
+    m.add_function(wrap_pyfunction!(keyfile::keyfile_data_encryption_method, m)?)?;
+    m.add_function(wrap_pyfunction!(keyfile::legacy_encrypt_keyfile_data, m)?)?;
+    m.add_function(wrap_pyfunction!(keyfile::encrypt_keyfile_data, m)?)?;
+    m.add_function(wrap_pyfunction!(keyfile::get_coldkey_password_from_environment, m)?)?;
+    m.add_function(wrap_pyfunction!(keyfile::decrypt_keyfile_data, m)?)?;
     Ok(())
 }
