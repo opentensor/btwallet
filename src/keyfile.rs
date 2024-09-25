@@ -175,11 +175,13 @@ pub fn validate_password(_py: Python, password: &str) -> PyResult<bool> {
 /// # Returns
 ///
 /// * `is_nacl` - `true` if the data is ansible encrypted.
-// #[pyfunction]
-// pub fn keyfile_data_is_encrypted_nacl(_py: Python, keyfile_data: &[u8]) -> PyResult<bool> {
-//     // TODO: Implement the function
-//     unimplemented!();
-// }
+#[pyfunction]
+pub fn keyfile_data_is_encrypted_nacl(_py: Python, keyfile_data: &[u8]) -> PyResult<bool> {
+    if keyfile_data.starts_with(b"$NACL") {
+       return Ok(true);
+    }
+    Ok(false)
+}
 
 /// Returns true if the keyfile data is ansible encrypted.
 ///
@@ -188,11 +190,13 @@ pub fn validate_password(_py: Python, password: &str) -> PyResult<bool> {
 ///
 /// # Returns
 /// * `is_ansible` - True if the data is ansible encrypted.
-// #[pyfunction]
-// pub fn keyfile_data_is_encrypted_ansible(_py: Python, keyfile_data: &[u8]) -> PyResult<bool> {
-//     // TODO: Implement the function
-//     unimplemented!()
-// }
+#[pyfunction]
+pub fn keyfile_data_is_encrypted_ansible(_py: Python, keyfile_data: &[u8]) -> PyResult<bool> {
+    if keyfile_data.starts_with(b"$ANSIBLE_VAULT") {
+       return Ok(true);
+    }
+    Ok(false)
+}
 
 /// Returns true if the keyfile data is legacy encrypted.
 ///
@@ -201,11 +205,13 @@ pub fn validate_password(_py: Python, password: &str) -> PyResult<bool> {
 ///
 /// # Returns
 /// * `is_legacy` - `true` if the data is legacy encrypted.
-// #[pyfunction]
-// pub fn keyfile_data_is_encrypted_legacy(_py: Python, keyfile_data: &[u8]) -> PyResult<bool> {
-//     // TODO: Implement the function
-//     unimplemented!()
-// }
+#[pyfunction]
+pub fn keyfile_data_is_encrypted_legacy(_py: Python, keyfile_data: &[u8]) -> PyResult<bool> {
+    if keyfile_data.starts_with(b"gAAAAA") {
+       return Ok(true);
+    }
+    Ok(false)
+}
 
 /// Returns `true` if the keyfile data is encrypted.
 ///
@@ -216,10 +222,11 @@ pub fn validate_password(_py: Python, password: &str) -> PyResult<bool> {
 ///         is_encrypted (bool): `true` if the data is encrypted.
 #[pyfunction]
 #[pyo3(signature = (keyfile_data))]
-pub fn keyfile_data_is_encrypted(_py: Python, keyfile_data: PyObject) -> PyResult<bool> {
-    // TODO: Implement the function
-    print!("{:?}", keyfile_data);
-    unimplemented!();
+pub fn keyfile_data_is_encrypted(_py: Python, keyfile_data: &[u8]) -> PyResult<bool> {
+    let nacl = keyfile_data_is_encrypted_nacl(_py, keyfile_data)?;
+    let ansible = keyfile_data_is_encrypted_ansible(_py, keyfile_data)?;
+    let legacy = keyfile_data_is_encrypted_legacy(_py, keyfile_data)?;
+    Ok(nacl || ansible || legacy)
 }
 
 /// Returns type of encryption method as a string.
@@ -277,11 +284,11 @@ pub fn keyfile_data_is_encrypted(_py: Python, keyfile_data: PyObject) -> PyResul
 /// * `Option<String>` - The password retrieved from the environment variables, or `None` if not found.
 #[pyfunction]
 #[pyo3(signature = (coldkey_name))]
-pub fn get_coldkey_password_from_environment(
-    _py: Python,
-    coldkey_name: String,
-) -> PyResult<Option<String>> {
-    let password = env::var(coldkey_name).ok();
+pub fn get_coldkey_password_from_environment(_py: Python, coldkey_name: String, ) -> PyResult<Option<String>> {
+    let env_key: String = String::from("BT_COLD_PW_");
+    let coldkey_name = coldkey_name.to_uppercase().replace("-", "_");
+    let coldkey_var_name = format!("{}{}", env_key, coldkey_name);
+    let password = env::var(coldkey_var_name.clone()).ok();
     Ok(password)
 }
 
@@ -294,11 +301,11 @@ pub fn get_coldkey_password_from_environment(
 ///
 /// # Returns
 /// * `decrypted_data` - The decrypted data.
-// #[pyfunction]
-// pub fn decrypt_keyfile_data(_py: Python, keyfile_data: &[u8], password: Option<String>, coldkey_name: Option<String>, ) -> PyResult<PyObject> {
-//     // TODO: Implement the function
-//     unimplemented!()
-// }
+#[pyfunction]
+pub fn decrypt_keyfile_data(_py: Python, keyfile_data: &[u8], password: Option<String>, coldkey_name: Option<String>, ) -> PyResult<PyObject> {
+    // TODO: Implement the function
+    unimplemented!()
+}
 
 #[pyclass]
 pub struct Keyfile {
@@ -434,25 +441,25 @@ impl Keyfile {
     ///
     ///     Returns:
     ///         encrypted (bool): ``True`` if the file is encrypted.
-    pub fn is_encrypted(&self, py: Python) -> PyResult<bool> {
-        // check if file exist
-        if !self.exists_on_device()? {
-            return Ok(false);
-        }
-
-        // check readable
-        if !self.is_readable()? {
-            return Ok(false);
-        }
-
-        // get the data from file
-        let keyfile_data = self._read_keyfile_data_from_file(py)?;
-
-        // check if encrypted
-        let is_encrypted = keyfile_data_is_encrypted(py, keyfile_data)?;
-
-        Ok(is_encrypted)
-    }
+    // pub fn is_encrypted(&self, py: Python) -> PyResult<bool> {
+    //     // check if file exist
+    //     if !self.exists_on_device()? {
+    //         return Ok(false);
+    //     }
+    //
+    //     // check readable
+    //     if !self.is_readable()? {
+    //         return Ok(false);
+    //     }
+    //
+    //     // get the data from file
+    //     let keyfile_data = self._read_keyfile_data_from_file(py)?;
+    //
+    //     // check if encrypted
+    //     // let is_encrypted = keyfile_data_is_encrypted(py, keyfile_data)?;
+    //
+    //     Ok(is_encrypted)
+    // }
 
     /// Asks the user if it is okay to overwrite the file.
     pub fn _may_overwrite(&self) -> PyResult<bool> {
