@@ -25,18 +25,21 @@ const NACL_SALT: &[u8] = b"\x13q\x83\xdf\xf1Z\t\xbc\x9c\x90\xb5Q\x879\xe9\xb1";
 ///     Returns:
 ///         data (bytes): Serialized keypair data.
 #[pyfunction]
-pub fn serialized_keypair_to_keyfile_data(_py: Python, keypair: &Keypair) -> PyResult<Vec<u8>> {
+pub fn serialized_keypair_to_keyfile_data(_py: Python, keypair: &Keypair) -> PyResult<PyObject> {
     let mut data: HashMap<&str, serde_json::Value> = HashMap::new();
 
     // publicKey and privateKey fields are optional. If they exist, hex prefix "0x" is added to them.
     if let Ok(Some(public_key)) = keypair.public_key(_py) {
-        data.insert("accountId", json!(format!("0x{}", public_key)));
-    }
-    if let Ok(Some(public_key)) = &keypair.public_key(_py) {
-        data.insert("publicKey", json!(format!("0x{}", public_key)));
+
+        let public_bytes: &PyBytes = public_key.extract(_py)?;
+        let public_key_str = hex::encode(public_bytes.as_bytes().to_vec());
+        data.insert("accountId", json!(format!("0x{}", public_key_str)));
+        data.insert("publicKey", json!(format!("0x{}", public_key_str)));
     }
     if let Ok(Some(private_key)) = &keypair.private_key(_py) {
-        data.insert("privateKey", json!(format!("0x{}", private_key)));
+        let private_bytes: &PyBytes = private_key.extract(_py)?;
+        let private_key_str = hex::encode(private_bytes.as_bytes().to_vec());
+        data.insert("privateKey", json!(format!("0x{}", private_key_str)));
     }
 
     // mnemonic and ss58_address fields are optional.
@@ -61,23 +64,23 @@ pub fn serialized_keypair_to_keyfile_data(_py: Python, keypair: &Keypair) -> PyR
     // TODO: consider to use pyo3::exceptions::Py* errors instead of `PyException`
     // Serialize the data into JSON string and return it as bytes
     let json_data = serde_json::to_string(&data)
-        .map_err(|e| pyo3::exceptions::PyException::new_err(format!("Serialization error: {}", e)))?;
-    Ok(json_data.into_bytes())
+        .map_err(|e| pyo3::exceptions::PyUnicodeDecodeError::new_err(format!("Serialization error: {}", e)))?;
+    Ok(PyBytes::new_bound(_py, &json_data.into_bytes()).into_py(_py))
 }
 
 /// Deserializes Keypair object from passed keyfile data.
 ///
 ///     Args:
-///         keyfile_data (bytes): The keyfile data as bytes to be loaded.
+///         keyfile_data (PyBytes): The keyfile data to be loaded.
 ///     Returns:
 ///         keypair (Keypair): The Keypair loaded from bytes.
 ///     Raises:
-///         KeyFileError: Raised if the passed bytes cannot construct a keypair object.
+///         KeyFileError: Raised if the passed PyBytes cannot construct a keypair object.
 #[pyfunction]
-pub fn deserialize_keypair_from_keyfile_data(py: Python, keyfile_data: Vec<u8>) -> PyResult<Keypair> {
+pub fn deserialize_keypair_from_keyfile_data(py: Python, keyfile_data: &PyBytes) -> PyResult<Keypair> {
     // TODO: consider to use pyo3::exceptions::Py* errors instead of `PyException`
-    // Decode the keyfile data from bytes to a string
-    let decoded = from_utf8(&keyfile_data)
+    // Decode the keyfile data from PyBytes to a string
+    let decoded = from_utf8(keyfile_data.as_bytes())
         .map_err(|_| PyException::new_err("Failed to decode keyfile data."))?;
 
     // TODO: consider to use pyo3::exceptions::Py* errors instead of `PyException`
@@ -92,10 +95,10 @@ pub fn deserialize_keypair_from_keyfile_data(py: Python, keyfile_data: Vec<u8>) 
     let ss58_address = keyfile_dict.get("ss58Address").and_then(|v| v.clone());
 
     // Create the `Keypair` based on the available data
-    let keypair = if secret_seed.is_some() {
-        Keypair::create_from_seed(secret_seed.unwrap().as_str())
-    } else if secret_phrase.is_some() {
+    let keypair = if secret_phrase.is_some() {
         Keypair::create_from_mnemonic(secret_phrase.unwrap().as_str())
+    } else if secret_seed.is_some() {
+        Keypair::create_from_seed(secret_seed.unwrap().as_str())
     } else if private_key.is_some() {
         Keypair::create_from_private_key(private_key.unwrap().as_str())
     } else if ss58_address.is_some() {
@@ -274,7 +277,7 @@ pub fn get_coldkey_password_from_environment(_py: Python, coldkey_name: String) 
 /// # Returns
 /// * `decrypted_data` - The decrypted data.
 #[pyfunction]
-pub fn decrypt_keyfile_data(_py: Python, keyfile_data: Vec<u8>, password: Option<String>, coldkey_name: Option<String>, ) -> PyResult<Vec<u8>> {
+pub fn decrypt_keyfile_data(_py: Python, keyfile_data: PyBytes, password: Option<String>, coldkey_name: Option<String>, ) -> PyResult<PyBytes> {
     // TODO: Implement the function
     unimplemented!()
 }
