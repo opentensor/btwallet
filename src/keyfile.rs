@@ -1,7 +1,7 @@
 use pyo3::exceptions::PyException;
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
-
+use ansible_vault::{encrypt_vault, decrypt_vault};
 use std::collections::HashMap;
 use std::env;
 use std::fs;
@@ -272,11 +272,21 @@ pub fn keyfile_data_encryption_method(py: Python, keyfile_data: &[u8]) -> PyResu
 /// # Returns
 ///
 /// * `encrypted_data` - The encrypted keyfile data in bytes.
-// #[pyfunction]
-// pub fn legacy_encrypt_keyfile_data(_py: Python, keyfile_data: &[u8], password: Option<String>, ) -> PyResult<Vec<u8>> {
-//     // TODO: Implement the body of the function
-//     unimplemented!()
-// }
+#[pyfunction]
+pub fn legacy_encrypt_keyfile_data(py: Python, keyfile_data: &[u8], password: Option<String>, ) -> PyResult<PyObject> {
+    let password = password.unwrap_or_else(||
+        // function to get password from user
+        ask_password_to_encrypt().unwrap()
+    );
+
+    println!(":exclamation_mark: Encrypting key with legacy encryption method...");
+
+    // Encrypting key with legacy encryption method
+    let encrypted_data = encrypt_vault(keyfile_data, password.as_str())
+        .map_err(|err| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{}", err)))?;
+
+    Ok(PyBytes::new_bound(py, &encrypted_data.into_bytes()).into_py(py))
+}
 
 /// Encrypts the passed keyfile data using ansible vault.
 ///
