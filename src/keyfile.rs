@@ -16,7 +16,7 @@ use serde_json::json;
 
 use crate::keypair::Keypair;
 
-const NACL_SALT: &[u8] = b"\x13q\x83\xdf\xf1Z\t\xbc\x9c\x90\xb5Q\x879\xe9\xb1";
+// const NACL_SALT: &[u8] = b"\x13q\x83\xdf\xf1Z\t\xbc\x9c\x90\xb5Q\x879\xe9\xb1";
 
 /// Serializes keypair object into keyfile data.
 ///
@@ -25,19 +25,20 @@ const NACL_SALT: &[u8] = b"\x13q\x83\xdf\xf1Z\t\xbc\x9c\x90\xb5Q\x879\xe9\xb1";
 ///     Returns:
 ///         data (bytes): Serialized keypair data.
 #[pyfunction]
-pub fn serialized_keypair_to_keyfile_data(_py: Python, keypair: &Keypair) -> PyResult<PyObject> {
+#[pyo3(signature = (keypair))]
+pub fn serialized_keypair_to_keyfile_data(py: Python, keypair: &Keypair) -> PyResult<PyObject> {
     let mut data: HashMap<&str, serde_json::Value> = HashMap::new();
 
     // publicKey and privateKey fields are optional. If they exist, hex prefix "0x" is added to them.
-    if let Ok(Some(public_key)) = keypair.public_key(_py) {
+    if let Ok(Some(public_key)) = keypair.public_key(py) {
 
-        let public_bytes: &PyBytes = public_key.extract(_py)?;
+        let public_bytes: &PyBytes = public_key.extract(py)?;
         let public_key_str = hex::encode(public_bytes.as_bytes().to_vec());
         data.insert("accountId", json!(format!("0x{}", public_key_str)));
         data.insert("publicKey", json!(format!("0x{}", public_key_str)));
     }
-    if let Ok(Some(private_key)) = &keypair.private_key(_py) {
-        let private_bytes: &PyBytes = private_key.extract(_py)?;
+    if let Ok(Some(private_key)) = &keypair.private_key(py) {
+        let private_bytes: &PyBytes = private_key.extract(py)?;
         let private_key_str = hex::encode(private_bytes.as_bytes().to_vec());
         data.insert("privateKey", json!(format!("0x{}", private_key_str)));
     }
@@ -48,8 +49,8 @@ pub fn serialized_keypair_to_keyfile_data(_py: Python, keypair: &Keypair) -> PyR
     }
 
     // the seed_hex field is optional. If it exists, hex prefix "0x" is added to it.
-    if let Ok(Some(seed_hex_obj)) = keypair.seed_hex(_py) {
-        let seed_hex = seed_hex_obj.extract::<Vec<u8>>(_py).unwrap_or_else(|_| Vec::new());
+    if let Ok(Some(seed_hex_obj)) = keypair.seed_hex(py) {
+        let seed_hex = seed_hex_obj.extract::<Vec<u8>>(py).unwrap_or_else(|_| Vec::new());
         let seed_hex_str = match std::str::from_utf8(&seed_hex) {
             Ok(s) => s.to_string(),
             Err(_) => hex::encode(seed_hex),
@@ -65,7 +66,7 @@ pub fn serialized_keypair_to_keyfile_data(_py: Python, keypair: &Keypair) -> PyR
     // Serialize the data into JSON string and return it as bytes
     let json_data = serde_json::to_string(&data)
         .map_err(|e| pyo3::exceptions::PyUnicodeDecodeError::new_err(format!("Serialization error: {}", e)))?;
-    Ok(PyBytes::new_bound(_py, &json_data.into_bytes()).into_py(_py))
+    Ok(PyBytes::new_bound(py, &json_data.into_bytes()).into_py(py))
 }
 
 /// Deserializes Keypair object from passed keyfile data.
@@ -77,10 +78,11 @@ pub fn serialized_keypair_to_keyfile_data(_py: Python, keypair: &Keypair) -> PyR
 ///     Raises:
 ///         KeyFileError: Raised if the passed PyBytes cannot construct a keypair object.
 #[pyfunction]
-pub fn deserialize_keypair_from_keyfile_data(py: Python, keyfile_data: &PyBytes) -> PyResult<Keypair> {
+#[pyo3(signature = (keyfile_data))]
+pub fn deserialize_keypair_from_keyfile_data(_py: Python, keyfile_data: &[u8]) -> PyResult<Keypair> {
     // TODO: consider to use pyo3::exceptions::Py* errors instead of `PyException`
     // Decode the keyfile data from PyBytes to a string
-    let decoded = from_utf8(keyfile_data.as_bytes())
+    let decoded = from_utf8(keyfile_data)
         .map_err(|_| PyException::new_err("Failed to decode keyfile data."))?;
 
     // TODO: consider to use pyo3::exceptions::Py* errors instead of `PyException`
@@ -117,6 +119,7 @@ pub fn deserialize_keypair_from_keyfile_data(py: Python, keyfile_data: &PyBytes)
 ///     Returns:
 ///         valid (bool): ``True`` if the password meets validity requirements.
 #[pyfunction]
+#[pyo3(signature = (password))]
 pub fn validate_password(_py: Python, password: &str) -> PyResult<bool> {
     // Check for an empty password
     if password.is_empty() {
@@ -164,11 +167,11 @@ pub fn validate_password(_py: Python, password: &str) -> PyResult<bool> {
 /// # Returns
 ///
 /// * `is_nacl` - `true` if the data is ansible encrypted.
-#[pyfunction]
-pub fn keyfile_data_is_encrypted_nacl(_py: Python, keyfile_data: Vec<u8>) -> PyResult<bool> {
-    // TODO: Implement the function
-    unimplemented!();
-}
+// #[pyfunction]
+// pub fn keyfile_data_is_encrypted_nacl(_py: Python, keyfile_data: &[u8]) -> PyResult<bool> {
+//     // TODO: Implement the function
+//     unimplemented!();
+// }
 
 /// Returns true if the keyfile data is ansible encrypted.
 ///
@@ -177,11 +180,11 @@ pub fn keyfile_data_is_encrypted_nacl(_py: Python, keyfile_data: Vec<u8>) -> PyR
 ///
 /// # Returns
 /// * `is_ansible` - True if the data is ansible encrypted.
-#[pyfunction]
-pub fn keyfile_data_is_encrypted_ansible(_py: Python, keyfile_data: Vec<u8>) -> PyResult<bool> {
-    // TODO: Implement the function
-    unimplemented!()
-}
+// #[pyfunction]
+// pub fn keyfile_data_is_encrypted_ansible(_py: Python, keyfile_data: &[u8]) -> PyResult<bool> {
+//     // TODO: Implement the function
+//     unimplemented!()
+// }
 
 /// Returns true if the keyfile data is legacy encrypted.
 ///
@@ -190,22 +193,25 @@ pub fn keyfile_data_is_encrypted_ansible(_py: Python, keyfile_data: Vec<u8>) -> 
 ///
 /// # Returns
 /// * `is_legacy` - `true` if the data is legacy encrypted.
-#[pyfunction]
-pub fn keyfile_data_is_encrypted_legacy(_py: Python, keyfile_data: Vec<u8>) -> PyResult<bool> {
-    // TODO: Implement the function
-    unimplemented!()
-}
+// #[pyfunction]
+// pub fn keyfile_data_is_encrypted_legacy(_py: Python, keyfile_data: &[u8]) -> PyResult<bool> {
+//     // TODO: Implement the function
+//     unimplemented!()
+// }
 
 /// Returns `true` if the keyfile data is encrypted.
 ///
-/// # Args
-/// * `keyfile_data` - The bytes to validate.
+///     Args:
+///         keyfile_data (bytes): The bytes to validate.
 ///
-/// # Returns
-/// * `is_encrypted` - `true` if the data is encrypted.
+///     Returns:
+///         is_encrypted (bool): `true` if the data is encrypted.
 #[pyfunction]
-pub fn keyfile_data_is_encrypted(keyfile_data: PyObject) -> PyResult<bool> {
-    Ok(false)
+#[pyo3(signature = (keyfile_data))]
+pub fn keyfile_data_is_encrypted(_py: Python, keyfile_data: PyObject) -> PyResult<bool> {
+    // TODO: Implement the function
+    print!("{:?}", keyfile_data);
+    unimplemented!();
 }
 
 /// Returns type of encryption method as a string.
@@ -217,11 +223,11 @@ pub fn keyfile_data_is_encrypted(keyfile_data: PyObject) -> PyResult<bool> {
 /// # Returns
 ///
 /// * A string representing the name of encryption method.
-#[pyfunction]
-pub fn keyfile_data_encryption_method(_py: Python, keyfile_data: Vec<u8>) -> PyResult<String> {
-    // TODO: Implement the function.
-    unimplemented!()
-}
+// #[pyfunction]
+// pub fn keyfile_data_encryption_method(_py: Python, keyfile_data: &[u8]) -> PyResult<String> {
+//     // TODO: Implement the function.
+//     unimplemented!()
+// }
 
 /// legacy_encrypt_keyfile_data.
 ///
@@ -234,11 +240,11 @@ pub fn keyfile_data_encryption_method(_py: Python, keyfile_data: Vec<u8>) -> PyR
 /// # Returns
 ///
 /// * `encrypted_data` - The encrypted keyfile data in bytes.
-#[pyfunction]
-pub fn legacy_encrypt_keyfile_data(_py: Python, keyfile_data: Vec<u8>, password: Option<String>, ) -> PyResult<Vec<u8>> {
-    // TODO: Implement the body of the function
-    unimplemented!()
-}
+// #[pyfunction]
+// pub fn legacy_encrypt_keyfile_data(_py: Python, keyfile_data: &[u8], password: Option<String>, ) -> PyResult<Vec<u8>> {
+//     // TODO: Implement the body of the function
+//     unimplemented!()
+// }
 
 /// Encrypts the passed keyfile data using ansible vault.
 ///
@@ -248,11 +254,11 @@ pub fn legacy_encrypt_keyfile_data(_py: Python, keyfile_data: Vec<u8>, password:
 ///
 /// # Returns
 /// * `encrypted_data` - The encrypted data.
-#[pyfunction]
-pub fn encrypt_keyfile_data(_py: Python, keyfile_data: Vec<u8>, password: Option<String>) -> PyResult<Vec<u8>> {
-    // TODO: Implement the function
-    unimplemented!()
-}
+// #[pyfunction]
+// pub fn encrypt_keyfile_data(_py: Python, keyfile_data: &[u8], password: Option<String>) -> PyResult<Vec<u8>> {
+//     // TODO: Implement the function
+//     unimplemented!()
+// }
 
 /// Retrieves the cold key password from the environment variables.
 ///
@@ -262,6 +268,7 @@ pub fn encrypt_keyfile_data(_py: Python, keyfile_data: Vec<u8>, password: Option
 /// # Returns
 /// * `Option<String>` - The password retrieved from the environment variables, or `None` if not found.
 #[pyfunction]
+#[pyo3(signature = (coldkey_name))]
 pub fn get_coldkey_password_from_environment(_py: Python, coldkey_name: String) -> PyResult<Option<String>> {
     let password = env::var(coldkey_name).ok();
     Ok(password)
@@ -276,11 +283,11 @@ pub fn get_coldkey_password_from_environment(_py: Python, coldkey_name: String) 
 ///
 /// # Returns
 /// * `decrypted_data` - The decrypted data.
-#[pyfunction]
-pub fn decrypt_keyfile_data(_py: Python, keyfile_data: PyBytes, password: Option<String>, coldkey_name: Option<String>, ) -> PyResult<PyBytes> {
-    // TODO: Implement the function
-    unimplemented!()
-}
+// #[pyfunction]
+// pub fn decrypt_keyfile_data(_py: Python, keyfile_data: &[u8], password: Option<String>, coldkey_name: Option<String>, ) -> PyResult<PyObject> {
+//     // TODO: Implement the function
+//     unimplemented!()
+// }
 
 #[pyclass]
 pub struct Keyfile {
@@ -406,8 +413,8 @@ impl Keyfile {
 
     /// Returns ``True`` if the file under path is encrypted.
     ///
-    /// Returns:
-    ///     encrypted (bool): ``True`` if the file is encrypted.
+    ///     Returns:
+    ///         encrypted (bool): ``True`` if the file is encrypted.
     pub fn is_encrypted(&self, py: Python) -> PyResult<bool> {
         // check if file exist
         if !self.exists_on_device()? {
@@ -423,7 +430,7 @@ impl Keyfile {
         let keyfile_data = self._read_keyfile_data_from_file(py)?;
 
         // check if encrypted
-        let is_encrypted = keyfile_data_is_encrypted(keyfile_data)?;
+        let is_encrypted = keyfile_data_is_encrypted(py, keyfile_data)?;
 
         Ok(is_encrypted)
     }
@@ -463,11 +470,11 @@ impl Keyfile {
 
     /// Reads the keyfile data from the file.
     ///
-    /// Returns:
-    ///     keyfile_data (bytes): The keyfile data stored under the path.
+    ///     Returns:
+    ///         keyfile_data (bytes): The keyfile data stored under the path.
     ///
-    /// Raises:
-    ///     PyPermissionError: Raised if the file does not exist or is not readable.
+    ///     Raises:
+    ///         PyPermissionError: Raised if the file does not exist or is not readable.
     pub fn _read_keyfile_data_from_file(&self, py: Python) -> PyResult<PyObject> {
         // check file exist
         if !self.exists_on_device()? {
@@ -491,12 +498,13 @@ impl Keyfile {
     }
 
     /// Writes the keyfile data to the file.
-    /// Args:
-    ///     keyfile_data (bytes): The byte data to store under the path.
-    ///     overwrite (bool, optional): If ``True``, overwrites the data without asking for permission from the user. Default is ``False``.
     ///
-    /// Raises:
-    ///     PyPermissionError: Raised if the file is not writable or the user responds No to the overwrite prompt.
+    ///     Arguments:
+    ///         keyfile_data (bytes): The byte data to store under the path.
+    ///         overwrite (bool, optional): If ``True``, overwrites the data without asking for permission from the user. Default is ``False``.
+    ///
+    ///     Raises:
+    ///         PyPermissionError: Raised if the file is not writable or the user responds No to the overwrite prompt.
     #[pyo3(signature = (keyfile_data, overwrite = false))]
     pub fn _write_keyfile_data_to_file(&self, keyfile_data: &[u8], overwrite: bool) -> PyResult<()> {
         // ask user for rewriting
