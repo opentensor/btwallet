@@ -5,7 +5,7 @@ use pyo3::types::PyBytes;
 use std::collections::HashMap;
 use std::env;
 use std::fs;
-use std::io::{self, Read, Write};
+use std::io::{Read, Write, stdin, stdout};
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 use std::str::from_utf8;
@@ -52,7 +52,7 @@ pub fn serialized_keypair_to_keyfile_data(py: Python, keypair: &Keypair) -> PyRe
         let seed_hex = seed_hex_obj
             .extract::<Vec<u8>>(py)
             .unwrap_or_else(|_| Vec::new());
-        let seed_hex_str = match std::str::from_utf8(&seed_hex) {
+        let seed_hex_str = match from_utf8(&seed_hex) {
             Ok(s) => s.to_string(),
             Err(_) => hex::encode(seed_hex),
         };
@@ -147,7 +147,7 @@ pub fn validate_password(_py: Python, password: &str) -> PyResult<bool> {
         let mut password_verification = String::new();
 
         println!("Retype your password:");
-        std::io::stdin()
+        stdin()
             .read_line(&mut password_verification)
             .expect("Failed to read line");
 
@@ -457,10 +457,10 @@ impl Keyfile {
     /// Asks the user if it is okay to overwrite the file.
     pub fn _may_overwrite(&self) -> PyResult<bool> {
         print!("File {} already exists. Overwrite? (y/N) ", self.path);
-        io::stdout().flush()?;
+        stdout().flush()?;
 
         let mut choice = String::new();
-        io::stdin()
+        stdin()
             .read_line(&mut choice)
             .expect("Failed to read input");
 
