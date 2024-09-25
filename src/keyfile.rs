@@ -67,7 +67,6 @@ pub fn serialized_keypair_to_keyfile_data(py: Python, keypair: &Keypair) -> PyRe
         data.insert("ss58Address", json!(ss58_address));
     }
 
-    // TODO: consider to use pyo3::exceptions::Py* errors instead of `PyException`
     // Serialize the data into JSON string and return it as bytes
     let json_data = serde_json::to_string(&data).map_err(|e| {
         pyo3::exceptions::PyUnicodeDecodeError::new_err(format!("Serialization error: {}", e))
@@ -86,10 +85,9 @@ pub fn serialized_keypair_to_keyfile_data(py: Python, keypair: &Keypair) -> PyRe
 #[pyfunction]
 #[pyo3(signature = (keyfile_data))]
 pub fn deserialize_keypair_from_keyfile_data(_py: Python, keyfile_data: &[u8]) -> PyResult<Keypair> {
-    // TODO: consider to use pyo3::exceptions::Py* errors instead of `PyException`
     // Decode the keyfile data from PyBytes to a string
     let decoded = from_utf8(keyfile_data)
-        .map_err(|_| PyException::new_err("Failed to decode keyfile data."))?;
+        .map_err(|_| {pyo3::exceptions::PyUnicodeDecodeError::new_err("Failed to decode keyfile data.")})?;
 
     // TODO: consider to use pyo3::exceptions::Py* errors instead of `PyException`
     // Parse the JSON string into a HashMap
@@ -384,21 +382,21 @@ impl Keyfile {
     }
 
     /// Returns the keypair from path, decrypts data if the file is encrypted.
+    // #[getter]
+    // pub fn keypair(&self, py: Python) -> PyResult<PyObject>{
+    //     Ok(self.get_keypair(py)?)
+    // }
+
+    /// Returns the keyfile data under path.
     #[getter]
-    pub fn keypair(&self) -> PyResult<bool> {
-        Ok(true)
+    pub fn data(&self, py: Python) -> PyResult<PyObject> {
+        Ok(self._read_keyfile_data_from_file(py)?)
     }
 
     /// Returns the keyfile data under path.
     #[getter]
-    pub fn data(&self) -> PyResult<bool> {
-        Ok(true)
-    }
-
-    /// Returns the keyfile data under path.
-    #[getter]
-    pub fn keyfile_data(&self) -> PyResult<bool> {
-        Ok(true)
+    pub fn keyfile_data(&self, py: Python) -> PyResult<PyObject>{
+        Ok(self._read_keyfile_data_from_file(py)?)
     }
 
     /// Writes the keypair to the file and optionally encrypts data.
