@@ -1,6 +1,6 @@
+use pyo3::exceptions::PyException;
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
-use pyo3::exceptions::PyException;
 
 use std::collections::HashMap;
 use std::env;
@@ -31,7 +31,6 @@ pub fn serialized_keypair_to_keyfile_data(py: Python, keypair: &Keypair) -> PyRe
 
     // publicKey and privateKey fields are optional. If they exist, hex prefix "0x" is added to them.
     if let Ok(Some(public_key)) = keypair.public_key(py) {
-
         let public_bytes: &PyBytes = public_key.extract(py)?;
         let public_key_str = hex::encode(public_bytes.as_bytes().to_vec());
         data.insert("accountId", json!(format!("0x{}", public_key_str)));
@@ -50,7 +49,9 @@ pub fn serialized_keypair_to_keyfile_data(py: Python, keypair: &Keypair) -> PyRe
 
     // the seed_hex field is optional. If it exists, hex prefix "0x" is added to it.
     if let Ok(Some(seed_hex_obj)) = keypair.seed_hex(py) {
-        let seed_hex = seed_hex_obj.extract::<Vec<u8>>(py).unwrap_or_else(|_| Vec::new());
+        let seed_hex = seed_hex_obj
+            .extract::<Vec<u8>>(py)
+            .unwrap_or_else(|_| Vec::new());
         let seed_hex_str = match std::str::from_utf8(&seed_hex) {
             Ok(s) => s.to_string(),
             Err(_) => hex::encode(seed_hex),
@@ -64,8 +65,9 @@ pub fn serialized_keypair_to_keyfile_data(py: Python, keypair: &Keypair) -> PyRe
 
     // TODO: consider to use pyo3::exceptions::Py* errors instead of `PyException`
     // Serialize the data into JSON string and return it as bytes
-    let json_data = serde_json::to_string(&data)
-        .map_err(|e| pyo3::exceptions::PyUnicodeDecodeError::new_err(format!("Serialization error: {}", e)))?;
+    let json_data = serde_json::to_string(&data).map_err(|e| {
+        pyo3::exceptions::PyUnicodeDecodeError::new_err(format!("Serialization error: {}", e))
+    })?;
     Ok(PyBytes::new_bound(py, &json_data.into_bytes()).into_py(py))
 }
 
@@ -79,7 +81,10 @@ pub fn serialized_keypair_to_keyfile_data(py: Python, keypair: &Keypair) -> PyRe
 ///         KeyFileError: Raised if the passed PyBytes cannot construct a keypair object.
 #[pyfunction]
 #[pyo3(signature = (keyfile_data))]
-pub fn deserialize_keypair_from_keyfile_data(_py: Python, keyfile_data: &[u8]) -> PyResult<Keypair> {
+pub fn deserialize_keypair_from_keyfile_data(
+    _py: Python,
+    keyfile_data: &[u8],
+) -> PyResult<Keypair> {
     // TODO: consider to use pyo3::exceptions::Py* errors instead of `PyException`
     // Decode the keyfile data from PyBytes to a string
     let decoded = from_utf8(keyfile_data)
@@ -107,7 +112,9 @@ pub fn deserialize_keypair_from_keyfile_data(_py: Python, keyfile_data: &[u8]) -
         Ok(Keypair::new(ss58_address, None, None, 42, None, 1)?)
     } else {
         // TODO: consider to use pyo3::exceptions::Py* errors instead of `PyException`
-        return Err(PyException::new_err("Keypair could not be created from keyfile data."));
+        return Err(PyException::new_err(
+            "Keypair could not be created from keyfile data.",
+        ));
     };
     keypair
 }
@@ -140,7 +147,9 @@ pub fn validate_password(_py: Python, password: &str) -> PyResult<bool> {
         let mut password_verification = String::new();
 
         println!("Retype your password:");
-        std::io::stdin().read_line(&mut password_verification).expect("Failed to read line");
+        std::io::stdin()
+            .read_line(&mut password_verification)
+            .expect("Failed to read line");
 
         // Remove potential newline or whitespace at the end
         let password_verification = password_verification.trim();
@@ -156,7 +165,6 @@ pub fn validate_password(_py: Python, password: &str) -> PyResult<bool> {
         Ok(false)
     }
 }
-
 
 /// Returns `true` if the keyfile data is NaCl encrypted.
 ///
@@ -269,7 +277,10 @@ pub fn keyfile_data_is_encrypted(_py: Python, keyfile_data: PyObject) -> PyResul
 /// * `Option<String>` - The password retrieved from the environment variables, or `None` if not found.
 #[pyfunction]
 #[pyo3(signature = (coldkey_name))]
-pub fn get_coldkey_password_from_environment(_py: Python, coldkey_name: String) -> PyResult<Option<String>> {
+pub fn get_coldkey_password_from_environment(
+    _py: Python,
+    coldkey_name: String,
+) -> PyResult<Option<String>> {
     let password = env::var(coldkey_name).ok();
     Ok(password)
 }
@@ -297,16 +308,10 @@ pub struct Keyfile {
 
 #[pymethods]
 impl Keyfile {
-
     #[new]
     #[pyo3(signature = (path, name))]
-    pub fn new (path: String, name: String) -> PyResult<Self> {
-        Ok(
-            Keyfile {
-                path,
-                name
-            }
-        )
+    pub fn new(path: String, name: String) -> PyResult<Self> {
+        Ok(Keyfile { path, name })
     }
 
     fn __str__(&self) -> PyResult<String> {
@@ -337,9 +342,21 @@ impl Keyfile {
 
     /// Writes the keypair to the file and optionally encrypts data.
     #[pyo3(signature = (keypair, encrypt = true, overwrite = false, password = None))]
-    pub fn set_keypair(&self, keypair: Keypair, encrypt: bool, overwrite: bool, password: Option<String>)  {
+    pub fn set_keypair(
+        &self,
+        keypair: Keypair,
+        encrypt: bool,
+        overwrite: bool,
+        password: Option<String>,
+    ) {
         //set keypair
-        println!("{:?} {:?} {:?} {:?}", keypair.ss58_address(), encrypt, overwrite, password);
+        println!(
+            "{:?} {:?} {:?} {:?}",
+            keypair.ss58_address(),
+            encrypt,
+            overwrite,
+            password
+        );
     }
 
     // TODO (devs): rust creates the same function automatically by `keypair` getter function and the error accuses. We need to understand how to avoid this.
@@ -380,8 +397,9 @@ impl Keyfile {
         }
 
         // get file metadata
-        let metadata = fs::metadata(&self.path)
-            .map_err(|e| pyo3::exceptions::PyIOError::new_err(format!("Failed to get metadata for file: {}.", e)))?;
+        let metadata = fs::metadata(&self.path).map_err(|e| {
+            pyo3::exceptions::PyIOError::new_err(format!("Failed to get metadata for file: {}.", e))
+        })?;
 
         // check permissions
         let permissions = metadata.permissions();
@@ -401,8 +419,9 @@ impl Keyfile {
         }
 
         // get file metadata
-        let metadata = fs::metadata(&self.path)
-            .map_err(|e| pyo3::exceptions::PyIOError::new_err(format!("Failed to get metadata for file: {}", e)))?;
+        let metadata = fs::metadata(&self.path).map_err(|e| {
+            pyo3::exceptions::PyIOError::new_err(format!("Failed to get metadata for file: {}", e))
+        })?;
 
         // check the permissions
         let permissions = metadata.permissions();
@@ -437,12 +456,13 @@ impl Keyfile {
 
     /// Asks the user if it is okay to overwrite the file.
     pub fn _may_overwrite(&self) -> PyResult<bool> {
-
         print!("File {} already exists. Overwrite? (y/N) ", self.path);
         io::stdout().flush()?;
 
         let mut choice = String::new();
-        io::stdin().read_line(&mut choice).expect("Failed to read input");
+        io::stdin()
+            .read_line(&mut choice)
+            .expect("Failed to read input");
 
         Ok(choice.trim().to_lowercase() == "y")
     }
@@ -478,20 +498,28 @@ impl Keyfile {
     pub fn _read_keyfile_data_from_file(&self, py: Python) -> PyResult<PyObject> {
         // check file exist
         if !self.exists_on_device()? {
-            return Err(pyo3::exceptions::PyFileNotFoundError::new_err(format!("Keyfile at: {} does not exist.", self.path)));
+            return Err(pyo3::exceptions::PyFileNotFoundError::new_err(format!(
+                "Keyfile at: {} does not exist.",
+                self.path
+            )));
         }
 
         // check if file readable
         if !self.is_readable()? {
-            return Err(pyo3::exceptions::PyPermissionError::new_err(format!("Keyfile at: {} is not readable.", self.path)));
+            return Err(pyo3::exceptions::PyPermissionError::new_err(format!(
+                "Keyfile at: {} is not readable.",
+                self.path
+            )));
         }
 
         // open and read the file
-        let mut file = fs::File::open(&self.path)
-            .map_err(|e| pyo3::exceptions::PyOSError::new_err(format!("Failed to open file: {}.", e)))?;
+        let mut file = fs::File::open(&self.path).map_err(|e| {
+            pyo3::exceptions::PyOSError::new_err(format!("Failed to open file: {}.", e))
+        })?;
         let mut data_vec = Vec::new();
-        file.read_to_end(&mut data_vec)
-            .map_err(|e| pyo3::exceptions::PyOSError::new_err(format!("Failed to read file: {}.", e)))?;
+        file.read_to_end(&mut data_vec).map_err(|e| {
+            pyo3::exceptions::PyOSError::new_err(format!("Failed to read file: {}.", e))
+        })?;
 
         let data_bytes = PyBytes::new_bound(py, &*data_vec).into_py(py);
         Ok(data_bytes)
@@ -506,30 +534,44 @@ impl Keyfile {
     ///     Raises:
     ///         PyPermissionError: Raised if the file is not writable or the user responds No to the overwrite prompt.
     #[pyo3(signature = (keyfile_data, overwrite = false))]
-    pub fn _write_keyfile_data_to_file(&self, keyfile_data: &[u8], overwrite: bool) -> PyResult<()> {
+    pub fn _write_keyfile_data_to_file(
+        &self,
+        keyfile_data: &[u8],
+        overwrite: bool,
+    ) -> PyResult<()> {
         // ask user for rewriting
         if self.exists_on_device()? && !overwrite {
             if !self._may_overwrite()? {
-                return Err(pyo3::exceptions::PyUserWarning::new_err(format!("Keyfile at: {} is not writable", self.path)));
+                return Err(pyo3::exceptions::PyUserWarning::new_err(format!(
+                    "Keyfile at: {} is not writable",
+                    self.path
+                )));
             }
         }
 
         let mut keyfile = fs::OpenOptions::new()
             .write(true)
             .create(true)
-            .truncate(true)  // cleanup if rewrite
+            .truncate(true) // cleanup if rewrite
             .open(&self.path)
-            .map_err(|e| pyo3::exceptions::PyIOError::new_err(format!("Failed to open file: {}.", e)))?;
+            .map_err(|e| {
+                pyo3::exceptions::PyIOError::new_err(format!("Failed to open file: {}.", e))
+            })?;
 
         // write data
-        keyfile.write_all(keyfile_data)
-            .map_err(|e| pyo3::exceptions::PyIOError::new_err(format!("Failed to write to file: {}.", e)))?;
+        keyfile.write_all(keyfile_data).map_err(|e| {
+            pyo3::exceptions::PyIOError::new_err(format!("Failed to write to file: {}.", e))
+        })?;
 
         // set permissions
         let mut permissions = fs::metadata(&self.path)?.permissions();
         permissions.set_mode(0o600); // just for owner
-        fs::set_permissions(&self.path, permissions)
-            .map_err(|e| pyo3::exceptions::PyPermissionError::new_err(format!("Failed to set permissions: {}.", e)))?;
+        fs::set_permissions(&self.path, permissions).map_err(|e| {
+            pyo3::exceptions::PyPermissionError::new_err(format!(
+                "Failed to set permissions: {}.",
+                e
+            ))
+        })?;
         Ok(())
     }
 }

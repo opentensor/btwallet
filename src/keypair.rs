@@ -8,7 +8,6 @@ use sp_core::{sr25519, ByteArray, Pair};
 
 use bip39::Mnemonic;
 
-
 #[derive(Clone)]
 #[pyclass]
 pub struct Keypair {
