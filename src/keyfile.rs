@@ -267,15 +267,12 @@ pub fn keyfile_data_encryption_method(py: Python, keyfile_data: &[u8]) -> PyResu
 
 /// legacy_encrypt_keyfile_data.
 ///
-/// # Args
+///     Arguments:
+///         keyfile_data (bytes): Bytes of data from the keyfile.
+///         password (str): Optional string that represents the password.
 ///
-/// * `keyfile_data` - Bytes of data from the keyfile.
-///
-/// * `password` - Optional string that represents the password.
-///
-/// # Returns
-///
-/// * `encrypted_data` - The encrypted keyfile data in bytes.
+///     Returns:
+///         encrypted_data (bytes): The encrypted keyfile data in bytes.
 #[pyfunction]
 pub fn legacy_encrypt_keyfile_data(py: Python, keyfile_data: &[u8], password: Option<String>, ) -> PyResult<PyObject> {
     let password = password.unwrap_or_else(||
