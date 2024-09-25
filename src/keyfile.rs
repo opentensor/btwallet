@@ -244,18 +244,22 @@ pub fn keyfile_data_is_encrypted(_py: Python, keyfile_data: &[u8]) -> PyResult<b
 
 /// Returns type of encryption method as a string.
 ///
-/// # Args
+///     Arguments:
+///         keyfile_data (bytes): Bytes to validate.
 ///
-/// * `keyfile_data` - Bytes to validate.
-///
-/// # Returns
-///
-/// * A string representing the name of encryption method.
-// #[pyfunction]
-// pub fn keyfile_data_encryption_method(_py: Python, keyfile_data: &[u8]) -> PyResult<String> {
-//     // TODO: Implement the function.
-//     unimplemented!()
-// }
+///     Returns:
+///         (str): A string representing the name of encryption method.
+#[pyfunction]
+pub fn keyfile_data_encryption_method(py: Python, keyfile_data: &[u8]) -> PyResult<String> {
+    let encryption_method = match true {
+        _ if keyfile_data_is_encrypted_nacl(py, keyfile_data)? => "NaCl",
+        _ if keyfile_data_is_encrypted_ansible(py, keyfile_data)? => "Ansible Vault",
+        _ if keyfile_data_is_encrypted_legacy(py, keyfile_data)? => "legacy",
+        _ => "unknown",
+    };
+
+    Ok(encryption_method.to_string())
+}
 
 /// legacy_encrypt_keyfile_data.
 ///

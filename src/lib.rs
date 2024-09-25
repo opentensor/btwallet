@@ -37,7 +37,7 @@ fn bittensor_wallet(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(keyfile::keyfile_data_is_encrypted_ansible, m)?)?;
     m.add_function(wrap_pyfunction!(keyfile::keyfile_data_is_encrypted_legacy, m)?)?;
     m.add_function(wrap_pyfunction!(keyfile::keyfile_data_is_encrypted, m)?)?;
-    // m.add_function(wrap_pyfunction!(keyfile::keyfile_data_encryption_method, m)?)?;
+    m.add_function(wrap_pyfunction!(keyfile::keyfile_data_encryption_method, m)?)?;
     // m.add_function(wrap_pyfunction!(keyfile::legacy_encrypt_keyfile_data, m)?)?;
     // m.add_function(wrap_pyfunction!(keyfile::encrypt_keyfile_data, m)?)?;
     m.add_function(wrap_pyfunction!(
