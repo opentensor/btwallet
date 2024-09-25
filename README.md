@@ -33,7 +33,7 @@ wallet = Wallet()
 wallet.create()
 ```
 If you want to pass arguments to the class other than the default, use the following:
-```python
+```
 name (str): The name of the wallet, used to identify it among possibly multiple wallets.
 hotkey (str): String identifier for the hotkey.
 path (str): File system path where wallet keys are stored.
@@ -66,7 +66,7 @@ To build and test the Rust components of the project, you can use the following 
 # TODO
 * password for encrypting the wallet
 * create coldkey
-* wrap signing into a fn and expose to python
+* wrap signing in to a fn and expose to python
 using - create_hotkey, use sr25519::Pair =
         derive_sr25519_key(&seed, &derivation_path).expect("Failed to derive sr25519 key"); to sign a message
         ex: 
