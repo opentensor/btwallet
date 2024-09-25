@@ -1,7 +1,7 @@
 use pyo3::exceptions::PyException;
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
-use ansible_vault::{encrypt_vault, decrypt_vault};
+use ansible_vault::{encrypt_vault};
 use std::collections::HashMap;
 use std::env;
 use std::fs;
@@ -85,10 +85,7 @@ pub fn serialized_keypair_to_keyfile_data(py: Python, keypair: &Keypair) -> PyRe
 ///         KeyFileError: Raised if the passed PyBytes cannot construct a keypair object.
 #[pyfunction]
 #[pyo3(signature = (keyfile_data))]
-pub fn deserialize_keypair_from_keyfile_data(
-    _py: Python,
-    keyfile_data: &[u8],
-) -> PyResult<Keypair> {
+pub fn deserialize_keypair_from_keyfile_data(_py: Python, keyfile_data: &[u8]) -> PyResult<Keypair> {
     // TODO: consider to use pyo3::exceptions::Py* errors instead of `PyException`
     // Decode the keyfile data from PyBytes to a string
     let decoded = from_utf8(keyfile_data)
@@ -274,6 +271,7 @@ pub fn keyfile_data_encryption_method(py: Python, keyfile_data: &[u8]) -> PyResu
 ///     Returns:
 ///         encrypted_data (bytes): The encrypted keyfile data in bytes.
 #[pyfunction]
+#[pyo3(signature = (keyfile_data, password))]
 pub fn legacy_encrypt_keyfile_data(py: Python, keyfile_data: &[u8], password: Option<String>, ) -> PyResult<PyObject> {
     let password = password.unwrap_or_else(||
         // function to get password from user
