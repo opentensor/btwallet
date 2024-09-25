@@ -146,10 +146,10 @@ pub fn validate_password(_py: Python, password: &str) -> PyResult<bool> {
         // Prompt user to retype the password
         let mut password_verification = String::new();
 
-        println!("Retype your password:");
+        print!("Retype your password: ");
         stdin()
             .read_line(&mut password_verification)
-            .expect("Failed to read line");
+            .expect("Failed to read the password.");
 
         // Remove potential newline or whitespace at the end
         let password_verification = password_verification.trim();
@@ -157,13 +157,26 @@ pub fn validate_password(_py: Python, password: &str) -> PyResult<bool> {
         if password == password_verification {
             Ok(true)
         } else {
-            println!("Passwords do not match");
+            println!("Passwords do not match.");
             Ok(false)
         }
     } else {
         println!("Password not strong enough. Try increasing the length of the password or the password complexity.");
         Ok(false)
     }
+}
+
+/// Prompts the user to enter a password for key encryption.
+///
+///     Returns:
+///         password (str): The valid password entered by the user.
+#[pyfunction]
+pub fn ask_password_to_encrypt() -> PyResult<String> {
+    let mut password = String::new();
+    print!("Specify password for key encryption: ");
+    stdout().flush()?;
+    stdin().read_line(&mut password).expect("Filed to read the password.");
+    Ok(password.trim().to_string())
 }
 
 /// Returns `true` if the keyfile data is NaCl encrypted.
@@ -301,11 +314,11 @@ pub fn get_coldkey_password_from_environment(_py: Python, coldkey_name: String, 
 ///
 /// # Returns
 /// * `decrypted_data` - The decrypted data.
-#[pyfunction]
-pub fn decrypt_keyfile_data(_py: Python, keyfile_data: &[u8], password: Option<String>, coldkey_name: Option<String>, ) -> PyResult<PyObject> {
-    // TODO: Implement the function
-    unimplemented!()
-}
+// #[pyfunction]
+// pub fn decrypt_keyfile_data(_py: Python, keyfile_data: &[u8], password: Option<String>, coldkey_name: Option<String>, ) -> PyResult<PyObject> {
+//     // TODO: Implement the function
+//     unimplemented!()
+// }
 
 #[pyclass]
 pub struct Keyfile {
@@ -469,7 +482,7 @@ impl Keyfile {
         let mut choice = String::new();
         stdin()
             .read_line(&mut choice)
-            .expect("Failed to read input");
+            .expect("Failed to read input.");
 
         Ok(choice.trim().to_lowercase() == "y")
     }
