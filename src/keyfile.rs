@@ -16,7 +16,11 @@ use serde_json::json;
 
 use crate::keypair::Keypair;
 
-// const NACL_SALT: &[u8] = b"\x13q\x83\xdf\xf1Z\t\xbc\x9c\x90\xb5Q\x879\xe9\xb1";
+use sodiumoxide::crypto::pwhash;
+use sodiumoxide::crypto::secretbox;
+use sodiumoxide::crypto::pwhash::scryptsalsa208sha256::{Salt};
+
+const NACL_SALT: &[u8] = b"\x13q\x83\xdf\xf1Z\t\xbc\x9c\x90\xb5Q\x879\xe9\xb1";
 
 /// Serializes keypair object into keyfile data.
 ///
@@ -280,17 +284,45 @@ pub fn keyfile_data_encryption_method(py: Python, keyfile_data: &[u8]) -> PyResu
 
 /// Encrypts the passed keyfile data using ansible vault.
 ///
-/// # Args
-/// * `keyfile_data` - The bytes to encrypt.
-/// * `password` - The password used to encrypt the data. If `None`, asks for user input.
+///     Args
+///         keyfile_data (bytes): The bytes to encrypt.
+///         password (str): The password used to encrypt the data. If `None`, asks for user input.
 ///
-/// # Returns
-/// * `encrypted_data` - The encrypted data.
-// #[pyfunction]
-// pub fn encrypt_keyfile_data(_py: Python, keyfile_data: &[u8], password: Option<String>) -> PyResult<Vec<u8>> {
-//     // TODO: Implement the function
-//     unimplemented!()
-// }
+///     Returns
+///         encrypted_data (bytes): The encrypted data.
+#[pyfunction]
+#[pyo3(signature = (keyfile_data, password))]
+pub fn encrypt_keyfile_data(py: Python, keyfile_data: &[u8], password: Option<String>) -> PyResult<PyObject> {
+    // get password or ask user
+    let password = match password {
+        Some(pwd) => pwd,
+        None => ask_password_to_encrypt()?,
+    };
+    let password_bytes = password.as_bytes();
+
+    // add encryption parameters pwhash Argon2i
+    let opslimit = pwhash::OPSLIMIT_SENSITIVE;
+    let memlimit = pwhash::MEMLIMIT_SENSITIVE;
+
+    // crate the key with pwhash Argon2i
+    let mut key = secretbox::Key([0u8; secretbox::KEYBYTES]);
+    let nacl_salt = &Salt::from_slice(NACL_SALT)
+        .ok_or_else(|| pyo3::exceptions::PyValueError::new_err("Invalid NACL_SALT."))?;
+    pwhash::derive_key(&mut key.0, password_bytes, nacl_salt, opslimit, memlimit)
+        .map_err(|_| pyo3::exceptions::PyRuntimeError::new_err("Failed to derive encryption key."))?;
+
+    // encrypt the data using SecretBox
+    let nonce = secretbox::gen_nonce();
+    let encrypted_data = secretbox::seal(keyfile_data, &nonce, &key);
+
+    // concatenate with b"$NACL"
+    let mut result = b"$NACL".to_vec();
+    result.extend_from_slice(&nonce.0);
+    result.extend_from_slice(&encrypted_data);
+
+    // return result as bytes for python
+    Ok(PyBytes::new_bound(py, &result).into())
+}
 
 /// Retrieves the cold key password from the environment variables.
 ///
