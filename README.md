@@ -17,7 +17,7 @@ $ pip install bittensor-wallet  # install bittensor-wallet
 $ python3 -m pip install -e .[dev] # installs dependencies for development and testing
 ```
 
-3. From PyPI (**currently unavailable**):
+3. From PyPI:
 ```bash
 $ python3 -m venv venv  # create env
 $ source venv/bin/activate  # activate env
