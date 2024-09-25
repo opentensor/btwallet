@@ -74,9 +74,9 @@ using - create_hotkey, use sr25519::Pair =
         let signature = keypair.sign(message);
 
 
-## KeyPair
+## keypair::KeyPair
 
-### Perfect test for Keypair
+### Tests for Keypair
 ```python
 from bittensor_wallet import Keypair as WKeypair
 from substrateinterface import Keypair as SKeypair
@@ -130,7 +130,11 @@ assert kps.verify("asd", kpw.sign("asd")) == True
 
 # check verify
 assert kpw.verify("asd", kps.sign("asd")) == True
+```
+## utils.rs
 
+### Tests for utils' functions
+```python
 # check utils functions
 from bittensor_wallet import get_ss58_format, is_valid_ss58_address, is_valid_ed25519_pubkey, is_valid_bittensor_address_or_public_key
 
@@ -160,4 +164,9 @@ assert is_valid_bittensor_address_or_public_key("5GrwvaEF5zXb26Fz9rcQpDWS57CtERH
 assert is_valid_bittensor_address_or_public_key(100) == False
 ```
 
+## keyfile::Keyfile
 
+### Tests for keyfile's functions and Keyfile struct
+```python
+# need to add
+```
