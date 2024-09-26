@@ -313,29 +313,6 @@ fn derive_key(password: &[u8]) -> secretbox::Key {
     key
 }
 
-// decrypt of keyfile_data with secretbox
-fn nacl_decrypt(keyfile_data: &[u8], key: &secretbox::Key) -> Vec<u8> {
-    let data = &keyfile_data[5..]; // Remove the $NACL prefix
-    let nonce = secretbox::Nonce::from_slice(&data[0..secretbox::NONCEBYTES])
-        .expect("Invalid nonce.");
-    let ciphertext = &data[secretbox::NONCEBYTES..];
-    secretbox::open(ciphertext, &nonce, key)
-        .expect("Wrong password.")
-}
-
-// decrypt of keyfile_data with legacy way
-fn legacy_decrypt(password: &str, keyfile_data: &[u8]) -> Vec<u8> {
-
-    let kdf = pbkdf2::pbkdf2_hmac::<sha2::Sha256>;
-    let mut key = vec![0; 32];
-    kdf(password.as_bytes(), LEGACY_SALT, 10000000, &mut key);
-
-    let fernet_key = Fernet::generate_key();
-    let fernet = Fernet::new(&fernet_key).unwrap();
-    let keyfile_data_str = from_utf8(keyfile_data).unwrap();
-    fernet.decrypt(keyfile_data_str).unwrap()
-}
-
 /// Encrypts the passed keyfile data using ansible vault.
 ///
 ///     Args
@@ -385,6 +362,29 @@ pub fn encrypt_keyfile_data(py: Python, keyfile_data: &[u8], password: Option<St
 #[pyfunction]
 #[pyo3(signature = (keyfile_data, password = None, coldkey_name = None))]
 pub fn decrypt_keyfile_data(py: Python, keyfile_data: &[u8], password: Option<String>, coldkey_name: Option<String>) -> PyResult<PyObject> {
+
+    // decrypt of keyfile_data with secretbox
+    fn nacl_decrypt(keyfile_data: &[u8], key: &secretbox::Key) -> Vec<u8> {
+        let data = &keyfile_data[5..]; // Remove the $NACL prefix
+        let nonce = secretbox::Nonce::from_slice(&data[0..secretbox::NONCEBYTES])
+            .expect("Invalid nonce.");
+        let ciphertext = &data[secretbox::NONCEBYTES..];
+        secretbox::open(ciphertext, &nonce, key)
+            .expect("Wrong password.")
+    }
+
+    // decrypt of keyfile_data with legacy way
+    fn legacy_decrypt(password: &str, keyfile_data: &[u8]) -> Vec<u8> {
+
+        let kdf = pbkdf2::pbkdf2_hmac::<sha2::Sha256>;
+        let mut key = vec![0; 32];
+        kdf(password.as_bytes(), LEGACY_SALT, 10000000, &mut key);
+
+        let fernet_key = Fernet::generate_key();
+        let fernet = Fernet::new(&fernet_key).unwrap();
+        let keyfile_data_str = from_utf8(keyfile_data).unwrap();
+        fernet.decrypt(keyfile_data_str).unwrap()
+    }
 
     let mut password = password;
 
