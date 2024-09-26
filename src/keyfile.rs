@@ -474,21 +474,16 @@ impl Keyfile {
 
     /// Writes the keypair to the file and optionally encrypts data.
     #[pyo3(signature = (keypair, encrypt = true, overwrite = false, password = None))]
-    pub fn set_keypair(
-        &self,
-        keypair: Keypair,
-        encrypt: bool,
-        overwrite: bool,
-        password: Option<String>,
-    ) {
-        //set keypair
-        println!(
-            "{:?} {:?} {:?} {:?}",
-            keypair.ss58_address(),
-            encrypt,
-            overwrite,
-            password
-        );
+    pub fn set_keypair(&self, keypair: Keypair, encrypt: bool, overwrite: bool, password: Option<String>, py: Python) {
+        self.make_dirs();
+        let keyfile_data = if encrypt {
+            let serialized_keypair = serialized_keypair_to_keyfile_data(py, &keypair).unwrap();
+            let serialized_keypair_u8 : &PyBytes = serialized_keypair.extract(py).into();
+            encrypt_keyfile_data(py, serialized_keypair_u8.as_bytes(), password)
+        } else {
+            serialized_keypair_to_keyfile_data(py, &keypair).unwrap();
+        };
+        self._write_keyfile_data_to_file(keyfile_data.extract(py).unwrap(), overwrite);
     }
 
     // TODO (devs): rust creates the same function automatically by `keypair` getter function and the error accuses. We need to understand how to avoid this.
