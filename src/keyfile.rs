@@ -707,21 +707,21 @@ impl Keyfile {
             let keyfile_data = self._read_keyfile_data_from_file(py)?;
             let keyfile_data_bytes: &[u8] = keyfile_data.extract(py)?;
 
-            if !keyfile_data_is_encrypted(py, keyfile_data_bytes)? {
+            return if !keyfile_data_is_encrypted(py, keyfile_data_bytes)? {
                 if print_result {
                     println!("Keyfile is not encrypted.");
                 }
-                return Ok(false);
+                Ok(false)
             } else if keyfile_data_is_encrypted_nacl(py, keyfile_data_bytes)? {
                 if print_result {
                     println!("Keyfile is updated.");
                 }
-                return Ok(true);
+                Ok(true)
             } else {
                 if print_result {
                     println!("Keyfile is outdated, please update using 'btcli'.");
                 }
-                return Ok(false);
+                Ok(false)
             }
         }
         Ok(false)
@@ -729,36 +729,38 @@ impl Keyfile {
 
     /// Encrypts the file under the path.
     #[pyo3(signature = (password = None))]
-    pub fn encrypt(&self, password: Option<String>, py: Python) {
-        // check if file exists on device
-        if !self.exists_on_device().unwrap() {
-            panic!("Keyfile does not exist on device");
+    pub fn encrypt(&self, password: Option<String>, py: Python) -> PyResult<()> {
+        // checkers
+        if !self.exists_on_device()? {
+            return Err(pyo3::exceptions::PyValueError::new_err(format!("Keyfile at: {} does not exist", self.path)));
         }
-        // check if readable
-        if !self.is_readable().unwrap() {
-            panic!("Key file is not readable");
-        }
-        // check if writable
-        if !self.is_writable().unwrap() {
-            panic!("Key file is not writable");
-        }
-        // read the file and check if encrypted
-        let mut key_file_data = self._read_keyfile_data_from_file(py).unwrap();
-        let key_file_data_bytes: &PyBytes = key_file_data.extract(py).unwrap();
-        let key_file_data_u8 = key_file_data_bytes.as_bytes();
-        let is_encrypted = keyfile_data_is_encrypted(py, key_file_data_u8).unwrap();
 
-        if !is_encrypted {
-            let keypair = deserialize_keypair_from_keyfile_data(py, &key_file_data_u8).unwrap();
-            let keyfile_data_pyobject = serialized_keypair_to_keyfile_data(py, &keypair).unwrap();
-            let keyfile_data_py_bytes: &PyBytes = keyfile_data_pyobject.extract(py).unwrap();
-            let keyfile_data_u8 = keyfile_data_py_bytes.as_bytes();
-            key_file_data = encrypt_keyfile_data(py, keyfile_data_u8, password).unwrap();
+        if !self.is_readable()? {
+            return Err(pyo3::exceptions::PyValueError::new_err(format!("Keyfile at: {} is not readable", self.path)));
         }
-        let keyfile_bytes: &PyBytes = key_file_data.extract(py).unwrap();
-        let keyfile_u8 = keyfile_bytes.as_bytes();
-        // write to file
-        self._write_keyfile_data_to_file(keyfile_u8, true).unwrap()
+
+        if !self.is_writable()? {
+            return Err(pyo3::exceptions::PyValueError::new_err(format!("Keyfile at: {} is not writable", self.path)));
+        }
+
+        // read the data
+        let keyfile_data = self._read_keyfile_data_from_file(py)?;
+        let keyfile_data_bytes: &[u8] = keyfile_data.extract(py)?;
+
+        let final_data = if !keyfile_data_is_encrypted(py, keyfile_data_bytes)? {
+
+            let as_keypair = deserialize_keypair_from_keyfile_data(py, keyfile_data_bytes)?;
+            let serialized_data = serialized_keypair_to_keyfile_data(py, &as_keypair)?;
+
+            encrypt_keyfile_data(py, serialized_data.extract(py)?, password)?
+        } else {
+            keyfile_data
+        };
+
+        // write back
+        self._write_keyfile_data_to_file(final_data.extract(py)?, true)?;
+
+        Ok(())
     }
 
     /// Decrypts the file under the path.
