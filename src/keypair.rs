@@ -125,8 +125,7 @@ impl Keypair {
     /// Creates Keypair from a seed.
     #[staticmethod]
     pub fn create_from_seed(seed: &str) -> PyResult<Self> {
-        let seed_vec = hex::decode(seed.trim_start_matches("0x"))
-            .map_err(|e| PyException::new_err(format!("Invalid hex string: {}", e)))?;
+        let seed_vec = hex::decode(seed.trim_start_matches("0x")).map_err(|e| PyException::new_err(format!("Invalid hex string: {}", e)))?;
 
         let pair = sr25519::Pair::from_seed_slice(&seed_vec)
             .map_err(|e| PyException::new_err(format!("Failed to create pair from seed: {}", e)))?;
