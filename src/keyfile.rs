@@ -335,7 +335,6 @@ pub fn encrypt_keyfile_data(py: Python, keyfile_data: &[u8], password: Option<St
 
     // crate the key with pwhash Argon2i
     let key = derive_key(password.as_bytes());
-    println!(">>> key: {:?}", key);
 
     // encrypt the data using SecretBox
     let nonce = secretbox::gen_nonce();
@@ -453,9 +452,16 @@ impl Keyfile {
 
     /// Returns the keypair from path, decrypts data if the file is encrypted.
     // #[getter]
-    // pub fn keypair(&self, py: Python) -> PyResult<PyObject>{
-    //     Ok(self.get_keypair(py)?)
+    // pub fn keypair(&self, py: Python) -> PyResult<bool>{
+    //     self.get_keypair(None, py)
     // }
+
+    // TODO (devs): rust creates the same function automatically by `keypair` getter function and the error accuses. We need to understand how to avoid this.
+    /// Returns the keypair from the path, decrypts data if the file is encrypted.
+    #[pyo3(signature = (password = None))]
+    pub fn get_keypair(&self, password: Option<String>, _py: Python) -> PyResult<bool> {
+        Ok(true)
+    }
 
     /// Returns the keyfile data under path.
     #[getter]
@@ -488,14 +494,6 @@ impl Keyfile {
 
         Ok(())
     }
-
-    // TODO (devs): rust creates the same function automatically by `keypair` getter function and the error accuses. We need to understand how to avoid this.
-    // /// Returns the keypair from the path, decrypts data if the file is encrypted.
-    // #[pyo3(signature = (password = None))]
-    // pub fn get_keypair(&self, password: Option<String>) -> PyResult<bool> {
-    //     println!("{:?}", password);
-    //     Ok(true)
-    // }
 
     /// Creates directories for the path if they do not exist.
     pub fn make_dirs(&self) -> PyResult<()> {
