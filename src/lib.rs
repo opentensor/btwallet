@@ -24,7 +24,7 @@ fn bittensor_wallet(m: &Bound<'_, PyModule>) -> PyResult<()> {
     )?)?;
     // keyfile
     m.add_function(wrap_pyfunction!(keyfile::validate_password, m)?)?;
-    m.add_function(wrap_pyfunction!(keyfile::ask_password_to_encrypt, m)?)?;
+    m.add_function(wrap_pyfunction!(keyfile::ask_password, m)?)?;
     m.add_function(wrap_pyfunction!(
         keyfile::serialized_keypair_to_keyfile_data,
         m
@@ -44,7 +44,7 @@ fn bittensor_wallet(m: &Bound<'_, PyModule>) -> PyResult<()> {
         keyfile::get_coldkey_password_from_environment,
         m
     )?)?;
-    // m.add_function(wrap_pyfunction!(keyfile::decrypt_keyfile_data, m)?)?;
+    m.add_function(wrap_pyfunction!(keyfile::decrypt_keyfile_data, m)?)?;
     m.add_function(wrap_pyfunction!(keyfile::get_coldkey_password_from_environment, m)?)?;
     Ok(())
 }

@@ -1,7 +1,6 @@
-use pyo3::exceptions::PyException;
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
-use ansible_vault::{encrypt_vault};
+
 use std::collections::HashMap;
 use std::env;
 use std::fs;
@@ -9,6 +8,9 @@ use std::io::{Read, Write, stdin, stdout};
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 use std::str::from_utf8;
+
+use ansible_vault::{encrypt_vault, decrypt_vault};
+use fernet::Fernet;
 
 use passwords::analyzer;
 use passwords::scorer;
@@ -18,9 +20,11 @@ use crate::keypair::Keypair;
 
 use sodiumoxide::crypto::pwhash;
 use sodiumoxide::crypto::secretbox;
-use sodiumoxide::crypto::pwhash::scryptsalsa208sha256::{Salt};
+
 
 const NACL_SALT: &[u8] = b"\x13q\x83\xdf\xf1Z\t\xbc\x9c\x90\xb5Q\x879\xe9\xb1";
+const LEGACY_SALT: &[u8] = b"Iguesscyborgslikemyselfhaveatendencytobeparanoidaboutourorigins";
+
 
 /// Serializes keypair object into keyfile data.
 ///
@@ -89,12 +93,12 @@ pub fn deserialize_keypair_from_keyfile_data(_py: Python, keyfile_data: &[u8]) -
     // TODO: consider to use pyo3::exceptions::Py* errors instead of `PyException`
     // Decode the keyfile data from PyBytes to a string
     let decoded = from_utf8(keyfile_data)
-        .map_err(|_| PyException::new_err("Failed to decode keyfile data."))?;
+        .map_err(|_| pyo3::exceptions::PyException::new_err("Failed to decode keyfile data."))?;
 
     // TODO: consider to use pyo3::exceptions::Py* errors instead of `PyException`
     // Parse the JSON string into a HashMap
     let keyfile_dict: HashMap<String, Option<String>> = serde_json::from_str(decoded)
-        .map_err(|_| PyException::new_err("Failed to parse keyfile data."))?;
+        .map_err(|_| pyo3::exceptions::PyException::new_err("Failed to parse keyfile data."))?;
 
     // Extract data from the keyfile
     let secret_seed = keyfile_dict.get("secretSeed").and_then(|v| v.clone());
@@ -113,7 +117,7 @@ pub fn deserialize_keypair_from_keyfile_data(_py: Python, keyfile_data: &[u8]) -
         Ok(Keypair::new(ss58_address, None, None, 42, None, 1)?)
     } else {
         // TODO: consider to use pyo3::exceptions::Py* errors instead of `PyException`
-        return Err(PyException::new_err(
+        return Err(pyo3::exceptions::PyException::new_err(
             "Keypair could not be created from keyfile data.",
         ));
     };
@@ -172,7 +176,7 @@ pub fn validate_password(_py: Python, password: &str) -> PyResult<bool> {
 ///     Returns:
 ///         password (str): The valid password entered by the user.
 #[pyfunction]
-pub fn ask_password_to_encrypt() -> PyResult<String> {
+pub fn ask_password() -> PyResult<String> {
     let mut password = String::new();
     print!("Specify password for key encryption: ");
     stdout().flush()?;
@@ -275,7 +279,7 @@ pub fn keyfile_data_encryption_method(py: Python, keyfile_data: &[u8]) -> PyResu
 pub fn legacy_encrypt_keyfile_data(py: Python, keyfile_data: &[u8], password: Option<String>, ) -> PyResult<PyObject> {
     let password = password.unwrap_or_else(||
         // function to get password from user
-        ask_password_to_encrypt().unwrap()
+        ask_password().unwrap()
     );
 
     println!(":exclamation_mark: Encrypting key with legacy encryption method...");
@@ -301,7 +305,7 @@ pub fn encrypt_keyfile_data(py: Python, keyfile_data: &[u8], password: Option<St
     // get password or ask user
     let password = match password {
         Some(pwd) => pwd,
-        None => ask_password_to_encrypt()?,
+        None => ask_password()?,
     };
     let password_bytes = password.as_bytes();
 
@@ -311,7 +315,7 @@ pub fn encrypt_keyfile_data(py: Python, keyfile_data: &[u8], password: Option<St
 
     // crate the key with pwhash Argon2i
     let mut key = secretbox::Key([0u8; secretbox::KEYBYTES]);
-    let nacl_salt = &Salt::from_slice(NACL_SALT)
+    let nacl_salt = &pwhash::scryptsalsa208sha256::Salt::from_slice(NACL_SALT)
         .ok_or_else(|| pyo3::exceptions::PyValueError::new_err("Invalid NACL_SALT."))?;
     pwhash::derive_key(&mut key.0, password_bytes, nacl_salt, opslimit, memlimit)
         .map_err(|_| pyo3::exceptions::PyRuntimeError::new_err("Failed to derive encryption key."))?;
@@ -339,27 +343,96 @@ pub fn encrypt_keyfile_data(py: Python, keyfile_data: &[u8], password: Option<St
 #[pyfunction]
 #[pyo3(signature = (coldkey_name))]
 pub fn get_coldkey_password_from_environment(_py: Python, coldkey_name: String, ) -> PyResult<Option<String>> {
-    let env_key: String = String::from("BT_COLD_PW_");
-    let coldkey_name = coldkey_name.to_uppercase().replace("-", "_");
-    let coldkey_var_name = format!("{}{}", env_key, coldkey_name);
-    let password = env::var(coldkey_var_name.clone()).ok();
-    Ok(password)
+    let env_key: String = format!("BT_COLD_PW_{}", coldkey_name.to_uppercase().replace("-", "_"));
+    Ok(env::var(env_key).ok())
 }
 
 /// Decrypts the passed keyfile data using ansible vault.
 ///
-/// # Args
-/// * `keyfile_data` - The bytes to decrypt.
-/// * `password` - The password used to decrypt the data. If `None`, asks for user input.
-/// * `coldkey_name` - The name of the cold key. If provided, retrieves the password from environment variables.
+///     Args
+///         keyfile_data (): The bytes to decrypt.
+///         password (str): The password used to decrypt the data. If `None`, asks for user input.
+///         coldkey_name (str): The name of the cold key. If provided, retrieves the password from environment variables.
 ///
-/// # Returns
-/// * `decrypted_data` - The decrypted data.
-// #[pyfunction]
-// pub fn decrypt_keyfile_data(_py: Python, keyfile_data: &[u8], password: Option<String>, coldkey_name: Option<String>, ) -> PyResult<PyObject> {
-//     // TODO: Implement the function
-//     unimplemented!()
-// }
+///     Returns
+///         decrypted_data (bytes): The decrypted data.
+#[pyfunction]
+#[pyo3(signature = (keyfile_data, password = None, coldkey_name = None))]
+pub fn decrypt_keyfile_data(py: Python, keyfile_data: &[u8], password: Option<String>, coldkey_name: Option<String>) -> PyResult<PyObject> {
+
+    // decrypt of keyfile_data with secretbox
+    fn derive_key(password: &[u8]) -> secretbox::Key {
+        let nacl_salt = pwhash::argon2i13::Salt::from_slice(NACL_SALT)
+            .expect("Invalid NACL_SALT.");
+        let mut key = secretbox::Key([0; secretbox::KEYBYTES]);
+        pwhash::argon2i13::derive_key(&mut key.0, password, &nacl_salt, pwhash::argon2i13::OPSLIMIT_SENSITIVE, pwhash::argon2i13::MEMLIMIT_SENSITIVE)
+            .expect("Failed to derive key for NaCl decryption.");
+        key
+    }
+
+    // decrypt of keyfile_data with secretbox
+    fn nacl_decrypt(keyfile_data: &[u8], key: &secretbox::Key) -> Vec<u8> {
+        let data = &keyfile_data[5..]; // Remove the $NACL prefix
+        let nonce = secretbox::Nonce::from_slice(&data[0..secretbox::NONCEBYTES])
+            .expect("Invalid nonce.");
+        let ciphertext = &data[secretbox::NONCEBYTES..];
+        secretbox::open(ciphertext, &nonce, key)
+            .expect("Failed open secretbox.")
+    }
+
+    // decrypt of keyfile_data with legacy way
+    fn legacy_decrypt(password: &str, keyfile_data: &[u8]) -> Vec<u8> {
+
+        let kdf = pbkdf2::pbkdf2_hmac::<sha2::Sha256>;
+        let mut key = vec![0; 32];
+        kdf(password.as_bytes(), LEGACY_SALT, 10000000, &mut key);
+
+        let fernet_key = Fernet::generate_key();
+        let fernet = Fernet::new(&fernet_key).unwrap();
+        let keyfile_data_str = from_utf8(keyfile_data).unwrap();
+        fernet.decrypt(keyfile_data_str).unwrap()
+    }
+
+    let mut password = password;
+
+    // Retrieve password from environment variable if coldkey_name is provided
+    if let Some(coldkey) = coldkey_name {
+        if password.is_none() {
+            password = get_coldkey_password_from_environment(py, coldkey)?;
+        }
+    }
+
+    // If password is still None, ask the user for input
+    if password.is_none() {
+        password = Some(ask_password()?);
+    }
+
+    let password = password.unwrap();
+
+    // NaCl decryption
+    if keyfile_data_is_encrypted_nacl(py, keyfile_data)? {
+        let key = derive_key(password.as_bytes());
+        let decrypted_data = nacl_decrypt(keyfile_data, &key);
+        return Ok(PyBytes::new_bound(py, &decrypted_data).into_py(py));
+    }
+
+    // Ansible Vault decryption
+    if keyfile_data_is_encrypted_ansible(py, keyfile_data)? {
+        let decrypted_data = decrypt_vault(keyfile_data, password.as_str())
+            .map_err(|err| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{}", err)))?;
+        return Ok(PyBytes::new_bound(py, &decrypted_data).into_py(py));
+    }
+
+    // Legacy decryption
+    if keyfile_data_is_encrypted_legacy(py, keyfile_data)? {
+        let decrypted_data = legacy_decrypt(&password, keyfile_data);
+        return Ok(PyBytes::new_bound(py, &decrypted_data).into_py(py));
+    }
+
+    // If none of the methods work, raise error
+    Err(PyErr::new::<pyo3::exceptions::PyException, _>("Invalid or unknown encryption method."))
+}
+
 
 #[pyclass]
 pub struct Keyfile {
@@ -615,9 +688,7 @@ impl Keyfile {
             .create(true)
             .truncate(true) // cleanup if rewrite
             .open(&self.path)
-            .map_err(|e| {
-                pyo3::exceptions::PyIOError::new_err(format!("Failed to open file: {}.", e))
-            })?;
+            .map_err(|e| {pyo3::exceptions::PyIOError::new_err(format!("Failed to open file: {}.", e)) })?;
 
         // write data
         keyfile.write_all(keyfile_data).map_err(|e| {
