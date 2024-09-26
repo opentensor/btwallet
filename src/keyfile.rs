@@ -763,36 +763,34 @@ impl Keyfile {
 
     /// Decrypts the file under the path.
     #[pyo3(signature = (password = None))]
-    pub fn decrypt(&self, password: Option<String>, py: Python) {
-        // check if file exists on device
-        if !self.exists_on_device().unwrap() {
-            panic!("Keyfile does not exist on device");
+    pub fn decrypt(&self, password: Option<String>, py: Python) -> PyResult<()> {
+        // checkers
+        if !self.exists_on_device()? {
+            return Err(pyo3::exceptions::PyOSError::new_err(format!("Keyfile at: {} does not exist.", self.path)));
         }
-        // check if readable
-        if !self.is_readable().unwrap() {
-            panic!("Key file is not readable");
+        if !self.is_readable()? {
+            return Err(pyo3::exceptions::PyOSError::new_err(format!("Keyfile at: {} is not readable.", self.path)));
         }
-        // check if writable
-        if !self.is_writable().unwrap() {
-            panic!("Key file is not writable");
+        if !self.is_writable()? {
+            return Err(pyo3::exceptions::PyOSError::new_err(format!("Keyfile at: {} is not writable.", self.path)));
         }
-        // read the file and check if encrypted
-        let mut key_file_data = self._read_keyfile_data_from_file(py).unwrap();
-        let key_file_data_bytes: &PyBytes = key_file_data.extract(py).unwrap();
-        let key_file_data_u8 = key_file_data_bytes.as_bytes();
-        let is_encrypted = keyfile_data_is_encrypted(py, key_file_data_u8).unwrap();
 
-        if !is_encrypted {
-           key_file_data = decrypt_keyfile_data(py, key_file_data_u8, password, None).unwrap()
-        }
-        //as keypair
-         let as_keypair = deserialize_keypair_from_keyfile_data(py, key_file_data_u8).unwrap();
+        // read data
+        let keyfile_data = self._read_keyfile_data_from_file(py)?;
+        let keyfile_data_bytes: &[u8] = keyfile_data.extract(py)?;
 
-        // keyfile data
-        key_file_data = serialized_keypair_to_keyfile_data(py, &as_keypair).unwrap();
-        let keyfile_u8 = key_file_data.extract(py).unwrap();
-        // write to file
-        self._write_keyfile_data_to_file(keyfile_u8, true).unwrap()
+        let decrypted_data = if keyfile_data_is_encrypted(py, keyfile_data_bytes)? {
+            decrypt_keyfile_data(py, keyfile_data_bytes, password, Some(self.name.clone()))?
+        } else {
+            keyfile_data
+        };
+
+        let decrypted_bytes: &[u8] = decrypted_data.extract(py)?;
+        let as_keypair = deserialize_keypair_from_keyfile_data(py, decrypted_bytes)?;
+
+        let serialized_data = serialized_keypair_to_keyfile_data(py, &as_keypair)?;
+        self._write_keyfile_data_to_file(serialized_data.extract(py)?, true)?;
+        Ok(())
     }
 
     /// Reads the keyfile data from the file.
