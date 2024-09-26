@@ -427,6 +427,15 @@ pub fn decrypt_keyfile_data(py: Python, keyfile_data: &[u8], password: Option<St
     Err(PyErr::new::<pyo3::exceptions::PyException, _>("Invalid or unknown encryption method."))
 }
 
+fn confirm_prompt(question: &str) -> bool {
+    print!("{} (y/N): ", question);
+    stdout().flush().expect("Can not flash stdout.");
+
+    let mut choice = String::new();
+    stdin().read_line(&mut choice).expect("Failed to read input.");
+    choice.trim().to_lowercase() == "y"
+}
+
 
 #[pyclass]
 pub struct Keyfile {
@@ -450,23 +459,39 @@ impl Keyfile {
         self.__str__()
     }
 
+    // TODO (devs): rust creates the same function automatically by `keypair` getter function and the error accuses. We need to understand how to avoid this.
     /// Returns the keypair from path, decrypts data if the file is encrypted.
     // #[getter]
     // pub fn keypair(&self, py: Python) -> PyResult<bool>{
     //     self.get_keypair(None, py)
     // }
 
-    // TODO (devs): rust creates the same function automatically by `keypair` getter function and the error accuses. We need to understand how to avoid this.
     /// Returns the keypair from the path, decrypts data if the file is encrypted.
     #[pyo3(signature = (password = None))]
-    pub fn get_keypair(&self, password: Option<String>, _py: Python) -> PyResult<bool> {
-        Ok(true)
+    pub fn get_keypair(&self, password: Option<String>, py: Python) -> PyResult<Keypair> {
+        // read file
+        let keyfile_data = self._read_keyfile_data_from_file(py)?;
+
+        let keyfile_data_bytes: &[u8] = keyfile_data.extract(py)?;
+
+        // check if encrypted
+        let decrypted_keyfile_data = if keyfile_data_is_encrypted(py, keyfile_data_bytes)? {
+            decrypt_keyfile_data(py, keyfile_data_bytes, password, Some(self.name.clone()))?
+        } else {
+            keyfile_data
+        };
+
+        // convert decrypted data to bytes
+        let decrypted_bytes: &[u8] = decrypted_keyfile_data.extract(py)?;
+
+        // deserialization data into the Keypair
+        deserialize_keypair_from_keyfile_data(py, decrypted_bytes)
     }
 
     /// Returns the keyfile data under path.
     #[getter]
     pub fn data(&self, py: Python) -> PyResult<PyObject> {
-        Ok(self._read_keyfile_data_from_file(py)?)
+        self._read_keyfile_data_from_file(py)
     }
 
     /// Returns the keyfile data under path.
@@ -583,23 +608,123 @@ impl Keyfile {
     }
 
     /// Asks the user if it is okay to overwrite the file.
-    pub fn _may_overwrite(&self) -> PyResult<bool> {
+    pub fn _may_overwrite(&self) -> bool {
         print!("File {} already exists. Overwrite? (y/N) ", self.path);
-        stdout().flush()?;
+        stdout().flush().expect("Can not update stdout.");
 
         let mut choice = String::new();
         stdin()
             .read_line(&mut choice)
             .expect("Failed to read input.");
 
-        Ok(choice.trim().to_lowercase() == "y")
+        choice.trim().to_lowercase() == "y"
     }
 
     /// Check the version of keyfile and update if needed.
     #[pyo3(signature = (print_result = true, no_prompt = false))]
-    pub fn check_and_update_encryption(&self, print_result: bool, no_prompt: bool) {
-        // do something
-        println!("{:?} {:?}", print_result, no_prompt);
+    pub fn check_and_update_encryption(&self, print_result: bool, no_prompt: bool, py: Python) -> PyResult<bool> {
+
+        if !self.exists_on_device()? {
+            if print_result {
+                println!("Keyfile does not exist. {}", self.path);
+            }
+            return Ok(false);
+        }
+
+        if !self.is_readable()? {
+            if print_result {
+                println!("Keyfile is not readable. {}", self.path);
+            }
+            return Ok(false);
+        }
+
+        if !self.is_writable()? {
+            if print_result {
+                println!("Keyfile is not writable. {}", self.path);
+            }
+            return Ok(false);
+        }
+
+        let update_keyfile = false;
+        if !no_prompt {
+            // read keyfile
+            let keyfile_data = self._read_keyfile_data_from_file(py)?;
+            let keyfile_data_bytes: &[u8] = keyfile_data.extract(py)?;
+
+            // check if file is decrypted
+            if keyfile_data_is_encrypted(py, keyfile_data_bytes)? &&
+                !keyfile_data_is_encrypted_nacl(py, keyfile_data_bytes)? {
+
+                println!("You may update the keyfile to improve security...");
+
+                // ask user for the confirmation for updating
+                if update_keyfile == confirm_prompt("Update keyfile?") {
+                    let mut stored_mnemonic = false;
+
+                    // check mnemonic if saved
+                    while !stored_mnemonic {
+                        println!("Please store your mnemonic in case an error occurs...");
+                        if confirm_prompt("Have you stored the mnemonic?") {
+                            stored_mnemonic = true;
+                        } else if !confirm_prompt("Retry and continue keyfile update?") {
+                            return Ok(false);
+                        }
+                    }
+
+                    // try decrypt data
+                    let mut decrypted_keyfile_data: Option<Vec<u8>> = None;
+                    let mut password: Option<String> = None;
+                    while decrypted_keyfile_data.is_none() {
+                        let pwd = ask_password()?;
+                        password = Some(pwd.clone());
+
+                        match decrypt_keyfile_data(py, keyfile_data_bytes, Some(pwd), Some(self.name.clone())) {
+                            Ok(decrypted_data) => {
+                                let data: Vec<u8> = decrypted_data.extract(py)?;
+                                decrypted_keyfile_data = Some(data);
+                            }
+                            Err(_) => {
+                                if !confirm_prompt("Invalid password, retry?") {
+                                    return Ok(false);
+                                }
+                            }
+                        }
+                    }
+
+                    // encryption of updated data
+                    if let Some(password) = password {
+                        if let Some(decrypted_data) = decrypted_keyfile_data {
+                            let encrypted_keyfile_data = encrypt_keyfile_data(py, &decrypted_data, Some(password))?;
+                            self._write_keyfile_data_to_file(encrypted_keyfile_data.extract(py)?, true)?;
+                        }
+                    }
+                }
+            }
+        }
+
+        if print_result || update_keyfile {
+            // check and get result
+            let keyfile_data = self._read_keyfile_data_from_file(py)?;
+            let keyfile_data_bytes: &[u8] = keyfile_data.extract(py)?;
+
+            if !keyfile_data_is_encrypted(py, keyfile_data_bytes)? {
+                if print_result {
+                    println!("Keyfile is not encrypted.");
+                }
+                return Ok(false);
+            } else if keyfile_data_is_encrypted_nacl(py, keyfile_data_bytes)? {
+                if print_result {
+                    println!("Keyfile is updated.");
+                }
+                return Ok(true);
+            } else {
+                if print_result {
+                    println!("Keyfile is outdated, please update using 'btcli'.");
+                }
+                return Ok(false);
+            }
+        }
+        Ok(false)
     }
 
     /// Encrypts the file under the path.
@@ -716,14 +841,10 @@ impl Keyfile {
     ///     Raises:
     ///         PyPermissionError: Raised if the file is not writable or the user responds No to the overwrite prompt.
     #[pyo3(signature = (keyfile_data, overwrite = false))]
-    pub fn _write_keyfile_data_to_file(
-        &self,
-        keyfile_data: &[u8],
-        overwrite: bool,
-    ) -> PyResult<()> {
+    pub fn _write_keyfile_data_to_file(&self, keyfile_data: &[u8], overwrite: bool) -> PyResult<()> {
         // ask user for rewriting
         if self.exists_on_device()? && !overwrite {
-            if !self._may_overwrite()? {
+            if !self._may_overwrite() {
                 return Err(pyo3::exceptions::PyUserWarning::new_err(format!(
                     "Keyfile at: {} is not writable",
                     self.path
