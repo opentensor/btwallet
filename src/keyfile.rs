@@ -564,25 +564,25 @@ impl Keyfile {
     ///
     ///     Returns:
     ///         encrypted (bool): ``True`` if the file is encrypted.
-    // pub fn is_encrypted(&self, py: Python) -> PyResult<bool> {
-    //     // check if file exist
-    //     if !self.exists_on_device()? {
-    //         return Ok(false);
-    //     }
-    //
-    //     // check readable
-    //     if !self.is_readable()? {
-    //         return Ok(false);
-    //     }
-    //
-    //     // get the data from file
-    //     let keyfile_data = self._read_keyfile_data_from_file(py)?;
-    //
-    //     // check if encrypted
-    //     // let is_encrypted = keyfile_data_is_encrypted(py, keyfile_data)?;
-    //
-    //     Ok(is_encrypted)
-    // }
+    pub fn is_encrypted(&self, py: Python) -> PyResult<bool> {
+        // check if file exist
+        if !self.exists_on_device()? {
+            return Ok(false);
+        }
+
+        // check readable
+        if !self.is_readable()? {
+            return Ok(false);
+        }
+
+        // get the data from file
+        let keyfile_data = self._read_keyfile_data_from_file(py)?;
+
+        // check if encrypted
+        let is_encrypted = keyfile_data_is_encrypted(py, keyfile_data.extract(py)?)?;
+
+        Ok(is_encrypted)
+    }
 
     /// Asks the user if it is okay to overwrite the file.
     pub fn _may_overwrite(&self) -> PyResult<bool> {
