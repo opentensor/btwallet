@@ -158,7 +158,7 @@ impl Keypair {
 
     /// Creates Keypair from create_from_uri as string.
     #[staticmethod]
-    fn create_from_uri(uri: &str) -> PyResult<Self> {
+    pub fn create_from_uri(uri: &str) -> PyResult<Self> {
         let pair = Pair::from_string(uri, None)
             .map_err(|e| PyErr::new::<PyException, _>(e.to_string()))?;
 
