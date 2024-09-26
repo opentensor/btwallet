@@ -1,7 +1,7 @@
+use pyo3::prelude::*;
+use pyo3::types::PyType;
 
 use colored::Colorize;
-use pyo3::prelude::*;
-
 use crate::config::Config;
 use crate::constants::{BT_WALLET_HOTKEY, BT_WALLET_NAME, BT_WALLET_PATH};
 use crate::keypair::Keypair;
@@ -42,7 +42,7 @@ pub struct Wallet {
 impl Wallet {
     #[new]
     #[pyo3(signature = (name = None, hotkey = None, path = None, config = None))]
-    fn new(name: Option<String>, hotkey: Option<String>, path: Option<String>, config: Option<Config>) -> PyResult<Self> {
+    fn new(name: Option<String>, hotkey: Option<String>, path: Option<String>, config: Option<Config>) -> PyResult<Wallet> {
         // TODO: add logic for the config processing
         Ok(Wallet {
             name: name.unwrap_or_else(|| BT_WALLET_NAME.to_string()),
@@ -66,41 +66,36 @@ impl Wallet {
         self.__repr__()
     }
 
+    /// Get config from the argument parser.
+    #[classmethod]
+    pub fn config(cls: &PyType) -> PyResult<Config> {
+        unimplemented!()
+    }
+
+    /// Print help to stdout.
+    #[classmethod]
+    pub fn help(cls: &PyType) -> PyResult<Config> {
+        unimplemented!()
+    }
+
     /// Checks for existing coldkeypub and hotkeys, and creates them if non-existent.
     #[pyo3(signature = (coldkey_use_password=true, hotkey_use_password=false))]
-    pub fn create_if_non_existent(&self, coldkey_use_password: bool, hotkey_use_password: bool, py: Python) -> PyResult<Self> {
+    pub fn create_if_non_existent(&self, coldkey_use_password: bool, hotkey_use_password: bool, py: Python) -> PyResult<Wallet> {
         self.create(coldkey_use_password, hotkey_use_password, py)
+    }
+
+    /// Checks for existing coldkeypub and hotkeys, and creates them if non-existent.
+    #[pyo3(signature = (coldkey_use_password=true, hotkey_use_password=false))]
+    pub fn create(&self, coldkey_use_password: bool, hotkey_use_password: bool, py: Python) -> PyResult<Wallet> {
+        unimplemented!()
     }
 
     /// Checks for existing coldkeypub and hotkeys and creates them if non-existent.
     #[pyo3(signature = (coldkey_use_password=true, hotkey_use_password=false))]
-    pub fn recreate(&mut self, coldkey_use_password: bool, hotkey_use_password: bool, py: Python) -> PyResult<Self> {
+    pub fn recreate(&mut self, coldkey_use_password: bool, hotkey_use_password: bool, py: Python) -> PyResult<Wallet> {
 
         self.create_new_coldkey(12, coldkey_use_password, false, false, py)?;
         self.create_new_hotkey(12, hotkey_use_password, false, false, py)?;
-
-        Ok(self.clone())
-    }
-
-    /// Checks for existing coldkeypub and hotkeys, and creates them if non-existent.
-    #[pyo3(signature = (coldkey_use_password=true, hotkey_use_password=false))]
-    pub fn create(&self, coldkey_use_password: bool, hotkey_use_password: bool, py: Python) -> PyResult<Self> {
-        unimplemented!()
-    }
-
-    /// Creates a new coldkey, optionally encrypts it with the user-provided password and saves to disk.
-    #[pyo3(signature = (n_words=12, use_password=true, overwrite=false, suppress=false))]
-    fn create_new_coldkey(&mut self, n_words: usize, use_password: bool, overwrite: bool, suppress: bool, py: Python) -> PyResult<Self> {
-
-        let mnemonic = Keypair::generate_mnemonic(n_words)?;
-        let keypair = Keypair::create_from_mnemonic(&mnemonic)?;
-
-        if !suppress {
-            display_mnemonic_msg(mnemonic, "coldkey");
-        }
-
-        self.set_coldkey(keypair.clone(), use_password, overwrite, py)?;
-        self.set_coldkeypub(keypair.clone(), use_password, overwrite, py)?;
 
         Ok(self.clone())
     }
@@ -142,36 +137,21 @@ impl Wallet {
     //     unimplemented!()
     // }
 
-    /// Creates a new hotkey, optionally encrypts it with the user-provided password and saves to disk.
-    #[pyo3(signature = (n_words=12, use_password=false, overwrite=false, suppress=false))]
-    pub fn create_new_hotkey(&mut self, n_words: usize, use_password: bool, overwrite: bool, suppress: bool, py: Python) -> PyResult<Self> {
-
-        let mnemonic = Keypair::generate_mnemonic(n_words)?;
-        let keypair = Keypair::create_from_mnemonic(&mnemonic)?;
-
-        if !suppress {
-            display_mnemonic_msg(mnemonic, "hotkey");
-        }
-
-        self.set_hotkey(keypair.clone(), use_password, overwrite, py)?;
-        Ok(self.clone())
-    }
-
     /// Sets the hotkey for the wallet.
     #[pyo3(signature = (keypair, encrypt=true, overwrite=false))]
-    pub fn set_coldkey(&self, keypair: Keypair, encrypt: bool, overwrite: bool, py: Python) -> PyResult<Self> {
+    pub fn set_coldkey(&self, keypair: Keypair, encrypt: bool, overwrite: bool, py: Python) -> PyResult<Wallet> {
         unimplemented!()
     }
 
     /// Sets the coldkeypub for the wallet.
     #[pyo3(signature = (keypair, encrypt=false, overwrite=false))]
-    pub fn set_coldkeypub(&self, keypair: Keypair, encrypt: bool, overwrite: bool, py: Python) -> PyResult<Self> {
+    pub fn set_coldkeypub(&self, keypair: Keypair, encrypt: bool, overwrite: bool, py: Python) -> PyResult<Wallet> {
         unimplemented!()
     }
 
     /// Sets the hotkey for the wallet.
     #[pyo3(signature = (keypair, encrypt=false, overwrite=false))]
-    pub fn set_hotkey(&self, keypair: Keypair, encrypt: bool, overwrite: bool, py: Python) -> PyResult<Self> {
+    pub fn set_hotkey(&self, keypair: Keypair, encrypt: bool, overwrite: bool, py: Python) -> PyResult<Wallet> {
         unimplemented!()
     }
 
@@ -266,10 +246,42 @@ impl Wallet {
         self.create_new_coldkey(n_words, use_password, overwrite, suppress, py)
     }
 
+    /// Creates a new coldkey, optionally encrypts it with the user-provided password and saves to disk.
+    #[pyo3(signature = (n_words=12, use_password=true, overwrite=false, suppress=false))]
+    fn create_new_coldkey(&mut self, n_words: usize, use_password: bool, overwrite: bool, suppress: bool, py: Python) -> PyResult<Wallet> {
+
+        let mnemonic = Keypair::generate_mnemonic(n_words)?;
+        let keypair = Keypair::create_from_mnemonic(&mnemonic)?;
+
+        if !suppress {
+            display_mnemonic_msg(mnemonic, "coldkey");
+        }
+
+        self.set_coldkey(keypair.clone(), use_password, overwrite, py)?;
+        self.set_coldkeypub(keypair.clone(), use_password, overwrite, py)?;
+
+        Ok(self.clone())
+    }
+
     /// Creates a new hotkey, optionally encrypts it with the user-provided password and saves to disk.
     #[pyo3(signature = (n_words = 12, use_password = false, overwrite = false, suppress = false))]
     pub fn new_hotkey(&mut self, n_words: usize, use_password: bool, overwrite: bool, suppress: bool, py: Python) -> PyResult<Wallet> {
         self.create_new_hotkey(n_words, use_password, overwrite, suppress, py)
+    }
+
+    /// Creates a new hotkey, optionally encrypts it with the user-provided password and saves to disk.
+    #[pyo3(signature = (n_words=12, use_password=false, overwrite=false, suppress=false))]
+    pub fn create_new_hotkey(&mut self, n_words: usize, use_password: bool, overwrite: bool, suppress: bool, py: Python) -> PyResult<Wallet> {
+
+        let mnemonic = Keypair::generate_mnemonic(n_words)?;
+        let keypair = Keypair::create_from_mnemonic(&mnemonic)?;
+
+        if !suppress {
+            display_mnemonic_msg(mnemonic, "hotkey");
+        }
+
+        self.set_hotkey(keypair.clone(), use_password, overwrite, py)?;
+        Ok(self.clone())
     }
 
     /// Regenerates the coldkeypub from the passed ``ss58_address`` or public_key and saves the file. Requires either ``ss58_address`` or public_key to be passed.
