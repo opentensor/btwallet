@@ -43,11 +43,14 @@ impl Wallet {
     #[new]
     #[pyo3(signature = (name = None, hotkey = None, path = None, config = None))]
     fn new(name: Option<String>, hotkey: Option<String>, path: Option<String>, config: Option<Config>) -> PyResult<Wallet> {
-        // TODO: add logic for the config processing
+        let final_name = name.or_else(|| Some(config.clone()?.wallet.name.clone())).unwrap_or_else(|| BT_WALLET_NAME.to_string());
+        let final_hotkey = hotkey.or_else(|| Some(config.clone()?.wallet.hotkey.clone())).unwrap_or_else(|| BT_WALLET_HOTKEY.to_string());
+        let final_path = path.or_else(|| Some(config.clone()?.wallet.path.clone())).unwrap_or_else(|| BT_WALLET_PATH.to_string());
+
         Ok(Wallet {
-            name: name.unwrap_or_else(|| BT_WALLET_NAME.to_string()),
-            hotkey: hotkey.unwrap_or_else(|| BT_WALLET_HOTKEY.to_string()),
-            path: path.unwrap_or_else(|| BT_WALLET_PATH.to_string()),
+            name: final_name,
+            hotkey: final_hotkey,
+            path: final_path,
             config: config.or(None),
             _coldkey: None,
             _coldkeypub: None,
