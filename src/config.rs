@@ -1,30 +1,41 @@
 use crate::constants::{BT_WALLET_HOTKEY, BT_WALLET_NAME, BT_WALLET_PATH};
 use pyo3::prelude::*;
 
-#[pyclass(name = "Config", get_all)]
 #[derive(Clone)]
-pub struct Config {
+pub struct WalletConfig {
     pub name: String,
     pub path: String,
     pub hotkey: String,
+}
+
+impl WalletConfig {
+
+    pub fn new(name: Option<String>, hotkey: Option<String>, path: Option<String>) -> Self {
+        WalletConfig {
+            name: name.unwrap_or_else(|| BT_WALLET_NAME.to_string()),
+            hotkey: hotkey.unwrap_or_else(|| BT_WALLET_HOTKEY.to_string()),
+            path: path.unwrap_or_else(|| BT_WALLET_PATH.to_string()),
+        }
+    }
+}
+
+#[derive(Clone)]
+#[pyclass]
+pub struct Config {
+    pub wallet: WalletConfig,
 }
 
 #[pymethods]
 impl Config {
     #[new]
     #[pyo3(signature = (name = None, hotkey = None, path = None))]
-    pub fn new(name: Option<String>, hotkey: Option<String>, path: Option<String>) -> Self {
-        Config {
-            name: name.unwrap_or_else(|| BT_WALLET_NAME.to_string()),
-            hotkey: hotkey.unwrap_or_else(|| BT_WALLET_HOTKEY.to_string()),
-            path: path.unwrap_or_else(|| BT_WALLET_PATH.to_string()),
-        }
+    pub fn new(name: Option<String>, hotkey: Option<String>, path: Option<String>) -> PyResult<Config> {
+        Ok(Config {wallet: WalletConfig::new(name, hotkey, path)})
     }
-
     fn __str__(&self) -> PyResult<String> {
         Ok(format!(
             "Config(name: '{}', path: '{}', hotkey: '{}')",
-            self.name, self.path, self.hotkey
+            self.wallet.name, self.wallet.path, self.wallet.hotkey
         ))
     }
 
