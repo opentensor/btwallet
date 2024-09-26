@@ -436,7 +436,7 @@ fn confirm_prompt(question: &str) -> bool {
     choice.trim().to_lowercase() == "y"
 }
 
-
+#[derive(Clone)]
 #[pyclass]
 pub struct Keyfile {
     path: String,
@@ -843,13 +843,8 @@ impl Keyfile {
     #[pyo3(signature = (keyfile_data, overwrite = false))]
     pub fn _write_keyfile_data_to_file(&self, keyfile_data: &[u8], overwrite: bool) -> PyResult<()> {
         // ask user for rewriting
-        if self.exists_on_device()? && !overwrite {
-            if !self._may_overwrite() {
-                return Err(pyo3::exceptions::PyUserWarning::new_err(format!(
-                    "Keyfile at: {} is not writable",
-                    self.path
-                )));
-            }
+        if self.exists_on_device()? && !overwrite && !self._may_overwrite(){
+            return Err(pyo3::exceptions::PyUserWarning::new_err(format!("Keyfile at: {} is not writable", self.path)));
         }
 
         let mut keyfile = fs::OpenOptions::new()
