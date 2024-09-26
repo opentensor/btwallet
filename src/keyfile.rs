@@ -450,23 +450,39 @@ impl Keyfile {
         self.__str__()
     }
 
+    // TODO (devs): rust creates the same function automatically by `keypair` getter function and the error accuses. We need to understand how to avoid this.
     /// Returns the keypair from path, decrypts data if the file is encrypted.
     // #[getter]
     // pub fn keypair(&self, py: Python) -> PyResult<bool>{
     //     self.get_keypair(None, py)
     // }
 
-    // TODO (devs): rust creates the same function automatically by `keypair` getter function and the error accuses. We need to understand how to avoid this.
     /// Returns the keypair from the path, decrypts data if the file is encrypted.
     #[pyo3(signature = (password = None))]
-    pub fn get_keypair(&self, password: Option<String>, _py: Python) -> PyResult<bool> {
-        Ok(true)
+    pub fn get_keypair(&self, password: Option<String>, py: Python) -> PyResult<Keypair> {
+        // read file
+        let keyfile_data = self._read_keyfile_data_from_file(py)?;
+
+        let keyfile_data_bytes: &[u8] = keyfile_data.extract(py)?;
+
+        // check if encrypted
+        let decrypted_keyfile_data = if keyfile_data_is_encrypted(py, keyfile_data_bytes)? {
+            decrypt_keyfile_data(py, keyfile_data_bytes, password, Some(self.name.clone()))?
+        } else {
+            keyfile_data
+        };
+
+        // convert decrypted data to bytes
+        let decrypted_bytes: &[u8] = decrypted_keyfile_data.extract(py)?;
+
+        // deserialization data into the Keypair
+        deserialize_keypair_from_keyfile_data(py, decrypted_bytes)
     }
 
     /// Returns the keyfile data under path.
     #[getter]
     pub fn data(&self, py: Python) -> PyResult<PyObject> {
-        Ok(self._read_keyfile_data_from_file(py)?)
+        self._read_keyfile_data_from_file(py)
     }
 
     /// Returns the keyfile data under path.
