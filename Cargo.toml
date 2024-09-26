@@ -9,7 +9,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 sp-core = "34.0.0"
-pyo3 = { version = "0.22.3", features = ["extension-module", "gil-refs"] }
+pyo3 = { version = "0.22.3", features = ["gil-refs"] }
 bip39 = { version = "2.0.0", features = ["rand"] }
 rand = "0.8.5"
 hex = "0.4.3"
