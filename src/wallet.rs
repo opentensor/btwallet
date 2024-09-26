@@ -1,3 +1,4 @@
+use std::str::pattern::Searcher;
 use crate::config::Config;
 use crate::constants::{BT_WALLET_HOTKEY, BT_WALLET_NAME, BT_WALLET_PATH};
 use crate::keypair::Keypair;
@@ -39,6 +40,11 @@ impl Wallet {
 
     fn __str__(&self) -> PyResult<String> {
         self.__repr__()
+    }
+
+    #[pyo3(signature = (coldkey_use_password=true, hotkey_use_password=false))]
+    pub fn create_if_non_existent(&self, coldkey_use_password: bool, hotkey_use_password: bool) -> PyResult<Self> {
+        self.create(coldkey_use_password, hotkey_use_password)
     }
 
     #[pyo3(signature = (coldkey_use_password=true, hotkey_use_password=false))]
