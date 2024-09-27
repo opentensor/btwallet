@@ -378,11 +378,11 @@ impl Keypair {
 
     /// Returns mnemonic key as a string.
     #[getter]
-    pub fn mnemonic(&self) -> PyResult<Option<&String>> {
+    pub fn mnemonic(&self) -> PyResult<Option<String>> {
         if self.mnemonic.is_none() {
             Ok(None)
         } else {
-            Ok(self.mnemonic.as_ref())
+            Ok(self.mnemonic.clone())
         }
     }
 }
