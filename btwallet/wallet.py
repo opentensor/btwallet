@@ -881,19 +881,20 @@ class Wallet:
     ) -> "Wallet": ...
 
     def regenerate_hotkey(
-        self,
-        *,
-        use_password: bool = True,
-        overwrite: bool = False,
-        suppress: bool = False,
-        **kwargs,
+            self,
+            mnemonic: Optional[str] = None,
+            seed: Optional[str] = None,
+            json: Optional[Tuple[str, str]] = None,
+            use_password: bool = True,
+            overwrite: bool = False,
+            suppress: bool = False,
     ) -> "Wallet":
         """Regenerates the hotkey from passed mnemonic or seed, encrypts it with the user's password and saves the file.
 
         Args:
-            kwargs["mnemonic"]: (Union[list, str], optional): Key mnemonic as list of words or string space separated words.
-            kwargs["seed"]: (str, optional): Seed as hex string.
-            kwargs["json"]: (Tuple[Union[str, Dict], str], optional): Restore from encrypted JSON backup as ``(json_data: Union[str, Dict], passphrase: str)``.
+            mnemonic (Union[list, str], optional): Key mnemonic as list of words or string space separated words.
+            seed (str, optional): Seed as hex string.
+            json (Tuple[Union[str, Dict], str], optional): Restore from encrypted JSON backup as ``(json_data: Union[str, Dict], passphrase: str)``.
             use_password (bool, optional): Is the created key password protected.
             overwrite (bool, optional): Determines if this operation overwrites the hotkey under the same path ``<wallet path>/<wallet name>/hotkeys/<hotkey>``.
             suppress (bool, optional): If ``True``, suppresses the display of the mnemonic message. Defaults to ``False``.
@@ -902,32 +903,16 @@ class Wallet:
             wallet (Wallet):
                 This object with newly created hotkey.
         """
-        if len(kwargs) == 0:
-            raise ValueError("Must pass either mnemonic, seed, or json")
-
-        # Get from kwargs
-        mnemonic: Optional[Union[list, str]] = kwargs.get("mnemonic", None)
-        seed: Optional[str] = kwargs.get("seed", None)
-        json: Optional[Tuple[Union[str, Dict], str]] = kwargs.get("json", None)
-
         if mnemonic is None and seed is None and json is None:
             raise ValueError("Must pass either mnemonic, seed, or json")
 
         if mnemonic is not None:
-            if isinstance(mnemonic, str):
-                mnemonic = mnemonic.split()
-            if len(mnemonic) not in [12, 15, 18, 21, 24]:
-                raise ValueError(
-                    "Mnemonic has invalid size. This should be 12, 15, 18, 21 or 24 words."
-                )
-            keypair = Keypair.create_from_mnemonic(
-                " ".join(mnemonic), ss58_format=SS58_FORMAT
-            )
+            keypair = Keypair.create_from_mnemonic(mnemonic)
             if not suppress:
                 display_mnemonic_msg(keypair, "hotkey")
 
         elif seed is not None:
-            keypair = Keypair.create_from_seed(seed, ss58_format=SS58_FORMAT)
+            keypair = Keypair.create_from_seed(seed)
 
         else:
             # json is not None
@@ -942,9 +927,7 @@ class Wallet:
                 )
 
             json_data, passphrase = json
-            keypair = Keypair.create_from_encrypted_json(
-                json_data, passphrase, ss58_format=SS58_FORMAT
-            )
+            keypair = Keypair.create_from_encrypted_json(json_data, passphrase)
 
         self.set_hotkey(keypair, encrypt=use_password, overwrite=overwrite)
         return self

@@ -8,6 +8,7 @@ use sp_core::{sr25519, ByteArray, Pair};
 
 use bip39::Mnemonic;
 
+
 #[derive(Clone)]
 #[pyclass]
 pub struct Keypair {
@@ -154,6 +155,11 @@ impl Keypair {
             ..Default::default()
         };
         Ok(kp)
+    }
+
+    #[staticmethod]
+    pub fn create_from_encrypted_json(json_data: &str, passphrase: &str) -> PyResult<Keypair> {
+        unimplemented!()
     }
 
     /// Creates Keypair from create_from_uri as string.

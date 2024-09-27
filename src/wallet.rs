@@ -1,11 +1,14 @@
 use pyo3::prelude::*;
-use pyo3::types::PyType;
+use pyo3::types::{PyDict, PyTuple, PyType};
 
 use colored::Colorize;
 use crate::config::Config;
 use crate::constants::{BT_WALLET_HOTKEY, BT_WALLET_NAME, BT_WALLET_PATH};
 use crate::keypair::Keypair;
 use crate::keyfile::Keyfile;
+
+use std::path::{PathBuf};
+use dirs::home_dir;
 
 
 /// Display the mnemonic and a warning message to keep the mnemonic safe.
@@ -96,7 +99,6 @@ impl Wallet {
     /// Checks for existing coldkeypub and hotkeys and creates them if non-existent.
     #[pyo3(signature = (coldkey_use_password=true, hotkey_use_password=false))]
     pub fn recreate(&mut self, coldkey_use_password: bool, hotkey_use_password: bool, py: Python) -> PyResult<Wallet> {
-
         self.create_new_coldkey(12, coldkey_use_password, false, false, py)?;
         self.create_new_hotkey(12, hotkey_use_password, false, false, py)?;
 
@@ -105,8 +107,19 @@ impl Wallet {
 
     /// Property that returns the hotkey file.
     #[getter]
-    pub fn hotkey_file(&self, py: Python) -> PyResult<Keyfile> {
-        unimplemented!()
+    pub fn hotkey_file(&self) -> PyResult<Keyfile> {
+        // get home dir
+        let home = home_dir().ok_or_else(|| {
+            pyo3::exceptions::PyRuntimeError::new_err("Failed to get home directory")
+        })?;
+
+        // concatenate wallet path
+        let wallet_path = home.join(&self.path).join(&self.name);
+
+        // concatenate hotkey path
+        let hotkey_path = wallet_path.join("hotkeys").join(&self.hotkey);
+
+        Keyfile::new(hotkey_path.to_string_lossy().into_owned(), self.name.clone())
     }
 
     /// Property that returns the coldkey file.
@@ -142,20 +155,21 @@ impl Wallet {
 
     /// Sets the hotkey for the wallet.
     #[pyo3(signature = (keypair, encrypt=true, overwrite=false))]
-    pub fn set_coldkey(&self, keypair: Keypair, encrypt: bool, overwrite: bool, py: Python) -> PyResult<Wallet> {
+    pub fn set_coldkey(&self, keypair: Keypair, encrypt: bool, overwrite: bool, py: Python) -> PyResult<()> {
         unimplemented!()
     }
 
     /// Sets the coldkeypub for the wallet.
     #[pyo3(signature = (keypair, encrypt=false, overwrite=false))]
-    pub fn set_coldkeypub(&self, keypair: Keypair, encrypt: bool, overwrite: bool, py: Python) -> PyResult<Wallet> {
+    pub fn set_coldkeypub(&self, keypair: Keypair, encrypt: bool, overwrite: bool, py: Python) -> PyResult<()> {
         unimplemented!()
     }
 
     /// Sets the hotkey for the wallet.
     #[pyo3(signature = (keypair, encrypt=false, overwrite=false))]
-    pub fn set_hotkey(&self, keypair: Keypair, encrypt: bool, overwrite: bool, py: Python) -> PyResult<Wallet> {
-        unimplemented!()
+    pub fn set_hotkey(&mut self, keypair: Keypair, encrypt: bool, overwrite: bool, py: Python) -> PyResult<()> {
+        self._hotkey = Some(keypair.clone());
+        self.hotkey_file()?.set_keypair(keypair, encrypt, overwrite, None, py)
     }
 
     /// Gets the coldkey from the wallet.
@@ -236,7 +250,7 @@ impl Wallet {
     /// Unlocks the hotkey.
     pub fn unlock_hotkey(&mut self, py: Python) -> PyResult<Keypair> {
         if self._hotkey.is_none() {
-            let hotkey_file = self.hotkey_file(py)?;
+            let hotkey_file = self.hotkey_file()?;
             self._hotkey = Some(hotkey_file.get_keypair(None, py)?);
         }
         let _hotkey = self._hotkey.clone().ok_or(pyo3::exceptions::PyOSError::new_err("Hotkey doesn't exist."))?;
@@ -252,7 +266,6 @@ impl Wallet {
     /// Creates a new coldkey, optionally encrypts it with the user-provided password and saves to disk.
     #[pyo3(signature = (n_words=12, use_password=true, overwrite=false, suppress=false))]
     fn create_new_coldkey(&mut self, n_words: usize, use_password: bool, overwrite: bool, suppress: bool, py: Python) -> PyResult<Wallet> {
-
         let mnemonic = Keypair::generate_mnemonic(n_words)?;
         let keypair = Keypair::create_from_mnemonic(&mnemonic)?;
 
@@ -275,7 +288,6 @@ impl Wallet {
     /// Creates a new hotkey, optionally encrypts it with the user-provided password and saves to disk.
     #[pyo3(signature = (n_words=12, use_password=false, overwrite=false, suppress=false))]
     pub fn create_new_hotkey(&mut self, n_words: usize, use_password: bool, overwrite: bool, suppress: bool, py: Python) -> PyResult<Wallet> {
-
         let mnemonic = Keypair::generate_mnemonic(n_words)?;
         let keypair = Keypair::create_from_mnemonic(&mnemonic)?;
 
@@ -300,8 +312,28 @@ impl Wallet {
     }
 
     /// Regenerates the hotkey from passed mnemonic or seed, encrypts it with the user's password and saves the file.
-    #[pyo3(signature = (use_password = true, overwrite = false, suppress = false))]
-    pub fn regenerate_hotkey(&self, use_password: bool, overwrite: bool, suppress: bool, py: Python) -> PyResult<Wallet> {
-        unimplemented!()
+    #[pyo3(signature = (mnemonic=None, seed=None, json=None, use_password=true, overwrite=false, suppress=false)
+    )]
+    pub fn regenerate_hotkey(&mut self, mnemonic: Option<String>, seed: Option<String>, json: Option<(String, String)>, use_password: bool, overwrite: bool, suppress: bool, py: Python) -> PyResult<Self> {
+        let keypair = if let Some(mnemonic) = mnemonic {
+            // mnemonic
+            let keypair = Keypair::create_from_mnemonic(&mnemonic)?;
+            if !suppress {
+                display_mnemonic_msg(mnemonic, "hotkey");
+            }
+            keypair
+        } else if let Some(seed) = seed {
+            // seed
+            Keypair::create_from_seed(&seed)?
+        } else if let Some((json_data, passphrase)) = json {
+            // json_data + passphrase
+            Keypair::create_from_encrypted_json(&json_data, &passphrase)?
+        } else {
+            return Err(pyo3::exceptions::PyValueError::new_err("Must pass either mnemonic, seed, or json"));
+        };
+
+        self.set_hotkey(keypair, use_password, overwrite, py)?;
+
+        Ok(self.clone())
     }
 }
