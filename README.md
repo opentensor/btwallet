@@ -164,9 +164,133 @@ assert is_valid_bittensor_address_or_public_key("5GrwvaEF5zXb26Fz9rcQpDWS57CtERH
 assert is_valid_bittensor_address_or_public_key(100) == False
 ```
 
-## keyfile::Keyfile
+## keyfile.rs
 
-### Tests for keyfile's functions and Keyfile struct
+### Tests for keyfile.rs functions
+
+#### Test serialization and deserialization 
 ```python
-# need to add
+from bittensor_wallet import Keyfile, Keypair, serialized_keypair_to_keyfile_data, deserialize_keypair_from_keyfile_data
+kp = Keypair.create_from_mnemonic("stool feel open east woman high can denial forget screen trust salt")
+kf_data = serialized_keypair_to_keyfile_data(kp)
+assert isinstance(kf_data, bytes)
+kp_2 = deserialize_keypair_from_keyfile_data(kf_data)
+assert isinstance(kp_2, Keypair)
+assert kp.ss58_address == kp_2.ss58_address
+assert kp.seed_hex == kp_2.seed_hex
+assert kp.public_key == kp_2.public_key
+assert kp.private_key == kp_2.private_key
+```
+
+#### Test Keyfile encrypt and decrypt
+```python
+# test keyfile encryption and decryption 
+from bittensor_wallet import Keyfile
+#KF is an already encrypted key
+kf = Keyfile("/Users/daniel/.bittensor/wallets/game_wallet/coldkey", name="default")
+assert kf.data[:5] == b"$NACL"
+kf.decrypt("testing")
+#Decrypt data...
+assert kf.data[1:13] == b'"publicKey":'
+kf.encrypt("testing")
+#Encryption data...
+assert kf.data[:5] == b"$NACL"
+```
+
+#### Test Keyfile validate_password and ask_password
+```python
+from bittensor_wallet import validate_password, ask_password
+ask_password()
+    #Specify password for key encryption: {password specified here}
+validate_password("test")
+    # False, Password not strong enough
+validate_password("asdf45as6d4f52asd6f54")
+    # True
+```
+
+
+#### Test Keyfile keyfile_data_is_encrypted and keyfile_data_encryption_method
+```python
+from bittensor_wallet import Keyfile, keyfile_data_is_encrypted, keyfile_data_encryption_method
+#KF is an already encrypted key NACL
+kf = Keyfile("/Users/daniel/.bittensor/wallets/game_wallet/coldkey", name="default")
+assert keyfile_data_is_encrypted(kf.data) == True
+assert keyfile_data_encryption_method(kf.data) == 'NaCl'
+```
+
+#### Test Keyfile legacy_encrypt_keyfile_data and keyfile_data_encryption_method
+```python
+from bittensor_wallet import Keyfile, keyfile_data_is_encrypted, keyfile_data_encryption_method, legacy_encrypt_keyfile_data
+#KF is an already encrypted key NACL
+kf = Keyfile("/Users/daniel/.bittensor/wallets/validator/coldkey", name="default")
+assert keyfile_data_is_encrypted(kf.data) == False
+legacy_enc_kf_data = legacy_encrypt_keyfile_data(kf.data, "testing")
+    # :exclamation_mark: Encrypting key with legacy encryption method...
+assert keyfile_data_encryption_method(legacy_enc_kf_data) == 'Ansible Vault'
+```
+
+#### Test Keyfile get_coldkey_password_from_environment
+```python
+import os
+from bittensor_wallet import get_coldkey_password_from_environment
+assert get_coldkey_password_from_environment("some-pw") == None
+os.environ["BT_COLD_PW_SOME_PW"] = "SOMEPASSWORD"
+assert get_coldkey_password_from_environment("some-pw") == "SOMEPASSWORD"
+```
+
+
+#### Test Keyfile encrypt_keyfile_data and decrypt_keyfile_data
+```python
+from bittensor_wallet import Keyfile, decrypt_keyfile_data, encrypt_keyfile_data, keyfile_data_is_encrypted
+kf = Keyfile("/Users/daniel/.bittensor/wallets/validator/coldkey", name="default")
+assert keyfile_data_is_encrypted(kf.data) == False
+encrypted_kf_data = encrypt_keyfile_data(kf.data, "somePassword")
+    #Encryption data...
+assert keyfile_data_is_encrypted(encrypted_kf_data) == True
+decrypted_kf_data = decrypt_keyfile_data(encrypted_kf_data, "somePassword")
+    #Decrypt data...
+assert decrypted_kf_data == kf.data
+```
+
+### Tests for keyfile::Keyfile
+
+#### Test Keyfile is_encrypted, decrypt, encrypt and check_and_update_encryption
+```python
+from bittensor_wallet import Keyfile, Keypair
+kf = Keyfile("/Users/daniel/.bittensor/wallets/newkeyfile", name="default")
+kp = Keypair.create_from_mnemonic("stool feel open east woman high can denial forget screen trust salt")
+kf.set_keypair(kp, False, False)
+
+assert kf.is_encrypted() == False
+kf.encrypt("somepassword")
+    #Encryption data...
+    
+assert kf.is_encrypted() == True
+
+kf.decrypt("somepassword")
+    #Decrypt data...
+
+assert kf.is_encrypted() == False
+
+kf.check_and_update_encryption(True, True)
+    #Keyfile is not encrypted.
+    #False
+```
+
+#### Test Keyfile make_dirs, is_writable, is_readable, get_keypair and exists_on_device
+```python
+from bittensor_wallet import Keyfile, Keypair
+kf = Keyfile("/Users/daniel/.bittensor/wallets/newkeyfile", name="default")
+kp = Keypair.create_from_mnemonic("stool feel open east woman high can denial forget screen trust salt")
+kf.set_keypair(kp, False, False)
+
+assert kf.exists_on_device() == False
+assert kf.is_writable() == False
+assert kf.is_readable() == False
+
+kf.make_dirs()
+
+assert kf.exists_on_device() == True
+assert kf.is_writable() == True
+assert kf.is_readable() == True
 ```

@@ -1,5 +1,5 @@
 use pyo3::prelude::*;
-use pyo3::types::{PyDict, PyTuple, PyType};
+use pyo3::types::{PyType};
 
 use colored::Colorize;
 use crate::config::Config;
@@ -7,7 +7,6 @@ use crate::constants::{BT_WALLET_HOTKEY, BT_WALLET_NAME, BT_WALLET_PATH};
 use crate::keypair::Keypair;
 use crate::keyfile::Keyfile;
 
-use std::path::{PathBuf};
 use dirs::home_dir;
 
 
