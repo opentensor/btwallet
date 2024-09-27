@@ -86,13 +86,13 @@ impl Wallet {
 
     /// Get config from the argument parser.
     #[classmethod]
-    pub fn config(_: &PyType) -> PyResult<Config> {
+    pub fn config(_: &Bound<'_, PyType>) -> PyResult<Config> {
         Config::new(None, None, None)
     }
 
     /// Print help to stdout.
     #[classmethod]
-    pub fn help(_: &PyType) -> PyResult<Config> {
+    pub fn help(_: &Bound<'_, PyType>) -> PyResult<Config> {
         unimplemented!()
     }
 
