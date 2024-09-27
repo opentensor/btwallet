@@ -11,13 +11,17 @@ use base64::{engine::general_purpose, Engine as _};
 use bip39::Mnemonic;
 use serde::{Deserialize, Serialize};
 
-use sodiumoxide::crypto::secretbox::{Key, Nonce};
 use sodiumoxide::crypto::secretbox;
+use sodiumoxide::crypto::secretbox::{Key, Nonce};
 
-use pkcs8::der::Decode;
-use pkcs8::PrivateKeyInfo;
 use scrypt::{scrypt, Params as ScryptParams};
-use std::error::Error;
+
+
+const PKCS8_HEADER: &[u8] = &[48, 83, 2, 1, 1, 48, 5, 6, 3, 43, 101, 112, 4, 34, 4, 32];
+const PKCS8_DIVIDER: &[u8] = &[161, 35, 3, 33, 0];
+const SEC_LENGTH: usize = 64;
+const PUB_LENGTH: usize = 32;
+
 
 #[derive(Serialize, Deserialize, Debug)]
 struct Encoding {
@@ -207,16 +211,29 @@ impl Keypair {
 
         /// Decodes a PKCS8-encoded key pair from the provided byte slice.
         /// Returns a tuple containing the private key and public key as vectors of bytes.
-        fn decode_pkcs8(data: Vec<u8>) -> Result<(Vec<u8>, Vec<u8>), Box<dyn Error>> {
-            let private_key_info = PrivateKeyInfo::from_der(&*data)?;
-            let secret_key = private_key_info.private_key.to_vec();
-            let public_key = match private_key_info.public_key {
-                Some(ref key) => key.to_vec(),
-                None => return Err("Public key not found.".into()),
-            };
-            Ok((secret_key, public_key))
+        fn decode_pkcs8(ciphertext: &[u8]) -> Result<([u8; SEC_LENGTH], [u8; PUB_LENGTH]), &'static str> {
+            let mut current_offset = 0;
+            let header = &ciphertext[current_offset..current_offset + PKCS8_HEADER.len()];
+            if header != PKCS8_HEADER {
+                return Err("Invalid Pkcs8 header found in body");
+            }
+            current_offset += PKCS8_HEADER.len();
+            let secret_key = &ciphertext[current_offset..current_offset + SEC_LENGTH];
+            let mut secret_key_array = [0u8; SEC_LENGTH];
+            secret_key_array.copy_from_slice(secret_key);
+            current_offset += SEC_LENGTH;
+            let divider = &ciphertext[current_offset..current_offset + PKCS8_DIVIDER.len()];
+            if divider != PKCS8_DIVIDER {
+                return Err("Invalid Pkcs8 divider found in body");
+            }
+            current_offset += PKCS8_DIVIDER.len();
+            let public_key = &ciphertext[current_offset..current_offset + PUB_LENGTH];
+            let mut public_key_array = [0u8; PUB_LENGTH];
+            public_key_array.copy_from_slice(public_key);
+
+            Ok((secret_key_array, public_key_array))
         }
-        
+
         let json_data: JsonStructure = serde_json::from_str(json_data).unwrap();
 
         if json_data.encoding.version != "3" {
@@ -249,16 +266,25 @@ impl Keypair {
 
         let key = Key::from_slice(&password).ok_or(pyo3::exceptions::PyValueError::new_err("Invalid key length"))?;
         let decrypted_data = secretbox::open(message, &nonce, &key).map_err(|e| PyErr::new::<PyException, _>(e))?;
-        let (private_key, public_key) = decode_pkcs8(decrypted_data).map_err(|e| PyErr::new::<PyException, _>(e.to_string()))?;
+        let (private_key, public_key) = decode_pkcs8(&decrypted_data).map_err(|e| PyErr::new::<PyException, _>(e.to_string()))?;
 
         if json_data.encoding.content.contains(&"sr25519".to_string()) {
-            println!(">>> Public key: {}. Private key: {}. Need to assert.", hex::encode(public_key), hex::encode(&private_key));
+            // TODO: add assertion like python has
+            //    if 'sr25519' in json_data['encoding']['content']:
+            //         # Secret key from PolkadotJS is an Ed25519 expanded secret key, so has to be converted
+            //         # https://github.com/polkadot-js/wasm/blob/master/packages/wasm-crypto/src/rs/sr25519.rs#L125
+            //         converted_public_key, secret_key = pair_from_ed25519_secret_key(secret_key)
+            //         assert(public_key == converted_public_key)
         }
 
         // Handle crypto types (sr25519, ed25519)
         let keypair = match json_data.encoding.content.iter().any(|c| c == "sr25519") {
-            true => Keypair::create_from_private_key(std::str::from_utf8(&*private_key)?),
-            _ => return Err(pyo3::exceptions::PyValueError::new_err("Unsupported keypair type"))
+            true => {
+                // doesn't work with our example. the same as python original substrate interface too.
+                // Keypair::create_from_private_key(hex::encode(private_key).as_str());
+                Keypair::new(None, Option::from(hex::encode(public_key)), Option::from(hex::encode(private_key)), 42, None, 1)
+            },
+            _ => return Err(pyo3::exceptions::PyValueError::new_err("Unsupported keypair type."))
         };
 
         keypair
