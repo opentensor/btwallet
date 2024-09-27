@@ -6,19 +6,18 @@ use pyo3::PyObject;
 use sp_core::crypto::Ss58Codec;
 use sp_core::{sr25519, ByteArray, Pair};
 
-use bip39::Mnemonic;
-use serde::{Deserialize, Serialize};
 use base64;
 use base64::{engine::general_purpose, Engine as _};
+use bip39::Mnemonic;
+use serde::{Deserialize, Serialize};
 
-use sodiumoxide::crypto::{pwhash, secretbox};
-
-use scrypt::{scrypt, Params as ScryptParams};
-use pkcs8::PrivateKeyInfo;
 use sodiumoxide::crypto::secretbox::{Key, Nonce};
-use std::error::Error;
-use std::ops::Deref;
+use sodiumoxide::crypto::secretbox;
+
 use pkcs8::der::Decode;
+use pkcs8::PrivateKeyInfo;
+use scrypt::{scrypt, Params as ScryptParams};
+use std::error::Error;
 
 #[derive(Serialize, Deserialize, Debug)]
 struct Encoding {
