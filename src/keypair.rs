@@ -1,18 +1,16 @@
-use std::intrinsics::ptr_offset_from_unsigned;
+use base64::decode;
+use bip39::Mnemonic;
+use crypto_secretbox::{ Key, KeyInit, SecretBox};
+use crypto_secretbox::aead::Aead;
 use pyo3::exceptions::PyException;
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
 use pyo3::PyObject;
-use base64::{decode};
+use scrypt::{scrypt, Params as ScryptParams};
+use serde::{Deserialize, Serialize};
 use sp_core::crypto::Ss58Codec;
 use sp_core::{sr25519, ByteArray, Encode, Pair};
-use bip39::Mnemonic;
-use serde::{Deserialize, Serialize};
-use crypto_secretbox::{Key, KeyInit, SecretBox, XSalsa20Poly1305};
-use crypto_secretbox::aead::Aead;
-use scrypt::{scrypt, Params as ScryptParams};
-use schnorrkel::SecretKey;
-use sodiumoxide::crypto::box_::SecretKey;
+// use nacl::{secret_box, scrypt};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 struct EncodingExportedKeypair {
@@ -41,6 +39,9 @@ const SCRYPT_LENGTH: usize = 32 + (3 * 4);
 const PRIV_KEY_LEN: usize = 32;
 const SCRYPT_PWD_LEN: usize = 32;
 const NONCE_LENGTH: usize = 24;
+const SEC_LENGTH: usize = 64;
+const PKCS8_DIVIDER: [u8; 5] = [161, 35, 3, 33, 0];
+const PKCS8_HEADER: [u8; 16] = [48, 83, 2, 1, 1, 48, 5, 6, 3, 43, 101, 112, 4, 34, 4, 32];
 
 #[derive(Clone)]
 #[pyclass]
@@ -191,31 +192,23 @@ impl Keypair {
     }
 
     #[staticmethod]
-    pub fn create_from_encrypted_json(json_str: String, passphrase: String) -> PyResult<Self> {
-        // decode json from str
-        // need to make a struct that represents the json
-        let json_data = PolkadotJSExportedKeypair::deserialize(json_str).map_err(|e| PyErr::new::<PyException, _>(e.to_string()))?;
+    pub fn create_from_encrypted_json(json_str: &str, passphrase: &str) -> PyResult<Self> {
+        let json_data = serde_json::from_str(json_str).map_err(|e| PyErr::new::<PyException, _>(e.to_string()))?;
 
-        let (private_key, public_key) = Self::decode_pair_from_encrypted_json(json_data, passphrase).map_err(|e| PyErr::new::<PyException, _>(e.to_string()))?;
+        let private_key_bytes = Self::decode_pair_from_encrypted_json(json_data, passphrase).map_err(|e| PyErr::new::<PyException, _>(e.to_string()))?;
 
-        match json_data.encoding.content {
-            "sr25519" => {} ,
-            "ed25519" => {},
-            _ => {
-                Err(PyException::new_err("Invalid encoding content"))
-            }
-        }
-
-        //  TODO ss58 and return
+        let private_key_str = std::str::from_utf8(&private_key_bytes)?;
+        let kp = Keypair::create_from_private_key(private_key_str)?;
+        Ok(kp)
     }
 
-    fn decode_pair_from_encrypted_json(json_data: PolkadotJSExportedKeypair, passphrase: &str) -> Result<([u8; PRIV_KEY_LEN], [u8; PRIV_KEY_LEN]), PyErr> {
+    fn decode_pair_from_encrypted_json(json_data: PolkadotJSExportedKeypair, passphrase: &str) -> Result<Vec<u8>, PyErr> {
         if json_data.encoding.version != "3" {
-            Err(PyException::new_err("Unsupported JSON format"))
+            return Err(PyException::new_err("Unsupported JSON format"))
         }
 
         if !json_data.encoding.kind.contains(&"xsalsa20-poly1305".to_string()) {
-            Err(PyException::new_err("Unsupported encoding type"))
+            return Err(PyException::new_err("Unsupported encoding type"))
         }
 
         let mut encrypted = decode(json_data.encoded.as_bytes()).map_err(|e| PyErr::new::<PyException, _>(e.to_string()))?;
@@ -227,16 +220,17 @@ impl Keypair {
             let r: u32 = u32::from_le_bytes(encrypted[40..44].try_into()?);
             let logn: u8 = n.ilog2() as u8;
 
-            let scrypt_params: ScryptParams = ScryptParams::new(logn, r, p, PRIV_KEY_LEN)?;
-            scrypt(passphrase.as_bytes(), &salt, &scrypt_params, &mut password)?;
-            encrypted = encrypted[SCRYPT_LENGTH..]
+            let scrypt_params = ScryptParams::new(logn, r, p, PRIV_KEY_LEN).map_err(|e| PyErr::new::<PyException, _>(e.to_string()))?;
+            scrypt(passphrase.as_bytes(), &salt, &scrypt_params, &mut password).map_err(|e| PyErr::new::<PyException, _>(e.to_string()))?;
+            encrypted = encrypted[SCRYPT_LENGTH..].to_vec();
 
         } else {
 
-            let mut passphrase_bytes: Vec<u8> = passphrase.to_bytes().to_vec();
+            let mut passphrase_bytes: Vec<u8> = passphrase.as_bytes().to_vec();
             let diff = PRIV_KEY_LEN.saturating_sub(passphrase_bytes.len());
-            passphrase_bytes = std::iter::repeat(0).take(diff).extend(passphrase_bytes);
-            password = passphrase_bytes;
+            passphrase_bytes.extend(std::iter::repeat(0).take(diff));
+            // passphrase_bytes = std::iter::repeat(0).take(diff).extend(passphrase_bytes);
+            password = <[u8; 32]>::try_from(passphrase_bytes).unwrap();
         }
 
         let nonce = &encrypted[0..NONCE_LENGTH];
@@ -244,20 +238,21 @@ impl Keypair {
 
         let key: Key = password.into();
 
-        let secret_box = SecretBox::new(&key);
-        let decrypted = secret_box.decrypt(nonce, message);
+        let secret_box: SecretBox<> = SecretBox::new(&key);
+        let decrypted = secret_box.decrypt(nonce.into(), message).map_err(|e| PyErr::new::<PyException, _>(e.to_string()))?;
+        // let decrypted = secret_box.decrypt(nonce.into(), message).map_err(|e| PyErr::new::<PyException, _>(e.to_string()))?;
 
-        let (mut secret_key, public_key) = decode_pkcs8(decrypted);
+        let (mut secret_key, public_key) = Self::decode_pkcs8(decrypted.as_slice())?;
 
         if json_data.encoding.content.contains(&"sr25519".to_string()) {
-            let secret = schnorrkel::SecretKey::from_ed25519_bytes(secret_key)?;
+            let secret = schnorrkel::SecretKey::from_ed25519_bytes(&secret_key).map_err(|e| PyErr::new::<PyException, _>(e.to_string()))?;
             let converted_public_key = secret.to_public();
             // assert converted_public_key key == public key
-            assert_eq!(converted_public_key, public_key);
-            secret_key = secret.to_bytes()[..PRIV_KEY_LEN];
+            assert_eq!(converted_public_key.to_bytes(), public_key);
+            secret_key = secret.to_bytes()[..PRIV_KEY_LEN].try_into().map_err(|e| PyErr::new::<PyException, _>(e))?;
         }
 
-        Ok((secret_key, public_key))
+        Ok(secret_key.to_vec())
     }
 
     fn decode_pkcs8(pkcs8: &[u8]) -> Result<([u8; PRIV_KEY_LEN], [u8; PRIV_KEY_LEN]), PyErr> {
@@ -268,7 +263,7 @@ impl Keypair {
 
         let divider = &pkcs8[pkcs8_offset..pkcs8_offset + PKCS8_DIVIDER.len()];
         if divider != PKCS8_DIVIDER {
-            Err(PyException::new_err("Invalid pkcs8 encoding"))
+            return Err(PyException::new_err("Invalid pkcs8 encoding"))
         }
 
         let public: Vec<u8> = pkcs8[pkcs8_offset + PKCS8_DIVIDER.len()..].to_vec();
