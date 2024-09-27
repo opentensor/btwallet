@@ -34,7 +34,7 @@ impl Config {
     }
     fn __str__(&self) -> PyResult<String> {
         Ok(format!(
-            "Config(name: '{}', path: '{}', hotkey: '{}')",
+            "Config(name: '{}', path: '~/{}', hotkey: '{}')",
             self.wallet.name, self.wallet.path, self.wallet.hotkey
         ))
     }

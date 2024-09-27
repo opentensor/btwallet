@@ -1,8 +1,6 @@
 use pyo3::prelude::*;
 use pyo3::types::{PyString, PyType};
 
-use std::ops::Deref;
-
 use colored::Colorize;
 
 use crate::config::Config;
@@ -46,6 +44,14 @@ pub struct Wallet {
 
 #[pymethods]
 impl Wallet {
+
+    /// Initialize the bittensor wallet object containing a hot and coldkey.
+    ///
+    ///     Args:
+    ///         name (str, optional): The name of the wallet to unlock for running bittensor. Defaults to ``default``.
+    ///         hotkey (str, optional): The name of hotkey used to running the miner. Defaults to ``default``.
+    ///         path (str, optional): The path to your bittensor wallets. Defaults to ``~/.bittensor/wallets/``.
+    ///         config (Config, optional): config.Config(). Defaults to ``None``.
     #[new]
     #[pyo3(signature = (name = None, hotkey = None, path = None, config = None))]
     fn new(name: Option<String>, hotkey: Option<String>, path: Option<String>, config: Option<Config>) -> PyResult<Wallet> {
@@ -66,40 +72,53 @@ impl Wallet {
 
     fn __str__(&self) -> PyResult<String> {
         Ok(format!(
-            "Wallet (Name: '{:}', Hotkey: '{:}', Path: '{:}')",
+            "Wallet (Name: '{:}', Hotkey: '{:}', Path: '~/{:}')",
             self.name, self.hotkey, self.path
         ))
     }
 
     fn __repr__(&self) -> PyResult<String> {
         Ok(format!(
-            "name: '{:}', hotkey: '{:}', path: '{:}'",
+            "name: '{:}', hotkey: '{:}', path: '~/{:}'",
             self.name, self.hotkey, self.path
         ))
     }
 
     /// Get config from the argument parser.
     #[classmethod]
-    pub fn config(cls: &PyType) -> PyResult<Config> {
+    pub fn config(_: &PyType) -> PyResult<Config> {
         Config::new(None, None, None)
     }
 
     /// Print help to stdout.
     #[classmethod]
-    pub fn help(cls: &PyType) -> PyResult<Config> {
+    pub fn help(_: &PyType) -> PyResult<Config> {
         unimplemented!()
     }
 
     /// Checks for existing coldkeypub and hotkeys, and creates them if non-existent.
     #[pyo3(signature = (coldkey_use_password=true, hotkey_use_password=false))]
-    pub fn create_if_non_existent(&self, coldkey_use_password: bool, hotkey_use_password: bool, py: Python) -> PyResult<Wallet> {
+    pub fn create_if_non_existent(&mut self, coldkey_use_password: bool, hotkey_use_password: bool, py: Python) -> PyResult<Wallet> {
         self.create(coldkey_use_password, hotkey_use_password, py)
     }
 
     /// Checks for existing coldkeypub and hotkeys, and creates them if non-existent.
     #[pyo3(signature = (coldkey_use_password=true, hotkey_use_password=false))]
-    pub fn create(&self, coldkey_use_password: bool, hotkey_use_password: bool, py: Python) -> PyResult<Wallet> {
-        unimplemented!()
+    pub fn create(&mut self, coldkey_use_password: bool, hotkey_use_password: bool, py: Python) -> PyResult<Self> {
+
+        if self.coldkey_file()?.exists_on_device()? == false && self.coldkeypub_file()?.exists_on_device()? == false {
+            self.create_new_coldkey(12, coldkey_use_password, false, false, py)?;
+        } else {
+            println!("ColdKey for the wallet '{}' already exists.", self.name);
+        }
+
+        if !self.hotkey_file()?.exists_on_device()? {
+            self.create_new_hotkey(12, hotkey_use_password, false, false, py)?;
+        } else {
+            println!("HotKey for the wallet '{}' already exists.", self.name);
+        }
+
+        Ok(self.clone())
     }
 
     /// Checks for existing coldkeypub and hotkeys and creates them if non-existent.
@@ -308,7 +327,7 @@ impl Wallet {
         }
 
         self.set_coldkey(keypair.clone(), use_password, overwrite, py)?;
-        self.set_coldkeypub(keypair.clone(), use_password, overwrite, py)?;
+        self.set_coldkeypub(keypair.clone(), false, overwrite, py)?;
 
         Ok(self.clone())
     }
