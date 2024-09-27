@@ -22,3 +22,7 @@ fernet = "=0.2.1"
 pbkdf2 = "0.12.2"
 sha2 = "0.10.8"
 dirs = "5.0.1"
+serde = { version = "1.0.210", features = ["derive"] }
+base64 = "0.22.1"
+scrypt = "0.11.0"
+pkcs8 = "0.10.2"
