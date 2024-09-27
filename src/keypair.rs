@@ -7,6 +7,43 @@ use sp_core::crypto::Ss58Codec;
 use sp_core::{sr25519, ByteArray, Pair};
 
 use bip39::Mnemonic;
+use serde::{Deserialize, Serialize};
+use base64;
+use base64::{engine::general_purpose, Engine as _};
+
+use sodiumoxide::crypto::{pwhash, secretbox};
+
+use scrypt::{scrypt, Params as ScryptParams};
+use pkcs8::PrivateKeyInfo;
+use sodiumoxide::crypto::secretbox::{Key, Nonce};
+use std::error::Error;
+use std::ops::Deref;
+use pkcs8::der::Decode;
+
+#[derive(Serialize, Deserialize, Debug)]
+struct Encoding {
+    content: Vec<String>,
+    #[serde(rename = "type")]
+    enc_type: Vec<String>,
+    version: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct Meta {
+    #[serde(rename = "genesisHash")]
+    genesis_hash: Option<String>,
+    name: String,
+    #[serde(rename = "whenCreated")]
+    when_created: u64,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct JsonStructure {
+    encoded: String,
+    encoding: Encoding,
+    address: String,
+    meta: Meta,
+}
 
 
 #[derive(Clone)]
@@ -157,8 +194,75 @@ impl Keypair {
     }
 
     #[staticmethod]
+    #[pyo3(signature = (json_data, passphrase))]
     pub fn create_from_encrypted_json(json_data: &str, passphrase: &str) -> PyResult<Keypair> {
-        unimplemented!()
+
+        /// rust version of python .rjust
+        fn pad_right(mut data: Vec<u8>, total_len: usize, pad_byte: u8) -> Vec<u8> {
+            if data.len() < total_len {
+                let pad_len = total_len - data.len();
+                data.extend(vec![pad_byte; pad_len]);
+            }
+            data
+        }
+
+        /// Decodes a PKCS8-encoded key pair from the provided byte slice.
+        /// Returns a tuple containing the private key and public key as vectors of bytes.
+        fn decode_pkcs8(data: Vec<u8>) -> Result<(Vec<u8>, Vec<u8>), Box<dyn Error>> {
+            let private_key_info = PrivateKeyInfo::from_der(&*data)?;
+            let secret_key = private_key_info.private_key.to_vec();
+            let public_key = match private_key_info.public_key {
+                Some(ref key) => key.to_vec(),
+                None => return Err("Public key not found.".into()),
+            };
+            Ok((secret_key, public_key))
+        }
+        
+        let json_data: JsonStructure = serde_json::from_str(json_data).unwrap();
+
+        if json_data.encoding.version != "3" {
+            return Err(pyo3::exceptions::PyValueError::new_err("Unsupported JSON format"));
+        }
+
+        let mut encrypted = general_purpose::STANDARD.decode(json_data.encoded).map_err(|e| PyErr::new::<PyException, _>(e.to_string()))?;
+
+        let password = if json_data.encoding.enc_type.contains(&"scrypt".to_string()) {
+            let salt = &encrypted[0..32];
+            let n = u32::from_le_bytes(encrypted[32..36].try_into()?);
+            let p = u32::from_le_bytes(encrypted[36..40].try_into()?);
+            let r = u32::from_le_bytes(encrypted[40..44].try_into()?);
+            let log_n: u8 = n.ilog2() as u8;
+
+            let params = ScryptParams::new(log_n, r, p, 32).map_err(|e| PyErr::new::<PyException, _>(e.to_string()))?;
+            let mut derived_key = vec![0u8; 32];
+            scrypt(passphrase.as_bytes(), salt, &params, &mut derived_key).map_err(|e| PyErr::new::<PyException, _>(e.to_string()))?;
+            encrypted = encrypted[44..].to_vec();
+            derived_key
+        } else {
+            let mut derived_key = passphrase.as_bytes().to_vec();
+            derived_key = pad_right(derived_key, 32, 0x00);
+            derived_key
+        };
+
+        let nonce_bytes = &encrypted[0..24];
+        let nonce = Nonce::from_slice(nonce_bytes).ok_or("Invalid nonce length").map_err(|e| PyErr::new::<PyException, _>(e.to_string()))?;
+        let message = &encrypted[24..];
+
+        let key = Key::from_slice(&password).ok_or(pyo3::exceptions::PyValueError::new_err("Invalid key length"))?;
+        let decrypted_data = secretbox::open(message, &nonce, &key).map_err(|e| PyErr::new::<PyException, _>(e))?;
+        let (private_key, public_key) = decode_pkcs8(decrypted_data).map_err(|e| PyErr::new::<PyException, _>(e.to_string()))?;
+
+        if json_data.encoding.content.contains(&"sr25519".to_string()) {
+            println!(">>> Public key: {}. Private key: {}. Need to assert.", hex::encode(public_key), hex::encode(&private_key));
+        }
+
+        // Handle crypto types (sr25519, ed25519)
+        let keypair = match json_data.encoding.content.iter().any(|c| c == "sr25519") {
+            true => Keypair::create_from_private_key(std::str::from_utf8(&*private_key)?),
+            _ => return Err(pyo3::exceptions::PyValueError::new_err("Unsupported keypair type"))
+        };
+
+        keypair
     }
 
     /// Creates Keypair from create_from_uri as string.
