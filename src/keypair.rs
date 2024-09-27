@@ -150,7 +150,6 @@ impl Keypair {
         })?;
 
         let kp = Keypair {
-            // seed_hex: Some(private_key_vec.to_vec()),
             pair: Some(pair),
             ..Default::default()
         };
