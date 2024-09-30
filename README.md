@@ -63,11 +63,6 @@ To build and test the Rust components of the project, you can use the following 
 
 ```python
 from bittensor_wallet import config, errors, keyfile, keypair, utils, wallet
-from bittensor_wallet import config
-from bittensor_wallet import config
-from bittensor_wallet import config
-from bittensor_wallet import config
-
 
 print(utils.SS58_FORMAT)
 
@@ -76,6 +71,13 @@ print(myconf)
 
 mywallet = wallet.Wallet(config=myconf)
 print(mywallet)
+
+try: 
+    mywallet.unlock_coldkey()
+    mywallet.unlock_coldkeypub()
+    mywallet.unlock_hotkey()
+except errors.KeyFileError:
+    print("Failed unlocking.")
 ```
 
 ## keypair::KeyPair
