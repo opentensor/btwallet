@@ -79,6 +79,7 @@ fn register_utils_module(main_module: &Bound<'_, PyModule>) -> PyResult<()> {
 // wallet module with functions
 fn register_wallet_module(main_module: &Bound<'_, PyModule>) -> PyResult<()> {
     let wallet_module = PyModule::new_bound(main_module.py(), "wallet")?;
+    wallet_module.add_function(wrap_pyfunction!(wallet::display_mnemonic_msg, &wallet_module)?)?;
     wallet_module.add_class::<wallet::Wallet>()?;
     main_module.add_submodule(&wallet_module)
 }
