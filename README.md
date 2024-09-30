@@ -134,6 +134,21 @@ assert kps.verify("asd", kpw.sign("asd")) == True
 
 # check verify
 assert kpw.verify("asd", kps.sign("asd")) == True
+
+# check create_from_encrypted_json
+from substrateinterface.base import Keypair
+data = '{"encoded":"Z1yzxASuj21ej3CANbZKc3ibDaOpQPMahTT0qkniyZgAgAAAAQAAAAgAAACSDgflXWKXrX36EmX9XcA6cRpkN+oZX30/9FhtNP17krIG/yHLKmDnL1km1W/nZ+BpC7Qid6IuBvbZeboFyewFeXsKtcoY/bRY6nx/cLB5BND9WpXXS6Enf4RXAX7vPu/BY+o2z7VwPaXyFARfyPTiqJKqLDJWm3W5ZlvK0ks8FBv66mWEBYc+lLx8jvuzDNkdD3pnV3G802OwwHTy","encoding":{"content":["pkcs8","sr25519"],"type":["scrypt","xsalsa20-poly1305"],"version":"3"},"address":"5CuByUQBWZci5AtXonuHHhcbRL3yxM5xDdJsTNaYN3vPDY6f","meta":{"genesisHash":null,"name":"test","whenCreated":1727395683981}}'
+passphrase = "Password123"
+skp = Keypair.create_from_encrypted_json(data, passphrase)
+skp.private_key.hex()
+from bittensor_wallet import Keypair
+wkp = Keypair.create_from_encrypted_json(data, passphrase)
+wkp.private_key.hex()
+assert skp.ss58_format == wkp.ss58_format
+assert skp.private_key == wkp.private_key
+assert skp.private_key.hex() == wkp.private_key.hex()
+assert skp.public_key == wkp.public_key
+assert skp.public_key.hex() == wkp.public_key.hex()
 ```
 ## utils.rs
 
