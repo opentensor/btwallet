@@ -26,3 +26,4 @@ serde = { version = "1.0.210", features = ["derive"] }
 base64 = "0.22.1"
 scrypt = "0.11.0"
 pkcs8 = "0.10.2"
+schnorrkel = "0.11.4"

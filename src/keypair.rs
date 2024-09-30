@@ -9,12 +9,11 @@ use sp_core::{sr25519, ByteArray, Pair};
 use base64;
 use base64::{engine::general_purpose, Engine as _};
 use bip39::Mnemonic;
+use schnorrkel::{PublicKey, SecretKey};
+use scrypt::{scrypt, Params as ScryptParams};
 use serde::{Deserialize, Serialize};
-
 use sodiumoxide::crypto::secretbox;
 use sodiumoxide::crypto::secretbox::{Key, Nonce};
-
-use scrypt::{scrypt, Params as ScryptParams};
 
 
 const PKCS8_HEADER: &[u8] = &[48, 83, 2, 1, 1, 48, 5, 6, 3, 43, 101, 112, 4, 34, 4, 32];
@@ -209,6 +208,15 @@ impl Keypair {
             data
         }
 
+        pub fn pair_from_ed25519_secret_key(secret: &[u8], pubkey: &[u8]) -> ([u8; 64], [u8; 32]) {
+            match (SecretKey::from_ed25519_bytes(secret), PublicKey::from_bytes(pubkey)) {
+                (Ok(s), Ok(k)) => {
+                    (s.to_bytes(), k.to_bytes())
+                }
+                _ => panic!("Invalid secret or pubkey provided.")
+            }
+        }
+
         /// Decodes a PKCS8-encoded key pair from the provided byte slice.
         /// Returns a tuple containing the private key and public key as vectors of bytes.
         fn decode_pkcs8(ciphertext: &[u8]) -> Result<([u8; SEC_LENGTH], [u8; PUB_LENGTH]), &'static str> {
@@ -230,7 +238,6 @@ impl Keypair {
             let public_key = &ciphertext[current_offset..current_offset + PUB_LENGTH];
             let mut public_key_array = [0u8; PUB_LENGTH];
             public_key_array.copy_from_slice(public_key);
-
             Ok((secret_key_array, public_key_array))
         }
 
@@ -266,7 +273,7 @@ impl Keypair {
 
         let key = Key::from_slice(&password).ok_or(pyo3::exceptions::PyValueError::new_err("Invalid key length"))?;
         let decrypted_data = secretbox::open(message, &nonce, &key).map_err(|e| PyErr::new::<PyException, _>(e))?;
-        let (_private_key, public_key) = decode_pkcs8(&decrypted_data).map_err(|e| PyErr::new::<PyException, _>(e.to_string()))?;
+        let (private_key, public_key) = decode_pkcs8(&decrypted_data).map_err(|e| PyErr::new::<PyException, _>(e))?;
 
         if json_data.encoding.content.contains(&"sr25519".to_string()) {
             // TODO: add assertion like python has
@@ -277,13 +284,11 @@ impl Keypair {
             //         assert(public_key == converted_public_key)
         }
 
-        // Handle crypto types (sr25519, ed25519)
+        let (secret, _) = pair_from_ed25519_secret_key(&private_key[..], &public_key[..]);
+
         let keypair = match json_data.encoding.content.iter().any(|c| c == "sr25519") {
             true => {
-                // doesn't work with our example. the same as python original substrate interface too.
-                // Keypair::create_from_private_key(hex::encode(private_key).as_str());
-                // Keypair::new(None, Option::from(hex::encode(public_key)), Option::from(hex::encode(private_key)), 42, None, 1)
-                Keypair::new(None, Option::from(hex::encode(public_key)), None, 42, None, 1)
+                Keypair::create_from_private_key(&hex::encode(secret))
             },
             _ => return Err(pyo3::exceptions::PyValueError::new_err("Unsupported keypair type."))
         };
@@ -476,8 +481,7 @@ impl Keypair {
                     Ok(None)
                 } else {
                     Ok(Some(
-                        PyBytes::new_bound(py, self.private_key.as_ref().unwrap().as_bytes())
-                            .into_py(py),
+                        PyBytes::new_bound(py, self.private_key.as_ref().unwrap().as_bytes()).into_py(py),
                     ))
                 }
             }
