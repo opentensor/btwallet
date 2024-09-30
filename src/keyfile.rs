@@ -452,12 +452,19 @@ impl Keyfile {
         Ok(Keyfile { path, name })
     }
 
-    fn __str__(&self) -> PyResult<String> {
-        Ok(format!("Keyfile ({} encrypted, {})>", self.path, self.name))
+    fn __str__(&self, py: Python) -> PyResult<String> {
+        if self.exists_on_device()? != true {
+            Ok(format!("keyfile (empty, {})>", self.path))
+        } else if self.is_encrypted(py)? {
+            let encryption_method = self._read_keyfile_data_from_file(py)?;
+            Ok(format!("Keyfile ({:?} encrypted, {})>", encryption_method, self.path))
+        } else {
+            Ok(format!("keyfile (decrypted, {})>", self.path))
+        }
     }
 
-    fn __repr__(&self) -> PyResult<String> {
-        self.__str__()
+    fn __repr__(&self, py: Python) -> PyResult<String> {
+        self.__str__(py)
     }
 
     // TODO (devs): rust creates the same function automatically by `keypair` getter function and the error accuses. We need to understand how to avoid this.
