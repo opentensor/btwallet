@@ -266,7 +266,7 @@ impl Keypair {
 
         let key = Key::from_slice(&password).ok_or(pyo3::exceptions::PyValueError::new_err("Invalid key length"))?;
         let decrypted_data = secretbox::open(message, &nonce, &key).map_err(|e| PyErr::new::<PyException, _>(e))?;
-        let (private_key, public_key) = decode_pkcs8(&decrypted_data).map_err(|e| PyErr::new::<PyException, _>(e.to_string()))?;
+        let (_private_key, public_key) = decode_pkcs8(&decrypted_data).map_err(|e| PyErr::new::<PyException, _>(e.to_string()))?;
 
         if json_data.encoding.content.contains(&"sr25519".to_string()) {
             // TODO: add assertion like python has
@@ -282,7 +282,8 @@ impl Keypair {
             true => {
                 // doesn't work with our example. the same as python original substrate interface too.
                 // Keypair::create_from_private_key(hex::encode(private_key).as_str());
-                Keypair::new(None, Option::from(hex::encode(public_key)), Option::from(hex::encode(private_key)), 42, None, 1)
+                // Keypair::new(None, Option::from(hex::encode(public_key)), Option::from(hex::encode(private_key)), 42, None, 1)
+                Keypair::new(None, Option::from(hex::encode(public_key)), None, 42, None, 1)
             },
             _ => return Err(pyo3::exceptions::PyValueError::new_err("Unsupported keypair type."))
         };
