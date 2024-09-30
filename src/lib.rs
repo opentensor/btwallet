@@ -12,6 +12,10 @@ mod wallet;
 
 #[pymodule]
 fn bittensor_wallet(module: &Bound<'_, PyModule>) -> PyResult<()> {
+    // class to main module
+    module.add_class::<wallet::Wallet>()?;
+
+    // submodules to main module
     register_config_module(module)?;
     register_errors_module(module)?;
     register_keyfile_module(module)?;

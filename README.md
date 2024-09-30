@@ -47,8 +47,8 @@ config = Config()
 ```
 
 
-## Rust
-# Rust Development
+# Rust
+## Rust Development
 
 To build and test the Rust components of the project, you can use the following commands:
 * `maturin develop` - Builds the project.
@@ -60,19 +60,23 @@ To build and test the Rust components of the project, you can use the following 
 * `cargo clippy --fix` - Fixes the code.
 
 ## Using the Rust components in Python
-* `import btwallet`
+
+```python
+from bittensor_wallet import config, errors, keyfile, keypair, utils, wallet
+from bittensor_wallet import config
+from bittensor_wallet import config
+from bittensor_wallet import config
+from bittensor_wallet import config
 
 
-# TODO
-* password for encrypting the wallet
-* create coldkey
-* wrap signing in to a fn and expose to python
-using - create_hotkey, use sr25519::Pair =
-        derive_sr25519_key(&seed, &derivation_path).expect("Failed to derive sr25519 key"); to sign a message
-        ex: 
-        let keypair = create_hotkey(mnemonic, "hello"); // we will need to return the keypair from create_hotkey
-        let signature = keypair.sign(message);
+print(utils.SS58_FORMAT)
 
+myconf = config.Config()
+print(myconf)
+
+mywallet = wallet.Wallet(config=myconf)
+print(mywallet)
+```
 
 ## keypair::KeyPair
 
