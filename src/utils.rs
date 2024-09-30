@@ -5,7 +5,7 @@ use std::str;
 
 use crate::keypair::Keypair;
 
-const SS58_FORMAT: u8 = 42;
+pub(crate) const SS58_FORMAT: u8 = 42;
 
 /// Returns the SS58 format of the given address string.
 #[pyfunction]

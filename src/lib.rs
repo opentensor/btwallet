@@ -1,3 +1,5 @@
+/// Main module for declaration of python package structure
+
 use pyo3::prelude::*;
 
 mod config;
@@ -8,47 +10,21 @@ mod keypair;
 mod utils;
 mod wallet;
 
-// #[pymodule(name = "bittensor_wallet")]
-// fn bittensor_wallet(m: &Bound<'_, PyModule>) -> PyResult<()> {
-//     // main classes
-//     m.add_class::<config::Config>()?;
-//     m.add_class::<keyfile::Keyfile>()?;
-//     m.add_class::<keypair::Keypair>()?;
-//     m.add_class::<wallet::Wallet>()?;
-//     // utils
-//     m.add_function(wrap_pyfunction!(utils::get_ss58_format, m)?)?;
-//     m.add_function(wrap_pyfunction!(utils::is_valid_ss58_address, m)?)?;
-//     m.add_function(wrap_pyfunction!(utils::is_valid_ed25519_pubkey, m)?)?;
-//     m.add_function(wrap_pyfunction!(
-//         utils::is_valid_bittensor_address_or_public_key,
-//         m
-//     )?)?;
-//     // keyfile
-//     m.add_function(wrap_pyfunction!(keyfile::validate_password, m)?)?;
-//     m.add_function(wrap_pyfunction!(keyfile::ask_password, m)?)?;
-//     m.add_function(wrap_pyfunction!(keyfile::serialized_keypair_to_keyfile_data, m)?)?;
-//     m.add_function(wrap_pyfunction!(keyfile::deserialize_keypair_from_keyfile_data, m)?)?;
-//     m.add_function(wrap_pyfunction!(keyfile::keyfile_data_is_encrypted_nacl, m)?)?;
-//     m.add_function(wrap_pyfunction!(keyfile::keyfile_data_is_encrypted_ansible, m)?)?;
-//     m.add_function(wrap_pyfunction!(keyfile::keyfile_data_is_encrypted_legacy, m)?)?;
-//     m.add_function(wrap_pyfunction!(keyfile::keyfile_data_is_encrypted, m)?)?;
-//     m.add_function(wrap_pyfunction!(keyfile::keyfile_data_encryption_method, m)?)?;
-//     m.add_function(wrap_pyfunction!(keyfile::legacy_encrypt_keyfile_data, m)?)?;
-//     m.add_function(wrap_pyfunction!(keyfile::encrypt_keyfile_data, m)?)?;
-//     m.add_function(wrap_pyfunction!(keyfile::decrypt_keyfile_data, m)?)?;
-//     m.add_function(wrap_pyfunction!(keyfile::get_coldkey_password_from_environment, m)?)?;
-//     Ok(())
-// }
-
-
 #[pymodule]
 fn bittensor_wallet(module: &Bound<'_, PyModule>) -> PyResult<()> {
+    register_config_module(module)?;
     register_errors_module(module)?;
     register_keyfile_module(module)?;
     register_keypair_module(module)?;
     register_utils_module(module)?;
     register_wallet_module(module)?;
     Ok(())
+}
+
+fn register_config_module(main_module: &Bound<'_, PyModule>) -> PyResult<()> {
+    let config_module = PyModule::new_bound(main_module.py(), "config")?;
+    config_module.add_class::<config::Config>()?;
+    main_module.add_submodule(&config_module)
 }
 
 fn register_errors_module(main_module: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -84,7 +60,6 @@ fn register_keypair_module(main_module: &Bound<'_, PyModule>) -> PyResult<()> {
     main_module.add_submodule(&keypair_module)
 }
 
-
 // utils module with functions
 fn register_utils_module(main_module: &Bound<'_, PyModule>) -> PyResult<()> {
     let utils_module = PyModule::new_bound(main_module.py(), "utils")?;
@@ -92,6 +67,7 @@ fn register_utils_module(main_module: &Bound<'_, PyModule>) -> PyResult<()> {
     utils_module.add_function(wrap_pyfunction!(utils::is_valid_ss58_address, &utils_module)?)?;
     utils_module.add_function(wrap_pyfunction!(utils::is_valid_ed25519_pubkey, &utils_module)?)?;
     utils_module.add_function(wrap_pyfunction!(utils::is_valid_bittensor_address_or_public_key, &utils_module)?)?;
+    utils_module.add("SS58_FORMAT", utils::SS58_FORMAT)?;
     main_module.add_submodule(&utils_module)
 }
 
