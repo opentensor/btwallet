@@ -49,7 +49,7 @@ struct JsonStructure {
 
 
 #[derive(Clone)]
-#[pyclass]
+#[pyclass(subclass)]
 pub struct Keypair {
     ss58_address: Option<String>,
     public_key: Option<String>,

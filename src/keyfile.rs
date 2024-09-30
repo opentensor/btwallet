@@ -438,7 +438,7 @@ fn confirm_prompt(question: &str) -> bool {
 }
 
 #[derive(Clone)]
-#[pyclass]
+#[pyclass(subclass)]
 pub struct Keyfile {
     path: String,
     name: String,

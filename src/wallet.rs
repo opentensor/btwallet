@@ -31,7 +31,7 @@ fn display_mnemonic_msg(mnemonic: String, key_type: &str) {
 }
 
 #[derive(Clone)]
-#[pyclass]
+#[pyclass(subclass)]
 pub struct Wallet {
     pub name: String,
     pub path: String,

@@ -20,7 +20,7 @@ impl WalletConfig {
 }
 
 #[derive(Clone)]
-#[pyclass]
+#[pyclass(subclass)]
 pub struct Config {
     pub wallet: WalletConfig,
 }
