@@ -2,6 +2,7 @@ use pyo3::prelude::*;
 
 mod config;
 mod constants;
+mod errors;
 mod keyfile;
 mod keypair;
 mod utils;
@@ -42,11 +43,18 @@ mod wallet;
 
 #[pymodule]
 fn bittensor_wallet(module: &Bound<'_, PyModule>) -> PyResult<()> {
+    register_errors_module(module)?;
     register_keyfile_module(module)?;
     register_keypair_module(module)?;
     register_utils_module(module)?;
     register_wallet_module(module)?;
     Ok(())
+}
+
+fn register_errors_module(main_module: &Bound<'_, PyModule>) -> PyResult<()> {
+    let errors_module = PyModule::new_bound(main_module.py(), "errors")?;
+    errors_module.add_class::<errors::KeyFileError>()?;
+    main_module.add_submodule(&errors_module)
 }
 
 // keyfile module with functions

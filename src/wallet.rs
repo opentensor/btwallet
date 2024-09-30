@@ -8,6 +8,7 @@ use crate::constants::{BT_WALLET_HOTKEY, BT_WALLET_NAME, BT_WALLET_PATH};
 use crate::keypair::Keypair;
 use crate::keyfile::Keyfile;
 use crate::utils::{is_valid_bittensor_address_or_public_key};
+use crate::errors::KeyFileError;
 
 use dirs::home_dir;
 
@@ -286,7 +287,7 @@ impl Wallet {
             let coldkey_file = self.coldkey_file()?;
             self._coldkey = Some(coldkey_file.get_keypair(None, py)?);
         }
-        let _coldkey = self._coldkey.clone().ok_or(pyo3::exceptions::PyOSError::new_err("Coldkey file doesn't exist."))?;
+        let _coldkey = self._coldkey.clone().ok_or(PyErr::new::<KeyFileError, _>("Coldkey file doesn't exist."))?;
         Ok(_coldkey)
     }
 
@@ -296,7 +297,7 @@ impl Wallet {
             let coldkeypub_file = self.coldkeypub_file()?;
             self._coldkeypub = Some(coldkeypub_file.get_keypair(None, py)?);
         }
-        let _coldkeypub = self._coldkeypub.clone().ok_or(pyo3::exceptions::PyOSError::new_err("Coldkey file doesn't exist."))?;
+        let _coldkeypub = self._coldkeypub.clone().ok_or(PyErr::new::<KeyFileError, _>("Coldkey file doesn't exist."))?;
         Ok(_coldkeypub)
     }
 
@@ -306,7 +307,7 @@ impl Wallet {
             let hotkey_file = self.hotkey_file()?;
             self._hotkey = Some(hotkey_file.get_keypair(None, py)?);
         }
-        let _hotkey = self._hotkey.clone().ok_or(pyo3::exceptions::PyOSError::new_err("Hotkey doesn't exist."))?;
+        let _hotkey = self._hotkey.clone().ok_or(PyErr::new::<KeyFileError, _>("Hotkey doesn't exist."))?;
         Ok(_hotkey)
     }
 
