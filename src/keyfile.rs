@@ -253,6 +253,7 @@ pub fn keyfile_data_is_encrypted(_py: Python, keyfile_data: &[u8]) -> PyResult<b
 ///     Returns:
 ///         (str): A string representing the name of encryption method.
 #[pyfunction]
+#[pyo3(signature = (keyfile_data))]
 pub fn keyfile_data_encryption_method(py: Python, keyfile_data: &[u8]) -> PyResult<String> {
     let encryption_method = match true {
         _ if keyfile_data_is_encrypted_nacl(py, keyfile_data)? => "NaCl",
