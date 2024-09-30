@@ -1,5 +1,4 @@
 /// Main module for declaration of python package structure
-
 use pyo3::prelude::*;
 
 mod config;
