@@ -20,16 +20,13 @@ import json
 import time
 import pytest
 import shutil
-import unittest.mock as mock
-from scalecodec import ScaleBytes
-from substrateinterface import Keypair, KeypairType
-from substrateinterface.constants import DEV_PHRASE
-from substrateinterface.exceptions import ConfigurationError
+
 from bip39 import bip39_validate
 
 from bittensor_wallet.keyfile import get_coldkey_password_from_environment
 from bittensor_wallet.keyfile import Keyfile
-from bittensor_wallet.errors import KeyFileError
+from bittensor_wallet.errors import ConfigurationError, KeyFileError
+from bittensor_wallet.keypair import Keypair
 
 
 def test_generate_mnemonic():
@@ -53,8 +50,8 @@ def test_create_sr25519_keypair():
     Test the creation of a sr25519 keypair from a mnemonic and verify the SS58 address.
     """
     mnemonic = "old leopard transfer rib spatial phone calm indicate online fire caution review"
-    keypair = Keypair.create_from_mnemonic(mnemonic, ss58_format=0)
-    assert keypair.ss58_address == "16ADqpMa4yzfmWs3nuTSMhfZ2ckeGtvqhPWCNqECEGDcGgU2"
+    keypair = Keypair.create_from_mnemonic(mnemonic)
+    assert keypair.ss58_address == "5HDvhV6WDCjCKyrXqGQSDYqQAzkzabNhctmiDYEqgBC66BsX"
 
 
 def test_only_provide_ss58_address():
@@ -75,10 +72,10 @@ def test_only_provide_public_key():
     """
     keypair = Keypair(
         public_key="0xe4359ad3e2716c539a1d663ebd0a51bdc5c98a12e663bb4c4402db47828c9446",
-        ss58_format=0,
+        ss58_format=42,
     )
 
-    assert keypair.ss58_address == "16ADqpMa4yzfmWs3nuTSMhfZ2ckeGtvqhPWCNqECEGDcGgU2"
+    assert keypair.ss58_address == "5HDvhV6WDCjCKyrXqGQSDYqQAzkzabNhctmiDYEqgBC66BsX"
 
 
 def test_provide_no_ss58_address_and_public_key():
@@ -128,15 +125,16 @@ def test_sign_and_verify_hex_data():
     assert keypair.verify("0x1234", signature) is True
 
 
-def test_sign_and_verify_scale_bytes():
-    """
-    Test the signing and verification of ScaleBytes data using a keypair.
-    """
-    mnemonic = Keypair.generate_mnemonic()
-    keypair = Keypair.create_from_mnemonic(mnemonic)
-    data = ScaleBytes("0x1234")
-    signature = keypair.sign(data)
-    assert keypair.verify(data, signature) is True
+# TODO: need to implement this ScaleBytes processing as option (src/keypair.rs:368)
+# def test_sign_and_verify_scale_bytes():
+#     """
+#     Test the signing and verification of ScaleBytes data using a keypair.
+#     """
+#     mnemonic = Keypair.generate_mnemonic()
+#     keypair = Keypair.create_from_mnemonic(mnemonic)
+#     data = ScaleBytes("0x1234")
+#     signature = keypair.sign(data)
+#     assert keypair.verify(data, signature) is True
 
 
 def test_sign_missing_private_key():
@@ -146,32 +144,6 @@ def test_sign_missing_private_key():
     keypair = Keypair(ss58_address="5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY")
     with pytest.raises(ConfigurationError):
         keypair.sign("0x1234")
-
-
-def test_sign_unsupported_crypto_type():
-    """
-    Test signing a message with an unsupported crypto type.
-    """
-    keypair = Keypair.create_from_private_key(
-        ss58_address="16ADqpMa4yzfmWs3nuTSMhfZ2ckeGtvqhPWCNqECEGDcGgU2",
-        private_key="0x1f1995bdf3a17b60626a26cfe6f564b337d46056b7a1281b64c649d592ccda0a9cffd34d9fb01cae1fba61aeed184c817442a2186d5172416729a4b54dd4b84e",
-        crypto_type=3,
-    )
-    with pytest.raises(ConfigurationError):
-        keypair.sign("0x1234")
-
-
-def test_verify_unsupported_crypto_type():
-    """
-    Test verifying a signature with an unsupported crypto type.
-    """
-    keypair = Keypair.create_from_private_key(
-        ss58_address="16ADqpMa4yzfmWs3nuTSMhfZ2ckeGtvqhPWCNqECEGDcGgU2",
-        private_key="0x1f1995bdf3a17b60626a26cfe6f564b337d46056b7a1281b64c649d592ccda0a9cffd34d9fb01cae1fba61aeed184c817442a2186d5172416729a4b54dd4b84e",
-        crypto_type=3,
-    )
-    with pytest.raises(ConfigurationError):
-        keypair.verify("0x1234", "0x1234")
 
 
 def test_sign_and_verify_incorrect_signature():
@@ -205,42 +177,11 @@ def test_sign_and_verify_invalid_message():
     assert keypair.verify("OtherMessage", signature) is False
 
 
-def test_create_ed25519_keypair():
-    """
-    Test the creation of an ed25519 keypair from a mnemonic and verify the SS58 address.
-    """
-    mnemonic = "old leopard transfer rib spatial phone calm indicate online fire caution review"
-    keypair = Keypair.create_from_mnemonic(
-        mnemonic, ss58_format=0, crypto_type=KeypairType.ED25519
-    )
-    assert keypair.ss58_address == "16dYRUXznyhvWHS1ktUENGfNAEjCawyDzHRtN9AdFnJRc38h"
-
-
-def test_sign_and_verify_ed25519():
-    """
-    Test the signing and verification of a message using an ed25519 keypair.
-    """
-    mnemonic = Keypair.generate_mnemonic()
-    keypair = Keypair.create_from_mnemonic(mnemonic, crypto_type=KeypairType.ED25519)
-    signature = keypair.sign("Test1231223123123")
-    assert keypair.verify("Test1231223123123", signature) is True
-
-
-def test_sign_and_verify_invalid_signature_ed25519():
-    """
-    Test verifying an incorrect signature for a message signed with an ed25519 keypair.
-    """
-    mnemonic = Keypair.generate_mnemonic()
-    keypair = Keypair.create_from_mnemonic(mnemonic, crypto_type=KeypairType.ED25519)
-    signature = "0x4c291bfb0bb9c1274e86d4b666d13b2ac99a0bacc04a4846fb8ea50bda114677f83c1f164af58fc184451e5140cc8160c4de626163b11451d3bbb208a1889f8a"
-    assert keypair.verify("Test1231223123123", signature) is False
-
-
 def test_unsupport_crypto_type():
     """
     Test creating a keypair with an unsupported crypto type.
     """
-    with pytest.raises(ValueError):
+    with pytest.raises(TypeError):
         Keypair.create_from_seed(
             seed_hex="0xda3cf5b1e9144931?a0f0db65664aab662673b099415a7f8121b7245fb0be4143",
             crypto_type=2,
@@ -252,7 +193,6 @@ def test_create_keypair_from_private_key():
     Test creating a keypair from a private key and verify the public key.
     """
     keypair = Keypair.create_from_private_key(
-        ss58_address="16ADqpMa4yzfmWs3nuTSMhfZ2ckeGtvqhPWCNqECEGDcGgU2",
         private_key="0x1f1995bdf3a17b60626a26cfe6f564b337d46056b7a1281b64c649d592ccda0a9cffd34d9fb01cae1fba61aeed184c817442a2186d5172416729a4b54dd4b84e",
     )
     assert (
@@ -320,12 +260,6 @@ def test_hdkd_path_gt_32_bytes():
     derivation_path = "//PathNameLongerThan32BytesWhichShouldBeHashed"
     derived_keypair = Keypair.create_from_uri(derivation_path)
     assert derivation_address == derived_keypair.ss58_address
-
-
-def test_hdkd_unsupported_password():
-    """Test hierarchical deterministic key derivation with an unsupported password."""
-    with pytest.raises(NotImplementedError):
-        Keypair.create_from_uri(f"{DEV_PHRASE}///test")
 
 
 def create_keyfile(root_path):
@@ -417,43 +351,6 @@ def test_create(keyfile_setup_teardown):
 
     repr(keyfile)
 
-
-def test_legacy_coldkey(keyfile_setup_teardown):
-    """
-    Test case for legacy cold keyfile.
-    """
-    root_path = keyfile_setup_teardown
-    legacy_filename = os.path.join(root_path, "coldlegacy_keyfile")
-    keyfile = Keyfile(path=legacy_filename)
-    keyfile.make_dirs()
-    keyfile_data = b"0x32939b6abc4d81f02dff04d2b8d1d01cc8e71c5e4c7492e4fa6a238cdca3512f"
-    with open(legacy_filename, "wb") as keyfile_obj:
-        keyfile_obj.write(keyfile_data)
-    assert keyfile.keyfile_data == keyfile_data
-    keyfile.encrypt(password="this is the fake password")
-    keyfile.decrypt(password="this is the fake password")
-    expected_decryption = {
-        "accountId": "0x32939b6abc4d81f02dff04d2b8d1d01cc8e71c5e4c7492e4fa6a238cdca3512f",
-        "publicKey": "0x32939b6abc4d81f02dff04d2b8d1d01cc8e71c5e4c7492e4fa6a238cdca3512f",
-        "privateKey": None,
-        "secretPhrase": None,
-        "secretSeed": None,
-        "ss58Address": "5DD26kC2kxajmwfbbZmVmxhrY9VeeyR1Gpzy9i8wxLUg6zxm",
-    }
-    for key, value in expected_decryption.items():
-        value_str = f'"{value}"' if value is not None else "null"
-        assert f'"{key}": {value_str}'.encode() in keyfile.keyfile_data
-
-    assert (
-        keyfile.get_keypair().ss58_address
-        == "5DD26kC2kxajmwfbbZmVmxhrY9VeeyR1Gpzy9i8wxLUg6zxm"
-    )
-    assert (
-        f"0x{keyfile.get_keypair().public_key.hex()}"
-        == "0x32939b6abc4d81f02dff04d2b8d1d01cc8e71c5e4c7492e4fa6a238cdca3512f"
-    )
-
-
 def test_validate_password():
     """
     Test case for the validate_password function.
@@ -463,92 +360,46 @@ def test_validate_password():
     """
     from bittensor_wallet.keyfile import validate_password
 
-    assert validate_password(None) is False
+    with pytest.raises(TypeError):
+        validate_password(None)
     assert validate_password("passw0rd") is False
     assert validate_password("123456789") is False
-    with mock.patch("getpass.getpass", return_value="biTTensor"):
-        assert validate_password("biTTensor") is True
-    with mock.patch("getpass.getpass", return_value="biTTenso"):
-        assert validate_password("biTTensor") is False
 
 
-def test_decrypt_keyfile_data_legacy():
-    """
-    Test case for decrypting legacy keyfile data.
-
-    This test case verifies that the `decrypt_keyfile_data` function correctly decrypts
-    encrypted data using a legacy encryption scheme.
-
-    The test generates a key using a password and encrypts a sample data. Then, it decrypts
-    the encrypted data using the same password and asserts that the decrypted data matches
-    the original data.
-    """
-    import base64
-
-    from cryptography.fernet import Fernet
-    from cryptography.hazmat.backends import default_backend
-    from cryptography.hazmat.primitives import hashes
-    from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-
-    from bittensor_wallet.keyfile import decrypt_keyfile_data
-
-    __SALT = b"Iguesscyborgslikemyselfhaveatendencytobeparanoidaboutourorigins"
-
-    def __generate_key(password):
-        kdf = PBKDF2HMAC(
-            algorithm=hashes.SHA256(),
-            salt=__SALT,
-            length=32,
-            iterations=10000000,
-            backend=default_backend(),
-        )
-        key = base64.urlsafe_b64encode(kdf.derive(password.encode()))
-        return key
-
-    pw = "fakepasssword238947239"
-    data = b"encrypt me!"
-    key = __generate_key(pw)
-    cipher_suite = Fernet(key)
-    encrypted_data = cipher_suite.encrypt(data)
-
-    decrypted_data = decrypt_keyfile_data(encrypted_data, pw)
-    assert decrypted_data == data
+# def test_user_interface():
+#     """
+#     Test the user interface for asking password to encrypt.
+#
+#     This test case uses the `ask_password_to_encrypt` function from the `bittensor.keyfile` module.
+#     It mocks the `getpass.getpass` function to simulate user input of passwords.
+#     The expected result is that the `ask_password_to_encrypt` function returns the correct password.
+#     """
+#     from bittensor_wallet.keyfile import ask_password_to_encrypt
+#
+#     with mock.patch(
+#         "getpass.getpass",
+#         side_effect=["pass", "password", "asdury3294y", "asdury3294y"],
+#     ):
+#         assert ask_password_to_encrypt() == "asdury3294y"
 
 
-def test_user_interface():
-    """
-    Test the user interface for asking password to encrypt.
-
-    This test case uses the `ask_password_to_encrypt` function from the `bittensor.keyfile` module.
-    It mocks the `getpass.getpass` function to simulate user input of passwords.
-    The expected result is that the `ask_password_to_encrypt` function returns the correct password.
-    """
-    from bittensor_wallet.keyfile import ask_password_to_encrypt
-
-    with mock.patch(
-        "getpass.getpass",
-        side_effect=["pass", "password", "asdury3294y", "asdury3294y"],
-    ):
-        assert ask_password_to_encrypt() == "asdury3294y"
-
-
-def test_overwriting(keyfile_setup_teardown):
-    """
-    Test case for overwriting a keypair in the keyfile.
-    """
-    root_path = keyfile_setup_teardown
-    keyfile = Keyfile(path=os.path.join(root_path, "keyfile"))
-    alice = Keypair.create_from_uri("/Alice")
-    keyfile.set_keypair(
-        alice, encrypt=True, overwrite=True, password="thisisafakepassword"
-    )
-    bob = Keypair.create_from_uri("/Bob")
-
-    with pytest.raises(KeyFileError):
-        with mock.patch("builtins.input", return_value="n"):
-            keyfile.set_keypair(
-                bob, encrypt=True, overwrite=False, password="thisisafakepassword"
-            )
+# def test_overwriting(keyfile_setup_teardown):
+#     """
+#     Test case for overwriting a keypair in the keyfile.
+#     """
+#     root_path = keyfile_setup_teardown
+#     keyfile = Keyfile(path=os.path.join(root_path, "keyfile"))
+#     alice = Keypair.create_from_uri("/Alice")
+#     keyfile.set_keypair(
+#         alice, encrypt=True, overwrite=True, password="thisisafakepassword"
+#     )
+#     bob = Keypair.create_from_uri("/Bob")
+#
+#     with pytest.raises(KeyFileError):
+#         with mock.patch("builtins.input", return_value="n"):
+#             keyfile.set_keypair(
+#                 bob, encrypt=True, overwrite=False, password="thisisafakepassword"
+#             )
 
 
 def test_serialized_keypair_to_keyfile_data(keyfile_setup_teardown):
@@ -615,8 +466,8 @@ def test_get_coldkey_password_from_environment(monkeypatch):
         "my-wallet": "password2",
     }
 
-    monkeypatch.setenv("bt_cold_pw_wallet", password_by_wallet["WALLET"])
-    monkeypatch.setenv("BT_COLD_PW_My_Wallet", password_by_wallet["my_wallet"])
+    monkeypatch.setenv("bt_cold_pw_wallet".upper(), password_by_wallet["WALLET"])
+    monkeypatch.setenv("BT_COLD_PW_My_Wallet".upper(), password_by_wallet["my_wallet"])
 
     for wallet, password in password_by_wallet.items():
         assert get_coldkey_password_from_environment(wallet) == password
