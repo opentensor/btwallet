@@ -1,27 +1,61 @@
 use pyo3::prelude::*;
 use pyo3::exceptions::PyException;
-
+use std::{fmt, error};
 
 #[pyclass(extends=PyException)]
-pub struct KeyFileError;
+#[derive(Debug)]
+pub struct KeyFileError {
+    pub message: String
+}
 
 /// Error thrown when the keyfile is corrupt, non-writable, non-readable or the password used to decrypt is invalid.
 #[pymethods]
 impl KeyFileError {
     #[new]
-    pub fn new() -> Self {
-        KeyFileError
+    #[pyo3(signature = (message=None))]
+    pub fn new(message: Option<String>) -> Self {
+        let msg = message.unwrap_or_else(|| "".to_string());
+        KeyFileError { message: msg }
+    }
+
+    pub fn __str__(&self) -> String {
+        self.message.clone()
     }
 }
 
-#[pyclass(extends=PyException)]
-pub struct ConfigurationError;
+impl fmt::Display for KeyFileError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "KeyFileError: {}", self.message)
+    }
+}
 
-/// Error thrown when the keyfile is corrupt, non-writable, non-readable or the password used to decrypt is invalid.
+impl error::Error for KeyFileError {}
+
+#[pyclass(extends=PyException)]
+#[derive(Debug)]
+pub struct ConfigurationError {
+    pub message: String
+}
+
+/// ConfigurationError
 #[pymethods]
 impl ConfigurationError {
     #[new]
-    pub fn new() -> Self {
-        ConfigurationError
+    #[pyo3(signature = (message=None))]
+    pub fn new(message: Option<String>) -> Self {
+        let msg = message.unwrap_or_else(|| "".to_string());
+        ConfigurationError { message: msg }
+    }
+
+    pub fn __str__(&self) -> String {
+        self.message.clone()
     }
 }
+
+impl fmt::Display for ConfigurationError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "ConfigurationError: {}", self.message)
+    }
+}
+
+impl error::Error for ConfigurationError {}
