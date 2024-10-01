@@ -145,7 +145,7 @@ impl Wallet {
         // concatenate hotkey path
         let hotkey_path = wallet_path.join("hotkeys").join(&self.hotkey);
 
-        Keyfile::new(hotkey_path.to_string_lossy().into_owned(), self.name.clone())
+        Keyfile::new(hotkey_path.to_string_lossy().into_owned(), Some(self.name.clone()))
     }
 
     /// Property that returns the coldkey file.
@@ -162,7 +162,7 @@ impl Wallet {
         // concatenate hotkey path
         let coldkey_path = wallet_path.join("coldkey");
 
-        Keyfile::new(coldkey_path.to_string_lossy().into_owned(), self.name.clone())
+        Keyfile::new(coldkey_path.to_string_lossy().into_owned(), Some(self.name.clone()))
     }
 
     /// Property that returns the coldkeypub file.
@@ -179,7 +179,7 @@ impl Wallet {
         // concatenate hotkey path
         let coldkeypub_path = wallet_path.join("coldkeypub.txt");
 
-        Keyfile::new(coldkeypub_path.to_string_lossy().into_owned(), self.name.clone())
+        Keyfile::new(coldkeypub_path.to_string_lossy().into_owned(), Some(self.name.clone()))
     }
 
     // TODO: the same problem as in keyfile.rs with the same name items withing one struct.

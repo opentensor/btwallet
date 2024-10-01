@@ -437,6 +437,15 @@ fn confirm_prompt(question: &str) -> bool {
     choice.trim().to_lowercase() == "y"
 }
 
+fn expand_tilde(path: &str) -> String {
+    if path.starts_with("~/") {
+        if let Some(home_dir) = dirs::home_dir() {
+            return path.replacen("~", home_dir.to_str().unwrap(), 1);
+        }
+    }
+    path.to_string()
+}
+
 #[derive(Clone)]
 #[pyclass(subclass)]
 pub struct Keyfile {
@@ -447,8 +456,11 @@ pub struct Keyfile {
 #[pymethods]
 impl Keyfile {
     #[new]
-    #[pyo3(signature = (path, name))]
-    pub fn new(path: String, name: String) -> PyResult<Self> {
+    #[pyo3(signature = (path, name = None))]
+    pub fn new(path: String, name: Option<String>) -> PyResult<Self> {
+
+        let path = expand_tilde(&path);
+        let name = name.unwrap_or_else(|| "Keyfile".to_string());
         Ok(Keyfile { path, name })
     }
 
