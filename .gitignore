@@ -214,3 +214,5 @@ replicate.yaml
 *.ipynb
 
 tests/zombienet/bin/**/*
+
+Cargo.lock
