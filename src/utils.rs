@@ -1,5 +1,7 @@
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyString};
+use pyo3::exceptions::PyValueError;
+
 use sp_core::crypto::{AccountId32, Ss58Codec};
 use std::str;
 
@@ -12,7 +14,7 @@ pub(crate) const SS58_FORMAT: u8 = 42;
 pub fn get_ss58_format(ss58_address: &str) -> PyResult<u16> {
     match <AccountId32 as sp_core::crypto::Ss58Codec>::from_ss58check_with_version(ss58_address) {
         Ok((_, format)) => Ok(u16::from(format)),
-        Err(_) => Err(pyo3::exceptions::PyValueError::new_err(
+        Err(_) => Err(PyValueError::new_err(
             "Invalid SS58 address.",
         )),
     }
