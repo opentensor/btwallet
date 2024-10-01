@@ -131,7 +131,7 @@ impl Keypair {
 
         // If public_key is missing (ss58_address wasn't created), return an error
         if kp.public_key.is_none() {
-            return Err(pyo3::exceptions::PyValueError::new_err("No SS58 formatted address or public key provided."));
+            return Err(PyValueError::new_err("No SS58 formatted address or public key provided."));
         }
         Ok(kp)
     }
@@ -256,7 +256,7 @@ impl Keypair {
         let json_data: JsonStructure = serde_json::from_str(json_data).unwrap();
 
         if json_data.encoding.version != "3" {
-            return Err(pyo3::exceptions::PyValueError::new_err("Unsupported JSON format"));
+            return Err(PyValueError::new_err("Unsupported JSON format"));
         }
 
         let mut encrypted = general_purpose::STANDARD.decode(json_data.encoded).map_err(|e| PyErr::new::<PyException, _>(e.to_string()))?;
@@ -283,7 +283,7 @@ impl Keypair {
         let nonce = Nonce::from_slice(nonce_bytes).ok_or("Invalid nonce length").map_err(|e| PyErr::new::<PyException, _>(e.to_string()))?;
         let message = &encrypted[24..];
 
-        let key = Key::from_slice(&password).ok_or(pyo3::exceptions::PyValueError::new_err("Invalid key length"))?;
+        let key = Key::from_slice(&password).ok_or(PyValueError::new_err("Invalid key length"))?;
         let decrypted_data = secretbox::open(message, &nonce, &key).map_err(|e| PyErr::new::<PyException, _>(e))?;
         let (private_key, public_key) = decode_pkcs8(&decrypted_data).map_err(|e| PyErr::new::<PyException, _>(e))?;
 
@@ -302,7 +302,7 @@ impl Keypair {
             true => {
                 Keypair::create_from_private_key(&hex::encode(secret))
             },
-            _ => return Err(pyo3::exceptions::PyValueError::new_err("Unsupported keypair type."))
+            _ => return Err(PyValueError::new_err("Unsupported keypair type."))
         };
 
         keypair
