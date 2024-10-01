@@ -13,3 +13,15 @@ impl KeyFileError {
         KeyFileError
     }
 }
+
+#[pyclass(extends=PyException)]
+pub struct ConfigurationError;
+
+/// Error thrown when the keyfile is corrupt, non-writable, non-readable or the password used to decrypt is invalid.
+#[pymethods]
+impl ConfigurationError {
+    #[new]
+    pub fn new() -> Self {
+        ConfigurationError
+    }
+}
