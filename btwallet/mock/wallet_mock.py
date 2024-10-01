@@ -32,17 +32,22 @@ class MockWallet(Wallet):
     Mocked Version of the bittensor wallet class, meant to be used for testing
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
+        pass
+
+    def __new__(cls, *args, **kwargs) -> 'MockWallet':
         r"""Init bittensor wallet object containing a hot and coldkey.
         Args:
             _mock (required=True, default=False):
                 If true creates a mock wallet with random keys.
         """
-        super().__init__(**kwargs)
+        super().__new__(cls, *args, **kwargs)
         # For mocking.
-        self._is_mock = True
-        self._mocked_coldkey_keyfile = None
-        self._mocked_hotkey_keyfile = None
+        cls._is_mock = True
+        cls._mocked_coldkey_keyfile = None
+        cls._mocked_hotkey_keyfile = None
+
+        return cls
 
     @property
     def hotkey_file(self) -> "Keyfile":
