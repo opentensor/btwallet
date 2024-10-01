@@ -287,17 +287,8 @@ impl Keypair {
         let decrypted_data = secretbox::open(message, &nonce, &key).map_err(|e| PyErr::new::<PyException, _>(e))?;
         let (private_key, public_key) = decode_pkcs8(&decrypted_data).map_err(|e| PyErr::new::<PyException, _>(e))?;
 
-        if json_data.encoding.content.contains(&"sr25519".to_string()) {
-            // TODO: add assertion like python has
-            //    if 'sr25519' in json_data['encoding']['content']:
-            //         # Secret key from PolkadotJS is an Ed25519 expanded secret key, so has to be converted
-            //         # https://github.com/polkadot-js/wasm/blob/master/packages/wasm-crypto/src/rs/sr25519.rs#L125
-            //         converted_public_key, secret_key = pair_from_ed25519_secret_key(secret_key)
-            //         assert(public_key == converted_public_key)
-        }
-
-        let (secret, _) = pair_from_ed25519_secret_key(&private_key[..], &public_key[..]);
-
+        let (secret, converted_public_key) = pair_from_ed25519_secret_key(&private_key[..], &public_key[..]);
+        assert_eq!(public_key, converted_public_key);
         let keypair = match json_data.encoding.content.iter().any(|c| c == "sr25519") {
             true => {
                 Keypair::create_from_private_key(&hex::encode(secret))

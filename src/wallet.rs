@@ -1,5 +1,5 @@
 use pyo3::prelude::*;
-use pyo3::types::{PyString, PyType, PyTuple, PyDict};
+use pyo3::types::{PyString, PyType};
 use pyo3::exceptions:: {PyValueError, PyRuntimeError};
 
 use colored::Colorize;
@@ -55,8 +55,8 @@ impl Wallet {
     ///         path (str, optional): The path to your bittensor wallets. Defaults to ``~/.bittensor/wallets/``.
     ///         config (Config, optional): config.Config(). Defaults to ``None``.
     #[new]
-    #[pyo3(signature = (name = None, hotkey = None, path = None, config = None, *py_args, **py_kwargs))]
-    fn new(name: Option<String>, hotkey: Option<String>, path: Option<String>, config: Option<Config>, py_args: &Bound<'_, PyTuple>, py_kwargs: Option<&Bound<'_, PyDict>>) -> PyResult<Wallet> {
+    #[pyo3(signature = (name = None, hotkey = None, path = None, config = None))]
+    fn new(name: Option<String>, hotkey: Option<String>, path: Option<String>, config: Option<Config>) -> PyResult<Wallet> {
         let final_name = name.or_else(|| Some(config.clone()?.wallet.name.clone())).unwrap_or_else(|| BT_WALLET_NAME.to_string());
         let final_hotkey = hotkey.or_else(|| Some(config.clone()?.wallet.hotkey.clone())).unwrap_or_else(|| BT_WALLET_HOTKEY.to_string());
         let final_path = path.or_else(|| Some(config.clone()?.wallet.path.clone())).unwrap_or_else(|| BT_WALLET_PATH.to_string());

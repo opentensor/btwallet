@@ -19,9 +19,8 @@ import os
 from typing import Optional
 
 from Crypto.Hash import keccak
-from substrateinterface import Keypair
 
-from bittensor_wallet import Keyfile, Wallet, utils
+from bittensor_wallet import Keyfile, Wallet, utils, Keypair
 from .keyfile_mock import MockKeyfile
 
 
@@ -29,18 +28,23 @@ class MockWallet(Wallet):
     """
     Mocked Version of the bittensor wallet class, meant to be used for testing
     """
-
+    
     def __init__(self, *args, **kwargs):
+        pass
+
+    def __new__(cls, name=None, hotkey=None, path=None, config=None, *args, **kwargs):
         r"""Init bittensor wallet object containing a hot and coldkey.
         Args:
             _mock (required=True, default=False):
                 If true creates a mock wallet with random keys.
         """
-        super().__init__(*args, **kwargs)
+        cls = super().__new__(cls, name=name, hotkey=hotkey, path=path, config=config, *args, **kwargs)
         # For mocking.
-        self._is_mock = True
-        self._mocked_coldkey_keyfile = None
-        self._mocked_hotkey_keyfile = None
+        cls._is_mock = True
+        cls._mocked_coldkey_keyfile = None
+        cls._mocked_hotkey_keyfile = None
+
+        return cls
 
     @property
     def hotkey_file(self) -> "Keyfile":
