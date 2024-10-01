@@ -5,6 +5,7 @@ use pyo3::PyObject;
 
 use sp_core::crypto::Ss58Codec;
 use sp_core::{sr25519, ByteArray, Pair};
+use crate::errors::ConfigurationError;
 
 use base64;
 use base64::{engine::general_purpose, Engine as _};
@@ -92,7 +93,7 @@ impl Keypair {
 
             let public_key_array: [u8; 32] = public_key_vec
                 .try_into()
-                .map_err(|_| PyException::new_err("Public key must be 32 bytes long."))?;
+                .map_err(|_| PyErr::new::<ConfigurationError, _>("Public key must be 32 bytes long."))?;
 
             let public_key = sr25519::Public::from_raw(public_key_array);
 
@@ -102,7 +103,7 @@ impl Keypair {
         // If ss58_address is passed, decode the public key
         if let Some(ss58_address_str) = ss58_address.clone() {
             let public_key = sr25519::Public::from_ss58check(&ss58_address_str)
-                .map_err(|e| PyException::new_err(format!("Invalid SS58 address: {}", e)))?;
+                .map_err(|e| PyErr::new::<ConfigurationError, _>(format!("Invalid SS58 address: {}", e)))?;
 
             public_key_res = Some(hex::encode(public_key.to_raw()));
         }
@@ -120,11 +121,8 @@ impl Keypair {
 
         // If public_key is missing (ss58_address wasn't created), return an error
         if kp.public_key.is_none() {
-            return Err(PyException::new_err(
-                "No SS58 formatted address or public key provided.",
-            ));
+            return Err(PyErr::new::<ConfigurationError, _>("No SS58 formatted address or public key provided."));
         }
-
         Ok(kp)
     }
 
