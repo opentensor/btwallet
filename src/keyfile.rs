@@ -14,6 +14,7 @@ use fernet::Fernet;
 
 use passwords::analyzer;
 use passwords::scorer;
+use rpassword::prompt_password;
 use serde_json::json;
 
 use crate::keypair::Keypair;
@@ -175,10 +176,7 @@ pub fn validate_password(_py: Python, password: &str) -> PyResult<bool> {
 ///         password (str): The valid password entered by the user.
 #[pyfunction]
 pub fn ask_password() -> PyResult<String> {
-    let mut password = String::new();
-    print!("Specify password for key encryption: ");
-    stdout().flush()?;
-    stdin().read_line(&mut password).expect("Filed to read the password.");
+    let password = prompt_password("Enter your password: ")?;
     Ok(password.trim().to_string())
 }
 
