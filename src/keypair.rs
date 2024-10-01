@@ -141,6 +141,7 @@ impl Keypair {
 
     /// Creates mnemonic from amount of words (accepted: 12, 15, 18, 21 or 24).
     #[staticmethod]
+    #[pyo3(signature = (n_words = 12))]
     pub fn generate_mnemonic(n_words: usize) -> PyResult<String> {
         let mnemonic =
             Mnemonic::generate(n_words).map_err(|e| PyErr::new::<PyException, _>(e.to_string()))?;
@@ -149,6 +150,7 @@ impl Keypair {
 
     /// Creates Keypair from a mnemonic.
     #[staticmethod]
+    #[pyo3(signature = (mnemonic))]
     pub fn create_from_mnemonic(mnemonic: &str) -> PyResult<Self> {
         let (pair, seed_vec) = sr25519::Pair::from_phrase(mnemonic, None)
             .map_err(|e| PyErr::new::<PyException, _>(e.to_string()))?;
@@ -164,6 +166,7 @@ impl Keypair {
 
     /// Creates Keypair from a seed.
     #[staticmethod]
+    #[pyo3(signature = (seed))]
     pub fn create_from_seed(seed: &str) -> PyResult<Self> {
         let seed_vec = hex::decode(seed.trim_start_matches("0x")).map_err(|e| PyException::new_err(format!("Invalid hex string: {}", e)))?;
 
@@ -180,6 +183,7 @@ impl Keypair {
 
     /// Creates Keypair from `private key`.
     #[staticmethod]
+    #[pyo3(signature = (private_key))]
     pub fn create_from_private_key(private_key: &str) -> PyResult<Self> {
         let private_key_vec = hex::decode(private_key.trim_start_matches("0x"))
             .map_err(|e| PyException::new_err(format!("Invalid `private_key` string: {}", e)))?;
@@ -298,6 +302,7 @@ impl Keypair {
 
     /// Creates Keypair from create_from_uri as string.
     #[staticmethod]
+    #[pyo3(signature = (uri))]
     pub fn create_from_uri(uri: &str) -> PyResult<Self> {
         let pair = Pair::from_string(uri, None)
             .map_err(|e| PyErr::new::<PyException, _>(e.to_string()))?;
@@ -310,6 +315,7 @@ impl Keypair {
     }
 
     /// Creates a signature for given data.
+    #[pyo3(signature = (data))]
     pub fn sign(&self, data: PyObject, py: Python) -> PyResult<PyObject> {
         // Convert data to bytes (data can be a string, hex, or bytes)
         let data_bytes = if let Ok(s) = data.extract::<String>(py) {
@@ -350,6 +356,7 @@ impl Keypair {
 
     // The same logic as in python version `substrateinterface.keypair.Keypair.verify`
     /// Verifies data with specified signature.
+    #[pyo3(signature = (data, signature))]
     pub fn verify(&self, data: PyObject, signature: PyObject, py: Python) -> PyResult<bool> {
         // Convert data to bytes (data can be a string, hex, or bytes)
         let data_bytes = if let Ok(s) = data.extract::<String>(py) {
