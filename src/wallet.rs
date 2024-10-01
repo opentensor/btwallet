@@ -183,24 +183,23 @@ impl Wallet {
         Keyfile::new(coldkeypub_path.to_string_lossy().into_owned(), Some(self.name.clone()))
     }
 
-    // TODO: the same problem as in keyfile.rs with the same name items withing one struct.
-    // /// Loads the coldkey from wallet.path/wallet.name/coldkey or raises an error.
-    // #[getter]
-    // pub fn coldkey(&self, py: Python) -> PyResult<Keyfile> {
-    //     unimplemented!()
-    // }
-    //
-    // /// Loads the coldkeypub from wallet.path/wallet.name/coldkeypub.txt or raises an error.
-    // #[getter]
-    // pub fn coldkeypub(&self, py: Python) -> PyResult<Keyfile> {
-    //     unimplemented!()
-    // }
-    //
-    // /// Loads the hotkey from wallet.path/wallet.name/hotkeys/wallet.hotkey or raises an error.
-    // #[getter]
-    // pub fn hotkey(&self, py: Python) -> PyResult<Keyfile> {
-    //     unimplemented!()
-    // }
+    /// Loads the coldkey from wallet.path/wallet.name/coldkey or raises an error.
+    #[getter(coldkey)]
+    pub fn coldkey_py_property(&self, py: Python) -> PyResult<Keypair> {
+        self.get_coldkey(None, py)
+    }
+
+    /// Loads the coldkeypub from wallet.path/wallet.name/coldkeypub.txt or raises an error.
+    #[getter(coldkeypub)]
+    pub fn coldkeypub_py_property(&self, py: Python) -> PyResult<Keypair> {
+        self.get_coldkeypub(None, py)
+    }
+
+    /// Loads the hotkey from wallet.path/wallet.name/hotkeys/wallet.hotkey or raises an error.
+    #[getter(hotkey)]
+    pub fn hotkey_py_property(&self, py: Python) -> PyResult<Keypair> {
+        self.get_hotkey(None, py)
+    }
 
     /// Sets the hotkey for the wallet.
     #[pyo3(signature = (keypair, encrypt=true, overwrite=false))]
