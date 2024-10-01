@@ -288,9 +288,10 @@ impl Keypair {
         let (private_key, public_key) = decode_pkcs8(&decrypted_data).map_err(|e| PyErr::new::<PyException, _>(e))?;
 
         let (secret, converted_public_key) = pair_from_ed25519_secret_key(&private_key[..], &public_key[..]);
-        assert_eq!(public_key, converted_public_key);
+        
         let keypair = match json_data.encoding.content.iter().any(|c| c == "sr25519") {
             true => {
+                assert_eq!(public_key, converted_public_key);
                 Keypair::create_from_private_key(&hex::encode(secret))
             },
             _ => return Err(PyValueError::new_err("Unsupported keypair type."))
