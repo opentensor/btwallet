@@ -194,10 +194,10 @@ impl Keypair {
     #[pyo3(signature = (private_key))]
     pub fn create_from_private_key(private_key: &str) -> PyResult<Self> {
         let private_key_vec = hex::decode(private_key.trim_start_matches("0x"))
-            .map_err(|e| PyException::new_err(format!("Invalid `private_key` string: {}", e)))?;
+            .map_err(|e| PyErr::new::<ConfigurationError, _>(format!("Invalid `private_key` string: {}", e)))?;
 
         let pair = sr25519::Pair::from_seed_slice(&private_key_vec).map_err(|e| {
-            PyException::new_err(format!("Failed to create pair from private key: {}", e))
+            PyErr::new::<ConfigurationError, _>(format!("Failed to create pair from private key: {}", e))
         })?;
 
         let kp = Keypair {
@@ -381,6 +381,7 @@ impl Keypair {
                 "Unsupported data format. Expected str or bytes.",
             ));
         };
+        // TODO: implement the ability to process data as ScaleBytes object
 
         // Convert signature to bytes
         let signature_bytes = if let Ok(s) = signature.extract::<String>(py) {
