@@ -1,5 +1,6 @@
 use pyo3::prelude::*;
 use pyo3::types::{PyString, PyType};
+use pyo3::exceptions:: {PyValueError, PyRuntimeError};
 
 use colored::Colorize;
 
@@ -136,7 +137,7 @@ impl Wallet {
     pub fn hotkey_file(&self) -> PyResult<Keyfile> {
         // get home dir
         let home = home_dir().ok_or_else(|| {
-            pyo3::exceptions::PyRuntimeError::new_err("Failed to get user home directory.")
+            PyRuntimeError::new_err("Failed to get user home directory.")
         })?;
 
         // concatenate wallet path
@@ -153,7 +154,7 @@ impl Wallet {
     pub fn coldkey_file(&self) -> PyResult<Keyfile> {
         // get home dir
         let home = home_dir().ok_or_else(|| {
-            pyo3::exceptions::PyRuntimeError::new_err("Failed to get user home directory.")
+            PyRuntimeError::new_err("Failed to get user home directory.")
         })?;
 
         // concatenate wallet path
@@ -170,7 +171,7 @@ impl Wallet {
     pub fn coldkeypub_file(&self) -> PyResult<Keyfile> {
         // get home dir
         let home = home_dir().ok_or_else(|| {
-            pyo3::exceptions::PyRuntimeError::new_err("Failed to get user home directory.")
+            PyRuntimeError::new_err("Failed to get user home directory.")
         })?;
 
         // concatenate wallet path
@@ -358,7 +359,7 @@ impl Wallet {
     pub fn regenerate_coldkeypub(&mut self, ss58_address: Option<String>, public_key: Option<String>, overwrite: bool, py: Python) -> PyResult<Self> {
 
         if ss58_address.is_none() && public_key.is_none() {
-            return Err(pyo3::exceptions::PyValueError::new_err("Either ss58_address or public_key must be passed."));
+            return Err(PyValueError::new_err("Either ss58_address or public_key must be passed."));
         }
 
         // convert from Option<String> to &Bound<PyAny> for `is_valid_bittensor_address_or_public_key`
@@ -367,7 +368,7 @@ impl Wallet {
         let address_to_check: &Bound<PyAny> = binding_py_string.as_ref();
 
         if !is_valid_bittensor_address_or_public_key(address_to_check)? {
-            return Err(pyo3::exceptions::PyValueError::new_err(
+            return Err(PyValueError::new_err(
                 format!(
                     "Invalid {}.",
                     if ss58_address.is_some() { "ss58_address" } else { "public_key" }
@@ -398,7 +399,7 @@ impl Wallet {
             // json_data + passphrase
             Keypair::create_from_encrypted_json(&json_data, &passphrase)?
         } else {
-            return Err(pyo3::exceptions::PyValueError::new_err("Must pass either mnemonic, seed, or json."));
+            return Err(PyValueError::new_err("Must pass either mnemonic, seed, or json."));
         };
 
         self.set_coldkey(keypair.clone(), use_password, overwrite, py)?;
@@ -423,7 +424,7 @@ impl Wallet {
             // json_data + passphrase
             Keypair::create_from_encrypted_json(&json_data, &passphrase)?
         } else {
-            return Err(pyo3::exceptions::PyValueError::new_err("Must pass either mnemonic, seed, or json."));
+            return Err(PyValueError::new_err("Must pass either mnemonic, seed, or json."));
         };
 
         self.set_hotkey(keypair, use_password, overwrite, py)?;
