@@ -201,6 +201,24 @@ impl Wallet {
         self.get_hotkey(None, py)
     }
 
+    /// Loads the name from wallet.path/wallet.name/coldkeypub.txt or raises an error.
+    #[getter(name)]
+    pub fn get_name(&self) -> PyResult<String> {
+        Ok(self.name.clone())
+    }
+
+    /// Loads the name from wallet.path/wallet.name/coldkeypub.txt or raises an error.
+    #[getter(path)]
+    pub fn get_path(&self) -> PyResult<String> {
+        Ok(self.path.clone())
+    }
+
+        /// Loads the name from wallet.path/wallet.name/coldkeypub.txt or raises an error.
+    #[getter(hotkey_str)]
+    pub fn get_hotkey_str(&self) -> PyResult<String> {
+        Ok(self.hotkey.clone())
+    }
+
     /// Sets the hotkey for the wallet.
     #[pyo3(signature = (keypair, encrypt=true, overwrite=false))]
     pub fn set_coldkey(&mut self, keypair: Keypair, encrypt: bool, overwrite: bool, py: Python) -> PyResult<()> {
