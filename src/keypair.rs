@@ -335,9 +335,15 @@ impl Keypair {
             }
         } else if let Ok(bytes) = data.extract::<Vec<u8>>(py) {
             bytes
+        } else if let Ok(py_scale_bytes) = data.extract::<&PyAny>(py) {
+
+            let scale_data: &PyAny = py_scale_bytes.getattr("data")?;
+            let scale_data_bytes: Vec<u8> = scale_data.extract()?;
+
+            scale_data_bytes.to_vec()
         } else {
             return Err(PyErr::new::<ConfigurationError, _>(
-                "Unsupported data format. Expected str or bytes (verify).",
+                "Keypair::sign: Unsupported data format. Expected str or bytes.",
             ));
         };
 
@@ -376,9 +382,14 @@ impl Keypair {
             }
         } else if let Ok(bytes) = data.extract::<Vec<u8>>(py) {
             bytes
+        } else if let Ok(py_scale_bytes) = data.extract::<&PyAny>(py) {
+            let scale_data: &PyAny = py_scale_bytes.getattr("data")?;
+            let scale_data_bytes: Vec<u8> = scale_data.extract()?;
+
+            scale_data_bytes.to_vec()
         } else {
             return Err(PyErr::new::<ConfigurationError, _>(
-                "Unsupported data format. Expected str or bytes (verify).",
+                "Keypair::verify: Unsupported data format. Expected str or bytes.",
             ));
         };
         // TODO: implement the ability to process data as ScaleBytes object
@@ -420,7 +431,6 @@ impl Keypair {
         // Convert signature bytes to the type expected by the verify function
         let signature = sr25519::Signature::from_slice(&signature_bytes)
             .map_err(|_| PyErr::new::<PyTypeError, _>("Invalid signature"))?;
-
         // Verify signature depending on the type of crypto key
         let verified = match self.crypto_type {
             1 => {
