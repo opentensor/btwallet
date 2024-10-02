@@ -76,6 +76,7 @@ def serialized_keypair_to_keyfile_data(keypair: "Keypair") -> bytes:
     data = json.dumps(json_data).encode()
     return data
 
+
 # sdk - deprecated import
 # cli - no
 # wallet - inside keyfile.py
@@ -129,6 +130,7 @@ def deserialize_keypair_from_keyfile_data(keyfile_data: bytes) -> "Keypair":
             "Keypair could not be created from keyfile data: {}".format(keyfile_dict)
         )
 
+
 # sdk - deprecated import
 # cli - no
 # wallet - inside keyfile.py
@@ -158,6 +160,7 @@ def validate_password(password: str) -> bool:
         return False
     return True
 
+
 # sdk - deprecated import
 # cli - no
 # wallet - inside keyfile.py
@@ -172,6 +175,7 @@ def ask_password_to_encrypt() -> str:
         password = getpass.getpass("Specify password for key encryption: ")
         valid = validate_password(password)
     return password
+
 
 # sdk - deprecated import
 # cli - no
@@ -188,6 +192,7 @@ def keyfile_data_is_encrypted_nacl(keyfile_data: bytes) -> bool:
     """
     return keyfile_data[: len("$NACL")] == b"$NACL"
 
+
 # sdk - deprecated import
 # cli - no
 # wallet - inside keyfile.py
@@ -201,6 +206,7 @@ def keyfile_data_is_encrypted_ansible(keyfile_data: bytes) -> bool:
     """
     return keyfile_data[:14] == b"$ANSIBLE_VAULT"
 
+
 # sdk - deprecated import
 # cli - no
 # wallet - inside keyfile.py
@@ -212,6 +218,7 @@ def keyfile_data_is_encrypted_legacy(keyfile_data: bytes) -> bool:
         is_legacy (bool): ``True`` if the data is legacy encrypted.
     """
     return keyfile_data[:6] == b"gAAAAA"
+
 
 # sdk - deprecated import
 # cli - no
@@ -229,6 +236,7 @@ def keyfile_data_is_encrypted(keyfile_data: bytes) -> bool:
         or keyfile_data_is_encrypted_ansible(keyfile_data)
         or keyfile_data_is_encrypted_legacy(keyfile_data)
     )
+
 
 # sdk - deprecated import
 # cli - no
@@ -249,6 +257,7 @@ def keyfile_data_encryption_method(keyfile_data: bytes) -> str:
     elif keyfile_data_is_encrypted_legacy(keyfile_data):
         return "legacy"
 
+
 # sdk - deprecated import
 # cli - no
 # wallet - inside keyfile.py
@@ -261,6 +270,7 @@ def legacy_encrypt_keyfile_data(
     ):
         vault = Vault(password)
     return vault.vault.encrypt(keyfile_data)
+
 
 # sdk - deprecated import
 # cli - no
@@ -288,6 +298,7 @@ def encrypt_keyfile_data(keyfile_data: bytes, password: Optional[str] = None) ->
     encrypted = box.encrypt(keyfile_data)
     return b"$NACL" + encrypted
 
+
 # sdk - deprecated import
 # cli - no
 # wallet - inside keyfile.py
@@ -305,6 +316,7 @@ def get_coldkey_password_from_environment(coldkey_name: str) -> Optional[str]:
         if (normalized_env_name := env_name.upper()).startswith("BT_COLD_PW_")
     }
     return envs.get(f"BT_COLD_PW_{coldkey_name.replace('-', '_').upper()}")
+
 
 # sdk - deprecated import
 # cli - no
@@ -464,7 +476,6 @@ class Keyfile:
         if encrypt:
             keyfile_data = encrypt_keyfile_data(keyfile_data, password)
         self._write_keyfile_data_to_file(keyfile_data, overwrite=overwrite)
-        
 
     def get_keypair(self, password: Optional[str] = None) -> "Keypair":
         """Returns the keypair from the path, decrypts data if the file is encrypted.
