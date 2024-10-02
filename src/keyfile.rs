@@ -1,16 +1,19 @@
+use pyo3::exceptions::{
+    PyFileNotFoundError, PyIOError, PyOSError, PyPermissionError, PyUnicodeDecodeError,
+    PyUserWarning, PyValueError,
+};
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyString};
-use pyo3::exceptions:: {PyUnicodeDecodeError, PyValueError, PyOSError, PyIOError, PyFileNotFoundError, PyPermissionError, PyUserWarning};
 
 use std::collections::HashMap;
 use std::env;
 use std::fs;
-use std::io::{Read, Write, stdin, stdout};
+use std::io::{stdin, stdout, Read, Write};
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 use std::str::from_utf8;
 
-use ansible_vault::{encrypt_vault, decrypt_vault};
+use ansible_vault::{decrypt_vault, encrypt_vault};
 use fernet::Fernet;
 
 use passwords::analyzer;
@@ -19,14 +22,13 @@ use rpassword::prompt_password;
 use serde_json::json;
 
 use crate::keypair::Keypair;
+use crate::utils;
 
 use sodiumoxide::crypto::pwhash;
 use sodiumoxide::crypto::secretbox;
 
-
 const NACL_SALT: &[u8] = b"\x13q\x83\xdf\xf1Z\t\xbc\x9c\x90\xb5Q\x879\xe9\xb1";
 const LEGACY_SALT: &[u8] = b"Iguesscyborgslikemyselfhaveatendencytobeparanoidaboutourorigins";
-
 
 /// Serializes keypair object into keyfile data.
 ///
@@ -74,9 +76,8 @@ pub fn serialized_keypair_to_keyfile_data(py: Python, keypair: &Keypair) -> PyRe
     }
 
     // Serialize the data into JSON string and return it as bytes
-    let json_data = serde_json::to_string(&data).map_err(|e| {
-        PyUnicodeDecodeError::new_err(format!("Serialization error: {}", e))
-    })?;
+    let json_data = serde_json::to_string(&data)
+        .map_err(|e| PyUnicodeDecodeError::new_err(format!("Serialization error: {}", e)))?;
     Ok(PyBytes::new_bound(py, &json_data.into_bytes()).into_py(py))
 }
 
@@ -90,10 +91,13 @@ pub fn serialized_keypair_to_keyfile_data(py: Python, keypair: &Keypair) -> PyRe
 ///         KeyFileError: Raised if the passed PyBytes cannot construct a keypair object.
 #[pyfunction]
 #[pyo3(signature = (keyfile_data))]
-pub fn deserialize_keypair_from_keyfile_data(keyfile_data: &[u8], py: Python<'_>) -> PyResult<Keypair> {
+pub fn deserialize_keypair_from_keyfile_data(
+    keyfile_data: &[u8],
+    py: Python<'_>,
+) -> PyResult<Keypair> {
     // Decode the keyfile data from PyBytes to a string
     let decoded = from_utf8(keyfile_data)
-        .map_err(|_| {PyUnicodeDecodeError::new_err("Failed to decode keyfile data.")})?;
+        .map_err(|_| PyUnicodeDecodeError::new_err("Failed to decode keyfile data."))?;
 
     // Parse the JSON string into a HashMap
     let keyfile_dict: HashMap<String, Option<String>> = serde_json::from_str(decoded)
@@ -116,7 +120,6 @@ pub fn deserialize_keypair_from_keyfile_data(keyfile_data: &[u8], py: Python<'_>
     } else if ss58_address.is_some() {
         Ok(Keypair::new(ss58_address, None, None, 42, None, 1)?)
     } else {
-
         return Err(PyOSError::new_err(
             "Keypair could not be created from keyfile data.",
         ));
@@ -162,11 +165,11 @@ pub fn validate_password(_py: Python, password: &str) -> PyResult<bool> {
         if password == password_verification {
             Ok(true)
         } else {
-            println!("Passwords do not match.");
+            utils::print(format!("Passwords do not match."));
             Ok(false)
         }
     } else {
-        println!("Password not strong enough. Try increasing the length of the password or the password complexity.");
+        utils::print(format!("Password not strong enough. Try increasing the length of the password or the password complexity."));
         Ok(false)
     }
 }
@@ -193,7 +196,7 @@ pub fn ask_password() -> PyResult<String> {
 #[pyfunction]
 pub fn keyfile_data_is_encrypted_nacl(_py: Python, keyfile_data: &[u8]) -> PyResult<bool> {
     if keyfile_data.starts_with(b"$NACL") {
-       return Ok(true);
+        return Ok(true);
     }
     Ok(false)
 }
@@ -208,7 +211,7 @@ pub fn keyfile_data_is_encrypted_nacl(_py: Python, keyfile_data: &[u8]) -> PyRes
 #[pyfunction]
 pub fn keyfile_data_is_encrypted_ansible(_py: Python, keyfile_data: &[u8]) -> PyResult<bool> {
     if keyfile_data.starts_with(b"$ANSIBLE_VAULT") {
-       return Ok(true);
+        return Ok(true);
     }
     Ok(false)
 }
@@ -223,7 +226,7 @@ pub fn keyfile_data_is_encrypted_ansible(_py: Python, keyfile_data: &[u8]) -> Py
 #[pyfunction]
 pub fn keyfile_data_is_encrypted_legacy(_py: Python, keyfile_data: &[u8]) -> PyResult<bool> {
     if keyfile_data.starts_with(b"gAAAAA") {
-       return Ok(true);
+        return Ok(true);
     }
     Ok(false)
 }
@@ -274,13 +277,18 @@ pub fn keyfile_data_encryption_method(py: Python, keyfile_data: &[u8]) -> PyResu
 ///         encrypted_data (bytes): The encrypted keyfile data in bytes.
 #[pyfunction]
 #[pyo3(signature = (keyfile_data, password))]
-pub fn legacy_encrypt_keyfile_data(py: Python, keyfile_data: &[u8], password: Option<String>, ) -> PyResult<PyObject> {
+pub fn legacy_encrypt_keyfile_data(
+    py: Python,
+    keyfile_data: &[u8],
+    password: Option<String>,
+) -> PyResult<PyObject> {
     let password = password.unwrap_or_else(||
         // function to get password from user
-        ask_password().unwrap()
-    );
+        ask_password().unwrap());
 
-    println!(":exclamation_mark: Encrypting key with legacy encryption method...");
+    utils::print(format!(
+        ":exclamation_mark: Encrypting key with legacy encryption method..."
+    ));
 
     // Encrypting key with legacy encryption method
     let encrypted_data = encrypt_vault(keyfile_data, password.as_str())
@@ -298,18 +306,29 @@ pub fn legacy_encrypt_keyfile_data(py: Python, keyfile_data: &[u8], password: Op
 /// * `Option<String>` - The password retrieved from the environment variables, or `None` if not found.
 #[pyfunction]
 #[pyo3(signature = (coldkey_name))]
-pub fn get_coldkey_password_from_environment(_py: Python, coldkey_name: String, ) -> PyResult<Option<String>> {
-    let env_key: String = format!("BT_COLD_PW_{}", coldkey_name.to_uppercase().replace("-", "_"));
+pub fn get_coldkey_password_from_environment(
+    _py: Python,
+    coldkey_name: String,
+) -> PyResult<Option<String>> {
+    let env_key: String = format!(
+        "BT_COLD_PW_{}",
+        coldkey_name.to_uppercase().replace("-", "_")
+    );
     Ok(env::var(env_key).ok())
 }
 
 // decrypt of keyfile_data with secretbox
 fn derive_key(password: &[u8]) -> secretbox::Key {
-    let nacl_salt = pwhash::argon2i13::Salt::from_slice(NACL_SALT)
-        .expect("Invalid NACL_SALT.");
+    let nacl_salt = pwhash::argon2i13::Salt::from_slice(NACL_SALT).expect("Invalid NACL_SALT.");
     let mut key = secretbox::Key([0; secretbox::KEYBYTES]);
-    pwhash::argon2i13::derive_key(&mut key.0, password, &nacl_salt, pwhash::argon2i13::OPSLIMIT_SENSITIVE, pwhash::argon2i13::MEMLIMIT_SENSITIVE)
-        .expect("Failed to derive key for NaCl decryption.");
+    pwhash::argon2i13::derive_key(
+        &mut key.0,
+        password,
+        &nacl_salt,
+        pwhash::argon2i13::OPSLIMIT_SENSITIVE,
+        pwhash::argon2i13::MEMLIMIT_SENSITIVE,
+    )
+    .expect("Failed to derive key for NaCl decryption.");
     key
 }
 
@@ -323,15 +342,18 @@ fn derive_key(password: &[u8]) -> secretbox::Key {
 ///         encrypted_data (bytes): The encrypted data.
 #[pyfunction]
 #[pyo3(signature = (keyfile_data, password))]
-pub fn encrypt_keyfile_data(py: Python, keyfile_data: &[u8], password: Option<String>) -> PyResult<PyObject> {
-
+pub fn encrypt_keyfile_data(
+    py: Python,
+    keyfile_data: &[u8],
+    password: Option<String>,
+) -> PyResult<PyObject> {
     // get password or ask user
     let password = match password {
         Some(pwd) => pwd,
         None => ask_password()?,
     };
 
-    println!("Encryption data...");
+    utils::print(format!("Encryption data..."));
 
     // crate the key with pwhash Argon2i
     let key = derive_key(password.as_bytes());
@@ -360,21 +382,23 @@ pub fn encrypt_keyfile_data(py: Python, keyfile_data: &[u8], password: Option<St
 ///         decrypted_data (bytes): The decrypted data.
 #[pyfunction]
 #[pyo3(signature = (keyfile_data, password = None, coldkey_name = None))]
-pub fn decrypt_keyfile_data(py: Python, keyfile_data: &[u8], password: Option<String>, coldkey_name: Option<String>) -> PyResult<PyObject> {
-
+pub fn decrypt_keyfile_data(
+    py: Python,
+    keyfile_data: &[u8],
+    password: Option<String>,
+    coldkey_name: Option<String>,
+) -> PyResult<PyObject> {
     // decrypt of keyfile_data with secretbox
     fn nacl_decrypt(keyfile_data: &[u8], key: &secretbox::Key) -> Vec<u8> {
         let data = &keyfile_data[5..]; // Remove the $NACL prefix
-        let nonce = secretbox::Nonce::from_slice(&data[0..secretbox::NONCEBYTES])
-            .expect("Invalid nonce.");
+        let nonce =
+            secretbox::Nonce::from_slice(&data[0..secretbox::NONCEBYTES]).expect("Invalid nonce.");
         let ciphertext = &data[secretbox::NONCEBYTES..];
-        secretbox::open(ciphertext, &nonce, key)
-            .expect("Wrong password.")
+        secretbox::open(ciphertext, &nonce, key).expect("Wrong password.")
     }
 
     // decrypt of keyfile_data with legacy way
     fn legacy_decrypt(password: &str, keyfile_data: &[u8]) -> Vec<u8> {
-
         let kdf = pbkdf2::pbkdf2_hmac::<sha2::Sha256>;
         let mut key = vec![0; 32];
         kdf(password.as_bytes(), LEGACY_SALT, 10000000, &mut key);
@@ -401,7 +425,7 @@ pub fn decrypt_keyfile_data(py: Python, keyfile_data: &[u8], password: Option<St
 
     let password = password.unwrap();
 
-    println!("Decrypt data...");
+    utils::print(format!("Decrypt data..."));
 
     // NaCl decryption
     if keyfile_data_is_encrypted_nacl(py, keyfile_data)? {
@@ -424,7 +448,9 @@ pub fn decrypt_keyfile_data(py: Python, keyfile_data: &[u8], password: Option<St
     }
 
     // If none of the methods work, raise error
-    Err(PyErr::new::<PyValueError, _>("Invalid or unknown encryption method."))
+    Err(PyErr::new::<PyValueError, _>(
+        "Invalid or unknown encryption method.",
+    ))
 }
 
 fn confirm_prompt(question: &str) -> bool {
@@ -432,7 +458,9 @@ fn confirm_prompt(question: &str) -> bool {
     stdout().flush().expect("Can not flash stdout.");
 
     let mut choice = String::new();
-    stdin().read_line(&mut choice).expect("Failed to read input.");
+    stdin()
+        .read_line(&mut choice)
+        .expect("Failed to read input.");
     choice.trim().to_lowercase() == "y"
 }
 
@@ -457,7 +485,6 @@ impl Keyfile {
     #[new]
     #[pyo3(signature = (path, name = None))]
     pub fn new(path: String, name: Option<String>) -> PyResult<Self> {
-
         let path = expand_tilde(&path);
         let name = name.unwrap_or_else(|| "Keyfile".to_string());
         Ok(Keyfile { path, name })
@@ -468,7 +495,10 @@ impl Keyfile {
             Ok(format!("keyfile (empty, {})>", self.path))
         } else if self.is_encrypted(py)? {
             let encryption_method = self._read_keyfile_data_from_file(py)?;
-            Ok(format!("Keyfile ({:?} encrypted, {})>", encryption_method, self.path))
+            Ok(format!(
+                "Keyfile ({:?} encrypted, {})>",
+                encryption_method, self.path
+            ))
         } else {
             Ok(format!("keyfile (decrypted, {})>", self.path))
         }
@@ -515,14 +545,20 @@ impl Keyfile {
 
     /// Returns the keyfile data under path.
     #[getter]
-    pub fn keyfile_data(&self, py: Python) -> PyResult<PyObject>{
+    pub fn keyfile_data(&self, py: Python) -> PyResult<PyObject> {
         Ok(self._read_keyfile_data_from_file(py)?)
     }
 
     /// Writes the keypair to the file and optionally encrypts data.
     #[pyo3(signature = (keypair, encrypt = true, overwrite = false, password = None))]
-    pub fn set_keypair(&self, keypair: Keypair, encrypt: bool, overwrite: bool, password: Option<String>, py: Python) -> PyResult<()> {
-
+    pub fn set_keypair(
+        &self,
+        keypair: Keypair,
+        encrypt: bool,
+        overwrite: bool,
+        password: Option<String>,
+        py: Python,
+    ) -> PyResult<()> {
         self.make_dirs()?;
 
         let keyfile_data = serialized_keypair_to_keyfile_data(py, &keypair)?;
@@ -569,9 +605,8 @@ impl Keyfile {
         }
 
         // get file metadata
-        let metadata = fs::metadata(&self.path).map_err(|e| {
-            PyIOError::new_err(format!("Failed to get metadata for file: {}.", e))
-        })?;
+        let metadata = fs::metadata(&self.path)
+            .map_err(|e| PyIOError::new_err(format!("Failed to get metadata for file: {}.", e)))?;
 
         // check permissions
         let permissions = metadata.permissions();
@@ -591,9 +626,8 @@ impl Keyfile {
         }
 
         // get file metadata
-        let metadata = fs::metadata(&self.path).map_err(|e| {
-            PyIOError::new_err(format!("Failed to get metadata for file: {}", e))
-        })?;
+        let metadata = fs::metadata(&self.path)
+            .map_err(|e| PyIOError::new_err(format!("Failed to get metadata for file: {}", e)))?;
 
         // check the permissions
         let permissions = metadata.permissions();
@@ -641,25 +675,29 @@ impl Keyfile {
 
     /// Check the version of keyfile and update if needed.
     #[pyo3(signature = (print_result = true, no_prompt = false))]
-    pub fn check_and_update_encryption(&self, print_result: bool, no_prompt: bool, py: Python) -> PyResult<bool> {
-
+    pub fn check_and_update_encryption(
+        &self,
+        print_result: bool,
+        no_prompt: bool,
+        py: Python,
+    ) -> PyResult<bool> {
         if !self.exists_on_device()? {
             if print_result {
-                println!("Keyfile does not exist. {}", self.path);
+                utils::print(format!("Keyfile does not exist. {}", self.path));
             }
             return Ok(false);
         }
 
         if !self.is_readable()? {
             if print_result {
-                println!("Keyfile is not readable. {}", self.path);
+                utils::print(format!("Keyfile is not readable. {}", self.path));
             }
             return Ok(false);
         }
 
         if !self.is_writable()? {
             if print_result {
-                println!("Keyfile is not writable. {}", self.path);
+                utils::print(format!("Keyfile is not writable. {}", self.path));
             }
             return Ok(false);
         }
@@ -671,10 +709,10 @@ impl Keyfile {
             let keyfile_data_bytes: &[u8] = keyfile_data.extract(py)?;
 
             // check if file is decrypted
-            if keyfile_data_is_encrypted(py, keyfile_data_bytes)? &&
-                !keyfile_data_is_encrypted_nacl(py, keyfile_data_bytes)? {
-
-                println!("You may update the keyfile to improve security...");
+            if keyfile_data_is_encrypted(py, keyfile_data_bytes)?
+                && !keyfile_data_is_encrypted_nacl(py, keyfile_data_bytes)?
+            {
+                utils::print(format!("You may update the keyfile to improve security..."));
 
                 // ask user for the confirmation for updating
                 if update_keyfile == confirm_prompt("Update keyfile?") {
@@ -682,7 +720,9 @@ impl Keyfile {
 
                     // check mnemonic if saved
                     while !stored_mnemonic {
-                        println!("Please store your mnemonic in case an error occurs...");
+                        utils::print(format!(
+                            "Please store your mnemonic in case an error occurs..."
+                        ));
                         if confirm_prompt("Have you stored the mnemonic?") {
                             stored_mnemonic = true;
                         } else if !confirm_prompt("Retry and continue keyfile update?") {
@@ -697,7 +737,12 @@ impl Keyfile {
                         let pwd = ask_password()?;
                         password = Some(pwd.clone());
 
-                        match decrypt_keyfile_data(py, keyfile_data_bytes, Some(pwd), Some(self.name.clone())) {
+                        match decrypt_keyfile_data(
+                            py,
+                            keyfile_data_bytes,
+                            Some(pwd),
+                            Some(self.name.clone()),
+                        ) {
                             Ok(decrypted_data) => {
                                 let data: Vec<u8> = decrypted_data.extract(py)?;
                                 decrypted_keyfile_data = Some(data);
@@ -713,8 +758,12 @@ impl Keyfile {
                     // encryption of updated data
                     if let Some(password) = password {
                         if let Some(decrypted_data) = decrypted_keyfile_data {
-                            let encrypted_keyfile_data = encrypt_keyfile_data(py, &decrypted_data, Some(password))?;
-                            self._write_keyfile_data_to_file(encrypted_keyfile_data.extract(py)?, true)?;
+                            let encrypted_keyfile_data =
+                                encrypt_keyfile_data(py, &decrypted_data, Some(password))?;
+                            self._write_keyfile_data_to_file(
+                                encrypted_keyfile_data.extract(py)?,
+                                true,
+                            )?;
                         }
                     }
                 }
@@ -728,20 +777,20 @@ impl Keyfile {
 
             return if !keyfile_data_is_encrypted(py, keyfile_data_bytes)? {
                 if print_result {
-                    println!("Keyfile is not encrypted.");
+                    utils::print(format!("Keyfile is not encrypted."));
                 }
                 Ok(false)
             } else if keyfile_data_is_encrypted_nacl(py, keyfile_data_bytes)? {
                 if print_result {
-                    println!("Keyfile is updated.");
+                    utils::print(format!("Keyfile is updated."));
                 }
                 Ok(true)
             } else {
                 if print_result {
-                    println!("Keyfile is outdated, please update using 'btcli'.");
+                    utils::print(format!("Keyfile is outdated, please update using 'btcli'."));
                 }
                 Ok(false)
-            }
+            };
         }
         Ok(false)
     }
@@ -751,15 +800,24 @@ impl Keyfile {
     pub fn encrypt(&self, password: Option<String>, py: Python) -> PyResult<()> {
         // checkers
         if !self.exists_on_device()? {
-            return Err(PyValueError::new_err(format!("Keyfile at: {} does not exist", self.path)));
+            return Err(PyValueError::new_err(format!(
+                "Keyfile at: {} does not exist",
+                self.path
+            )));
         }
 
         if !self.is_readable()? {
-            return Err(PyValueError::new_err(format!("Keyfile at: {} is not readable", self.path)));
+            return Err(PyValueError::new_err(format!(
+                "Keyfile at: {} is not readable",
+                self.path
+            )));
         }
 
         if !self.is_writable()? {
-            return Err(PyValueError::new_err(format!("Keyfile at: {} is not writable", self.path)));
+            return Err(PyValueError::new_err(format!(
+                "Keyfile at: {} is not writable",
+                self.path
+            )));
         }
 
         // read the data
@@ -767,7 +825,6 @@ impl Keyfile {
         let keyfile_data_bytes: &[u8] = keyfile_data.extract(py)?;
 
         let final_data = if !keyfile_data_is_encrypted(py, keyfile_data_bytes)? {
-
             let as_keypair = deserialize_keypair_from_keyfile_data(keyfile_data_bytes, py)?;
             let serialized_data = serialized_keypair_to_keyfile_data(py, &as_keypair)?;
 
@@ -787,13 +844,22 @@ impl Keyfile {
     pub fn decrypt(&self, password: Option<String>, py: Python) -> PyResult<()> {
         // checkers
         if !self.exists_on_device()? {
-            return Err(PyOSError::new_err(format!("Keyfile at: {} does not exist.", self.path)));
+            return Err(PyOSError::new_err(format!(
+                "Keyfile at: {} does not exist.",
+                self.path
+            )));
         }
         if !self.is_readable()? {
-            return Err(PyOSError::new_err(format!("Keyfile at: {} is not readable.", self.path)));
+            return Err(PyOSError::new_err(format!(
+                "Keyfile at: {} is not readable.",
+                self.path
+            )));
         }
         if !self.is_writable()? {
-            return Err(PyOSError::new_err(format!("Keyfile at: {} is not writable.", self.path)));
+            return Err(PyOSError::new_err(format!(
+                "Keyfile at: {} is not writable.",
+                self.path
+            )));
         }
 
         // read data
@@ -839,13 +905,11 @@ impl Keyfile {
         }
 
         // open and read the file
-        let mut file = fs::File::open(&self.path).map_err(|e| {
-            PyOSError::new_err(format!("Failed to open file: {}.", e))
-        })?;
+        let mut file = fs::File::open(&self.path)
+            .map_err(|e| PyOSError::new_err(format!("Failed to open file: {}.", e)))?;
         let mut data_vec = Vec::new();
-        file.read_to_end(&mut data_vec).map_err(|e| {
-            PyOSError::new_err(format!("Failed to read file: {}.", e))
-        })?;
+        file.read_to_end(&mut data_vec)
+            .map_err(|e| PyOSError::new_err(format!("Failed to read file: {}.", e)))?;
 
         let data_bytes = PyBytes::new_bound(py, &*data_vec).into_py(py);
         Ok(data_bytes)
@@ -860,10 +924,17 @@ impl Keyfile {
     ///     Raises:
     ///         PyPermissionError: Raised if the file is not writable or the user responds No to the overwrite prompt.
     #[pyo3(signature = (keyfile_data, overwrite = false))]
-    pub fn _write_keyfile_data_to_file(&self, keyfile_data: &[u8], overwrite: bool) -> PyResult<()> {
+    pub fn _write_keyfile_data_to_file(
+        &self,
+        keyfile_data: &[u8],
+        overwrite: bool,
+    ) -> PyResult<()> {
         // ask user for rewriting
-        if self.exists_on_device()? && !overwrite && !self._may_overwrite(){
-            return Err(PyUserWarning::new_err(format!("Keyfile at: {} is not writable", self.path)));
+        if self.exists_on_device()? && !overwrite && !self._may_overwrite() {
+            return Err(PyUserWarning::new_err(format!(
+                "Keyfile at: {} is not writable",
+                self.path
+            )));
         }
 
         let mut keyfile = fs::OpenOptions::new()
@@ -871,21 +942,18 @@ impl Keyfile {
             .create(true)
             .truncate(true) // cleanup if rewrite
             .open(&self.path)
-            .map_err(|e| {PyIOError::new_err(format!("Failed to open file: {}.", e)) })?;
+            .map_err(|e| PyIOError::new_err(format!("Failed to open file: {}.", e)))?;
 
         // write data
-        keyfile.write_all(keyfile_data).map_err(|e| {
-            PyIOError::new_err(format!("Failed to write to file: {}.", e))
-        })?;
+        keyfile
+            .write_all(keyfile_data)
+            .map_err(|e| PyIOError::new_err(format!("Failed to write to file: {}.", e)))?;
 
         // set permissions
         let mut permissions = fs::metadata(&self.path)?.permissions();
         permissions.set_mode(0o600); // just for owner
         fs::set_permissions(&self.path, permissions).map_err(|e| {
-            PyPermissionError::new_err(format!(
-                "Failed to set permissions: {}.",
-                e
-            ))
+            PyPermissionError::new_err(format!("Failed to set permissions: {}.", e))
         })?;
         Ok(())
     }
