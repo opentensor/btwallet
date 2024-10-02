@@ -135,7 +135,7 @@ assert from_address_kps.private_key == from_address_kpw.private_key
 assert kps.verify("asd", kpw.sign("asd")) == True
 
 # check verify
-assert kpw.verify("asd", kps.sign("asd")) == True
+assert kpw.verify("asd", kps.sign("asd")) == Tru
 
 # check create_from_encrypted_json
 from substrateinterface.base import Keypair as S_Keypair
@@ -152,6 +152,25 @@ assert skp.private_key == wkp.private_key
 assert skp.private_key.hex() == wkp.private_key.hex()
 assert skp.public_key == wkp.public_key
 assert skp.public_key.hex() == wkp.public_key.hex()
+```
+### Check signature and verify with ScaleBytes
+```python
+from scalecodec.base import ScaleBytes
+from bittensor_wallet import Keypair as WKeypair
+from substrateinterface import Keypair as SKeypair
+
+kps = SKeypair.create_from_uri("//Alice")
+kpw = WKeypair.create_from_uri("//Alice")
+
+message = ScaleBytes(b"my message")
+
+# cross check
+assert kps.verify(message, kpw.sign(message)) == True
+assert kpw.verify(message, kps.sign(message)) == True
+
+# itself check
+assert kpw.verify(message, kpw.sign(message)) == True
+assert kps.verify(message, kps.sign(message)) == True
 ```
 ## utils.rs
 
