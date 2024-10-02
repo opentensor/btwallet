@@ -1,11 +1,11 @@
-use pyo3::prelude::*;
 use pyo3::exceptions::PyException;
-use std::{fmt, error};
+use pyo3::prelude::*;
+use std::{error, fmt};
 
 #[pyclass(extends=PyException)]
 #[derive(Debug)]
 pub struct KeyFileError {
-    pub message: String
+    pub message: String,
 }
 
 /// Error thrown when the keyfile is corrupt, non-writable, non-readable or the password used to decrypt is invalid.
@@ -34,7 +34,7 @@ impl error::Error for KeyFileError {}
 #[pyclass(extends=PyException)]
 #[derive(Debug)]
 pub struct ConfigurationError {
-    pub message: String
+    pub message: String,
 }
 
 /// ConfigurationError

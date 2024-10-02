@@ -1,6 +1,6 @@
-use pyo3::prelude::*;
-use pyo3::types::{PyBytes, PyString};
 use pyo3::exceptions::PyValueError;
+use pyo3::prelude::*;
+use pyo3::types::{PyBytes, PyDict, PyString};
 
 use sp_core::crypto::{AccountId32, Ss58Codec};
 use std::str;
@@ -14,9 +14,7 @@ pub(crate) const SS58_FORMAT: u8 = 42;
 pub fn get_ss58_format(ss58_address: &str) -> PyResult<u16> {
     match <AccountId32 as Ss58Codec>::from_ss58check_with_version(ss58_address) {
         Ok((_, format)) => Ok(u16::from(format)),
-        Err(_) => Err(PyValueError::new_err(
-            "Invalid SS58 address.",
-        )),
+        Err(_) => Err(PyValueError::new_err("Invalid SS58 address.")),
     }
 }
 
@@ -31,7 +29,7 @@ pub fn get_ss58_format(ss58_address: &str) -> PyResult<u16> {
 pub fn is_valid_ss58_address(address: &str) -> PyResult<bool> {
     if address.is_empty() {
         // Possibly there could be a debug log, but not a print
-        // println!("The given address is empty");
+        // utils::print(format!("The given address is empty"));
         return Ok(false);
     }
 
@@ -39,7 +37,7 @@ pub fn is_valid_ss58_address(address: &str) -> PyResult<bool> {
         Ok(_) => Ok(true),
         Err(_) => {
             // Possibly there could be a debug log, but not a print
-            // println!("Invalid SS58 address format");
+            // utils::print(format!("Invalid SS58 address format"));
             Ok(false)
         }
     }
@@ -111,6 +109,15 @@ pub fn is_valid_bittensor_address_or_public_key(address: &Bound<'_, PyAny>) -> P
             Ok(false)
         }
     })
+}
+
+pub fn print(s: String) -> () {
+    Python::with_gil(|py| {
+        let locals = PyDict::new_bound(py);
+        locals.set_item("s", s).unwrap();
+        py.run_bound("print(s, end='')", None, Some(&locals))
+            .unwrap();
+    });
 }
 
 #[cfg(test)]
