@@ -66,19 +66,9 @@ pub struct Keypair {
 impl Keypair {
     #[new]
     #[pyo3(signature = (ss58_address = None, public_key = None, private_key = None, ss58_format = 42, seed_hex = None, crypto_type = 1))]
-    pub fn new(
-        ss58_address: Option<String>,
-        public_key: Option<String>,
-        private_key: Option<String>,
-        ss58_format: u8,
-        seed_hex: Option<Vec<u8>>,
-        crypto_type: u8,
-    ) -> PyResult<Self> {
+    pub fn new(ss58_address: Option<String>, public_key: Option<String>, private_key: Option<String>, ss58_format: u8, seed_hex: Option<Vec<u8>>, crypto_type: u8) -> PyResult<Self> {
         if crypto_type != 1 {
-            return Err(PyException::new_err(format!(
-                "Unsupported crypto type: {}.",
-                crypto_type
-            )));
+            return Err(PyTypeError::new_err(format!("Unsupported crypto type: {}.", crypto_type)));
         }
 
         let mut ss58_address_res = ss58_address.clone();
