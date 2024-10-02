@@ -128,18 +128,10 @@ pub fn print(s: String) {
 /// Returns:
 ///     response: Option<&str>
 pub fn prompt(prompt: String) -> Option<String> {
-    let result: Result<String, ()> = Python::with_gil(|py| {
-        let result = py
-            .eval_bound(&format!("input(\"{}\")", prompt), None, None)
-            .map_err(|e| {
-                e.print_and_set_sys_last_vars(py);
-            })?;
-        result.extract::<String>().map_err(|e| {
-            e.print_and_set_sys_last_vars(py);
-        })
-    });
-
-    result.ok()
+    Python::with_gil(|py| {
+        let input_func = py.eval_bound(&format!("input(\"{}\")", prompt), None, None).ok()?;
+        input_func.extract::<String>().ok()
+    })
 }
 
 /// Prompts the user with a password entry and returns the response, if any.
@@ -150,23 +142,14 @@ pub fn prompt(prompt: String) -> Option<String> {
 /// Returns:
 ///     response: Option<String>
 pub fn prompt_password(prompt: String) -> Option<String> {
-    let result: Result<String, ()> = Python::with_gil(|py| {
-        let result = py
-            .eval_bound(
-                &format!("import getpass; getpass.getpass(\"{}\")", prompt),
-                None,
-                None,
-            )
-            .map_err(|e| {
-                e.print_and_set_sys_last_vars(py);
-            })?;
-        result.extract::<String>().map_err(|e| {
-            e.print_and_set_sys_last_vars(py);
-        })
-    });
+    Python::with_gil(|py| {
+        let password_func = py
+            .eval_bound(&format!("import getpass; getpass.getpass(\"{}\")", prompt), None, None)
+            .ok()?;
+        let password: String = password_func.extract::<String>().ok()?;
 
-    let password = result.unwrap();
-    Some(password.trim().to_string())
+        Some(password.trim().to_string())
+    })
 }
 
 #[cfg(test)]
