@@ -393,7 +393,8 @@ impl Wallet {
             keypair
         } else if let Some(seed) = seed {
             // seed
-            Keypair::create_from_seed(&seed)?
+            let seed_string: &Bound<PyAny> = &PyString::new_bound(py, &seed.as_str());
+            Keypair::create_from_seed(&seed_string.clone())?
         } else if let Some((json_data, passphrase)) = json {
             // json_data + passphrase
             Keypair::create_from_encrypted_json(&json_data, &passphrase)?
@@ -418,7 +419,8 @@ impl Wallet {
             keypair
         } else if let Some(seed) = seed {
             // seed
-            Keypair::create_from_seed(&seed)?
+            let seed_string: &Bound<PyAny> = &PyString::new_bound(py, &seed.as_str());
+            Keypair::create_from_seed(&seed_string.clone())?
         } else if let Some((json_data, passphrase)) = json {
             // json_data + passphrase
             Keypair::create_from_encrypted_json(&json_data, &passphrase)?

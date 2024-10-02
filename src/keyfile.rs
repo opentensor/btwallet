@@ -1,5 +1,5 @@
 use pyo3::prelude::*;
-use pyo3::types::PyBytes;
+use pyo3::types::{PyBytes, PyString};
 use pyo3::exceptions:: {PyUnicodeDecodeError, PyValueError, PyOSError, PyIOError, PyFileNotFoundError, PyPermissionError, PyUserWarning};
 
 use std::collections::HashMap;
@@ -90,7 +90,7 @@ pub fn serialized_keypair_to_keyfile_data(py: Python, keypair: &Keypair) -> PyRe
 ///         KeyFileError: Raised if the passed PyBytes cannot construct a keypair object.
 #[pyfunction]
 #[pyo3(signature = (keyfile_data))]
-pub fn deserialize_keypair_from_keyfile_data(_py: Python, keyfile_data: &[u8]) -> PyResult<Keypair> {
+pub fn deserialize_keypair_from_keyfile_data(keyfile_data: &[u8], py: Python<'_>) -> PyResult<Keypair> {
     // Decode the keyfile data from PyBytes to a string
     let decoded = from_utf8(keyfile_data)
         .map_err(|_| {PyUnicodeDecodeError::new_err("Failed to decode keyfile data.")})?;
@@ -109,7 +109,8 @@ pub fn deserialize_keypair_from_keyfile_data(_py: Python, keyfile_data: &[u8]) -
     let keypair = if secret_phrase.is_some() {
         Keypair::create_from_mnemonic(secret_phrase.unwrap().as_str())
     } else if secret_seed.is_some() {
-        Keypair::create_from_seed(secret_seed.unwrap().as_str())
+        let seed_string: &Bound<PyAny> = &PyString::new_bound(py, &secret_seed.unwrap().as_str());
+        Keypair::create_from_seed(&seed_string.clone()).into()
     } else if private_key.is_some() {
         Keypair::create_from_private_key(private_key.unwrap().as_str())
     } else if ss58_address.is_some() {
@@ -503,7 +504,7 @@ impl Keyfile {
         let decrypted_bytes: &[u8] = decrypted_keyfile_data.extract(py)?;
 
         // deserialization data into the Keypair
-        deserialize_keypair_from_keyfile_data(py, decrypted_bytes)
+        deserialize_keypair_from_keyfile_data(decrypted_bytes, py)
     }
 
     /// Returns the keyfile data under path.
@@ -767,7 +768,7 @@ impl Keyfile {
 
         let final_data = if !keyfile_data_is_encrypted(py, keyfile_data_bytes)? {
 
-            let as_keypair = deserialize_keypair_from_keyfile_data(py, keyfile_data_bytes)?;
+            let as_keypair = deserialize_keypair_from_keyfile_data(keyfile_data_bytes, py)?;
             let serialized_data = serialized_keypair_to_keyfile_data(py, &as_keypair)?;
 
             encrypt_keyfile_data(py, serialized_data.extract(py)?, password)?
@@ -806,7 +807,7 @@ impl Keyfile {
         };
 
         let decrypted_bytes: &[u8] = decrypted_data.extract(py)?;
-        let as_keypair = deserialize_keypair_from_keyfile_data(py, decrypted_bytes)?;
+        let as_keypair = deserialize_keypair_from_keyfile_data(decrypted_bytes, py)?;
 
         let serialized_data = serialized_keypair_to_keyfile_data(py, &as_keypair)?;
         self._write_keyfile_data_to_file(serialized_data.extract(py)?, true)?;

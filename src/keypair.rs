@@ -1,6 +1,6 @@
 use pyo3::exceptions::{PyException, PyTypeError, PyValueError};
 use pyo3::prelude::*;
-use pyo3::types::PyBytes;
+use pyo3::types::{PyBytes, PyString};
 use pyo3::PyObject;
 
 use sp_core::crypto::Ss58Codec;
@@ -162,21 +162,39 @@ impl Keypair {
         Ok(kp)
     }
 
-    /// Creates Keypair from a seed.
+    /// Creates Keypair from a seed for python
     #[staticmethod]
     #[pyo3(signature = (seed_hex))]
-    pub fn create_from_seed(seed_hex: &str) -> PyResult<Self> {
-        let seed_vec = hex::decode(seed_hex.trim_start_matches("0x")).map_err(|e| PyException::new_err(format!("Invalid hex string: {}", e)))?;
+    pub fn create_from_seed(seed_hex: &Bound<'_, PyAny>) -> PyResult<Self> {
+        Python::with_gil(|_py| {
+            let seed: Vec<u8>;
 
-        let pair = sr25519::Pair::from_seed_slice(&seed_vec)
-            .map_err(|e| PyException::new_err(format!("Failed to create pair from seed: {}", e)))?;
+            if seed_hex.is_instance_of::<PyString>() {
+                let seed_str: &str = seed_hex.extract()?;
+                seed = hex::decode(seed_str.trim_start_matches("0x"))
+                    .map_err(|e| PyException::new_err(format!("Invalid hex string: {}", e)))?;
 
-        let kp = Keypair {
-            seed_hex: Some(seed_vec),
-            pair: Some(pair),
-            ..Default::default()
-        };
-        Ok(kp)
+            } else if seed_hex.is_instance_of::<PyBytes>() {
+                seed = seed_hex.extract()?;
+            } else {
+                return Err(PyValueError::new_err("Unsupported seed format. Expected hex string or bytes."));
+            }
+
+            let pair = sr25519::Pair::from_seed_slice(&seed)
+                .map_err(|e| PyException::new_err(format!("Failed to create pair from seed: {}", e)))?;
+
+            let kp = Keypair {
+                seed_hex: Some(seed.to_vec()),
+                pair: Some(pair),
+                ..Default::default()
+            };
+
+            // let kp = Keypair {
+            //     ..Default::default()
+            // };
+
+            Ok(kp)
+        })
     }
 
     /// Creates Keypair from `private key`.
@@ -319,7 +337,7 @@ impl Keypair {
             bytes
         } else {
             return Err(PyErr::new::<ConfigurationError, _>(
-                "Unsupported data format. Expected str or bytes.",
+                "Unsupported data format. Expected str or bytes (verify).",
             ));
         };
 
@@ -360,7 +378,7 @@ impl Keypair {
             bytes
         } else {
             return Err(PyErr::new::<ConfigurationError, _>(
-                "Unsupported data format. Expected str or bytes.",
+                "Unsupported data format. Expected str or bytes (verify).",
             ));
         };
         // TODO: implement the ability to process data as ScaleBytes object
