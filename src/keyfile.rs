@@ -537,6 +537,18 @@ impl Keyfile {
         deserialize_keypair_from_keyfile_data(decrypted_bytes, py)
     }
 
+    /// Loads the name from keyfile.name or raises an error.
+    #[getter(name)]
+    pub fn get_name(&self) -> PyResult<String> {
+        Ok(self.name.clone())
+    }
+
+    /// Loads the name from keyfile.path or raises an error.
+    #[getter(path)]
+    pub fn get_path(&self) -> PyResult<String> {
+        Ok(self.path.clone())
+    }
+
     /// Returns the keyfile data under path.
     #[getter]
     pub fn data(&self, py: Python) -> PyResult<PyObject> {
