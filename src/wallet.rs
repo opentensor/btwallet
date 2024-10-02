@@ -119,6 +119,7 @@ impl Wallet {
     }
 
     /// Checks for existing coldkeypub and hotkeys, and creates them if non-existent.
+    #[allow(clippy::bool_comparison)]
     #[pyo3(signature = (coldkey_use_password=true, hotkey_use_password=false))]
     pub fn create(
         &mut self,
@@ -337,11 +338,8 @@ impl Wallet {
         let keypair = Keypair::create_from_uri(uri.as_str())?;
 
         if !suppress {
-            match keypair.mnemonic()? {
-                Some(m) => {
-                    display_mnemonic_msg(m.clone(), "coldkey");
-                }
-                None => {}
+            if let Some(m) = keypair.mnemonic()? {
+                display_mnemonic_msg(m.clone(), "coldkey");
             }
         }
 
@@ -363,11 +361,8 @@ impl Wallet {
         let keypair = Keypair::create_from_uri(uri.as_str())?;
 
         if !suppress {
-            match keypair.mnemonic()? {
-                Some(m) => {
-                    display_mnemonic_msg(m.clone(), "hotkey");
-                }
-                None => {}
+            if let Some(m) = keypair.mnemonic()? {
+                display_mnemonic_msg(m.clone(), "hotkey");
             }
         }
 
@@ -522,6 +517,7 @@ impl Wallet {
     }
 
     /// Regenerates the coldkey from the passed mnemonic or seed, or JSON encrypts it with the user's password and saves the file.
+    #[allow(clippy::too_many_arguments)]
     #[pyo3(signature = (mnemonic=None, seed=None, json=None, use_password=true, overwrite=false, suppress=false))]
     pub fn regenerate_coldkey(
         &mut self,
@@ -542,7 +538,7 @@ impl Wallet {
             keypair
         } else if let Some(seed) = seed {
             // seed
-            let seed_string: &Bound<PyAny> = &PyString::new_bound(py, &seed.as_str());
+            let seed_string: &Bound<PyAny> = &PyString::new_bound(py, seed.as_str());
             Keypair::create_from_seed(&seed_string.clone())?
         } else if let Some((json_data, passphrase)) = json {
             // json_data + passphrase
@@ -559,6 +555,7 @@ impl Wallet {
     }
 
     /// Regenerates the hotkey from passed mnemonic or seed, encrypts it with the user's password and saves the file.
+    #[allow(clippy::too_many_arguments)]
     #[pyo3(signature = (mnemonic=None, seed=None, json=None, use_password=true, overwrite=false, suppress=false))]
     pub fn regenerate_hotkey(
         &mut self,
@@ -579,7 +576,7 @@ impl Wallet {
             keypair
         } else if let Some(seed) = seed {
             // seed
-            let seed_string: &Bound<PyAny> = &PyString::new_bound(py, &seed.as_str());
+            let seed_string: &Bound<PyAny> = &PyString::new_bound(py, seed.as_str());
             Keypair::create_from_seed(&seed_string.clone())?
         } else if let Some((json_data, passphrase)) = json {
             // json_data + passphrase

@@ -43,13 +43,13 @@ pub fn serialized_keypair_to_keyfile_data(py: Python, keypair: &Keypair) -> PyRe
     // publicKey and privateKey fields are optional. If they exist, hex prefix "0x" is added to them.
     if let Ok(Some(public_key)) = keypair.public_key(py) {
         let public_bytes: &PyBytes = public_key.extract(py)?;
-        let public_key_str = hex::encode(public_bytes.as_bytes().to_vec());
+        let public_key_str = hex::encode(public_bytes.as_bytes());
         data.insert("accountId", json!(format!("0x{}", public_key_str)));
         data.insert("publicKey", json!(format!("0x{}", public_key_str)));
     }
     if let Ok(Some(private_key)) = &keypair.private_key(py) {
         let private_bytes: &PyBytes = private_key.extract(py)?;
-        let private_key_str = hex::encode(private_bytes.as_bytes().to_vec());
+        let private_key_str = hex::encode(private_bytes.as_bytes());
         data.insert("privateKey", json!(format!("0x{}", private_key_str)));
     }
 
@@ -109,13 +109,13 @@ pub fn deserialize_keypair_from_keyfile_data(
     let ss58_address = keyfile_dict.get("ss58Address").and_then(|v| v.clone());
 
     // Create the `Keypair` based on the available data
-    let keypair = if secret_phrase.is_some() {
-        Keypair::create_from_mnemonic(secret_phrase.unwrap().as_str())
+    let keypair = if let Some(secret_phrase) = secret_phrase {
+        Keypair::create_from_mnemonic(secret_phrase.as_str())
     } else if secret_seed.is_some() {
-        let seed_string: &Bound<PyAny> = &PyString::new_bound(py, &secret_seed.unwrap().as_str());
-        Keypair::create_from_seed(&seed_string.clone()).into()
-    } else if private_key.is_some() {
-        Keypair::create_from_private_key(private_key.unwrap().as_str())
+        let seed_string: &Bound<PyAny> = &PyString::new_bound(py, secret_seed.unwrap().as_str());
+        Keypair::create_from_seed(&seed_string.clone())
+    } else if let Some(private_key) = private_key {
+        Keypair::create_from_private_key(private_key.as_str())
     } else if ss58_address.is_some() {
         Ok(Keypair::new(ss58_address, None, None, 42, None, 1)?)
     } else {
@@ -151,7 +151,7 @@ pub fn validate_password(_py: Python, password: &str) -> PyResult<bool> {
     // Check conditions
     if password.len() >= min_length && score >= min_score {
         // Prompt user to retype the password
-        let password_verification_response = utils::prompt_password(format!("Retype your password: "))
+        let password_verification_response = utils::prompt_password("Retype your password: ".to_string())
             .expect("Failed to read the password.");
 
         // Remove potential newline or whitespace at the end
@@ -160,11 +160,11 @@ pub fn validate_password(_py: Python, password: &str) -> PyResult<bool> {
         if password == password_verification {
             Ok(true)
         } else {
-            utils::print(format!("Passwords do not match."));
+            utils::print("Passwords do not match.".to_string());
             Ok(false)
         }
     } else {
-        utils::print(format!("Password not strong enough. Try increasing the length of the password or the password complexity."));
+        utils::print("Password not strong enough. Try increasing the length of the password or the password complexity.".to_string());
         Ok(false)
     }
 }
@@ -281,9 +281,9 @@ pub fn legacy_encrypt_keyfile_data(
         // function to get password from user
         ask_password().unwrap());
 
-    utils::print(format!(
-        ":exclamation_mark: Encrypting key with legacy encryption method..."
-    ));
+    utils::print(
+        ":exclamation_mark: Encrypting key with legacy encryption method...".to_string()
+    );
 
     // Encrypting key with legacy encryption method
     let encrypted_data = encrypt_vault(keyfile_data, password.as_str())
@@ -307,7 +307,7 @@ pub fn get_coldkey_password_from_environment(
 ) -> PyResult<Option<String>> {
     let env_key: String = format!(
         "BT_COLD_PW_{}",
-        coldkey_name.to_uppercase().replace("-", "_")
+        coldkey_name.to_uppercase().replace('-', "_")
     );
     Ok(env::var(env_key).ok())
 }
@@ -348,7 +348,7 @@ pub fn encrypt_keyfile_data(
         None => ask_password()?,
     };
 
-    utils::print(format!("Encryption data..."));
+    utils::print("Encryption data...".to_string());
 
     // crate the key with pwhash Argon2i
     let key = derive_key(password.as_bytes());
@@ -420,7 +420,7 @@ pub fn decrypt_keyfile_data(
 
     let password = password.unwrap();
 
-    utils::print(format!("Decrypt data..."));
+    utils::print("Decrypt data...".to_string());
 
     // NaCl decryption
     if keyfile_data_is_encrypted_nacl(py, keyfile_data)? {
@@ -457,7 +457,7 @@ fn confirm_prompt(question: &str) -> bool {
 fn expand_tilde(path: &str) -> String {
     if path.starts_with("~/") {
         if let Some(home_dir) = dirs::home_dir() {
-            return path.replacen("~", home_dir.to_str().unwrap(), 1);
+            return path.replacen('~', home_dir.to_str().unwrap(), 1);
         }
     }
     path.to_string()
@@ -480,6 +480,7 @@ impl Keyfile {
         Ok(Keyfile { path, name })
     }
 
+    #[allow(clippy::bool_comparison)]
     fn __str__(&self, py: Python) -> PyResult<String> {
         if self.exists_on_device()? != true {
             Ok(format!("keyfile (empty, {})>", self.path))
@@ -548,7 +549,7 @@ impl Keyfile {
     /// Returns the keyfile data under path.
     #[getter]
     pub fn keyfile_data(&self, py: Python) -> PyResult<PyObject> {
-        Ok(self._read_keyfile_data_from_file(py)?)
+        self._read_keyfile_data_from_file(py)
     }
 
     /// Writes the keypair to the file and optionally encrypts data.
@@ -711,7 +712,7 @@ impl Keyfile {
             if keyfile_data_is_encrypted(py, keyfile_data_bytes)?
                 && !keyfile_data_is_encrypted_nacl(py, keyfile_data_bytes)?
             {
-                utils::print(format!("You may update the keyfile to improve security..."));
+                utils::print("You may update the keyfile to improve security...".to_string());
 
                 // ask user for the confirmation for updating
                 if update_keyfile == confirm_prompt("Update keyfile?") {
@@ -719,9 +720,9 @@ impl Keyfile {
 
                     // check mnemonic if saved
                     while !stored_mnemonic {
-                        utils::print(format!(
-                            "Please store your mnemonic in case an error occurs..."
-                        ));
+                        utils::print(
+                            "Please store your mnemonic in case an error occurs...".to_string()
+                        );
                         if confirm_prompt("Have you stored the mnemonic?") {
                             stored_mnemonic = true;
                         } else if !confirm_prompt("Retry and continue keyfile update?") {
@@ -776,17 +777,17 @@ impl Keyfile {
 
             return if !keyfile_data_is_encrypted(py, keyfile_data_bytes)? {
                 if print_result {
-                    utils::print(format!("Keyfile is not encrypted."));
+                    utils::print("Keyfile is not encrypted.".to_string());
                 }
                 Ok(false)
             } else if keyfile_data_is_encrypted_nacl(py, keyfile_data_bytes)? {
                 if print_result {
-                    utils::print(format!("Keyfile is updated."));
+                    utils::print("Keyfile is updated.".to_string());
                 }
                 Ok(true)
             } else {
                 if print_result {
-                    utils::print(format!("Keyfile is outdated, please update using 'btcli'."));
+                    utils::print("Keyfile is outdated, please update using 'btcli'.".to_string());
                 }
                 Ok(false)
             };
@@ -910,7 +911,7 @@ impl Keyfile {
         file.read_to_end(&mut data_vec)
             .map_err(|e| PyOSError::new_err(format!("Failed to read file: {}.", e)))?;
 
-        let data_bytes = PyBytes::new_bound(py, &*data_vec).into_py(py);
+        let data_bytes = PyBytes::new_bound(py, &data_vec).into_py(py);
         Ok(data_bytes)
     }
 

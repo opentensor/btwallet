@@ -14,7 +14,7 @@ impl KeyFileError {
     #[new]
     #[pyo3(signature = (message=None))]
     pub fn new(message: Option<String>) -> Self {
-        let msg = message.unwrap_or_else(|| "".to_string());
+        let msg = message.unwrap_or_default();
         KeyFileError { message: msg }
     }
 
@@ -43,7 +43,7 @@ impl ConfigurationError {
     #[new]
     #[pyo3(signature = (message=None))]
     pub fn new(message: Option<String>) -> Self {
-        let msg = message.unwrap_or_else(|| "".to_string());
+        let msg = message.unwrap_or_default();
         ConfigurationError { message: msg }
     }
 

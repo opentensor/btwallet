@@ -7,7 +7,6 @@ use crate::errors::ConfigurationError;
 use sp_core::crypto::Ss58Codec;
 use sp_core::{sr25519, ByteArray, Pair};
 
-use base64;
 use base64::{engine::general_purpose, Engine as _};
 use bip39::Mnemonic;
 use schnorrkel::{PublicKey, SecretKey};
@@ -318,9 +317,9 @@ impl Keypair {
 
         let key = Key::from_slice(&password).ok_or(PyValueError::new_err("Invalid key length"))?;
         let decrypted_data =
-            secretbox::open(message, &nonce, &key).map_err(|e| PyErr::new::<PyException, _>(e))?;
+            secretbox::open(message, &nonce, &key).map_err(PyErr::new::<PyException, _>)?;
         let (private_key, public_key) =
-            decode_pkcs8(&decrypted_data).map_err(|e| PyErr::new::<PyException, _>(e))?;
+            decode_pkcs8(&decrypted_data).map_err(PyErr::new::<PyException, _>)?;
 
         let (secret, converted_public_key) =
             pair_from_ed25519_secret_key(&private_key[..], &public_key[..]);
@@ -480,7 +479,7 @@ impl Keypair {
             let verified_wrapped = match self.crypto_type {
                 1 => {
                     // SR25519
-                    sr25519::Pair::verify(&signature, &wrapped_data, &public)
+                    sr25519::Pair::verify(&signature, wrapped_data, &public)
                 }
                 _ => {
                     return Err(PyErr::new::<PyTypeError, _>("Crypto type not supported"));
