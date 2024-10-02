@@ -21,6 +21,8 @@ from bittensor_wallet import keyfile, Keypair, Keyfile
 from bittensor_wallet import Keypair
 
 
+
+
 class MockKeyfile(Keyfile):
     """Defines an interface to a mocked keyfile object (nothing is created on device) keypair is treated as non encrypted and the data is just the string version."""
 
