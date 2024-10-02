@@ -111,13 +111,62 @@ pub fn is_valid_bittensor_address_or_public_key(address: &Bound<'_, PyAny>) -> P
     })
 }
 
-pub fn print(s: String) -> () {
+pub fn print(s: String) {
     Python::with_gil(|py| {
         let locals = PyDict::new_bound(py);
         locals.set_item("s", s).unwrap();
         py.run_bound("print(s, end='')", None, Some(&locals))
             .unwrap();
     });
+}
+
+/// Prompts the user and returns the response, if any.
+///    
+/// Args:
+///     prompt: String
+///
+/// Returns:
+///     response: Option<&str>
+pub fn prompt(prompt: String) -> Option<String> {
+    let result: Result<String, ()> = Python::with_gil(|py| {
+        let result = py
+            .eval_bound(&format!("input(\"{}\")", prompt), None, None)
+            .map_err(|e| {
+                e.print_and_set_sys_last_vars(py);
+            })?;
+        result.extract::<String>().map_err(|e| {
+            e.print_and_set_sys_last_vars(py);
+        })
+    });
+
+    result.ok()
+}
+
+/// Prompts the user with a password entry and returns the response, if any.
+///    
+/// Args:
+///     prompt (String): the prompt to ask the user with.
+///
+/// Returns:
+///     response: Option<String>
+pub fn prompt_password(prompt: String) -> Option<String> {
+    let result: Result<String, ()> = Python::with_gil(|py| {
+        let result = py
+            .eval_bound(
+                &format!("import getpass; getpass.getpass(\"{}\")", prompt),
+                None,
+                None,
+            )
+            .map_err(|e| {
+                e.print_and_set_sys_last_vars(py);
+            })?;
+        result.extract::<String>().map_err(|e| {
+            e.print_and_set_sys_last_vars(py);
+        })
+    });
+
+    let password = result.unwrap();
+    Some(password.trim().to_string())
 }
 
 #[cfg(test)]

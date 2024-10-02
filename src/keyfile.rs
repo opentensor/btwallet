@@ -8,7 +8,7 @@ use pyo3::types::{PyBytes, PyString};
 use std::collections::HashMap;
 use std::env;
 use std::fs;
-use std::io::{stdin, stdout, Read, Write};
+use std::io::{Read, Write};
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 use std::str::from_utf8;
@@ -18,7 +18,6 @@ use fernet::Fernet;
 
 use passwords::analyzer;
 use passwords::scorer;
-use rpassword::prompt_password;
 use serde_json::json;
 
 use crate::keypair::Keypair;
@@ -152,15 +151,11 @@ pub fn validate_password(_py: Python, password: &str) -> PyResult<bool> {
     // Check conditions
     if password.len() >= min_length && score >= min_score {
         // Prompt user to retype the password
-        let mut password_verification = String::new();
-
-        print!("Retype your password: ");
-        stdin()
-            .read_line(&mut password_verification)
+        let password_verification_response = utils::prompt_password(format!("Retype your password: "))
             .expect("Failed to read the password.");
 
         // Remove potential newline or whitespace at the end
-        let password_verification = password_verification.trim();
+        let password_verification = password_verification_response.trim();
 
         if password == password_verification {
             Ok(true)
@@ -180,8 +175,8 @@ pub fn validate_password(_py: Python, password: &str) -> PyResult<bool> {
 ///         password (str): The valid password entered by the user.
 #[pyfunction]
 pub fn ask_password() -> PyResult<String> {
-    let password = prompt_password("Enter your password: ")?;
-    Ok(password.trim().to_string())
+    let password = utils::prompt_password("Enter your password: ".to_string());
+    Ok(password.unwrap_or("".to_string()).trim().to_string())
 }
 
 /// Returns `true` if the keyfile data is NaCl encrypted.
@@ -454,12 +449,7 @@ pub fn decrypt_keyfile_data(
 }
 
 fn confirm_prompt(question: &str) -> bool {
-    print!("{} (y/N): ", question);
-    stdout().flush().expect("Can not flash stdout.");
-
-    let mut choice = String::new();
-    stdin()
-        .read_line(&mut choice)
+    let choice = utils::prompt(format!("{} (y/N): ", question))
         .expect("Failed to read input.");
     choice.trim().to_lowercase() == "y"
 }
@@ -674,13 +664,10 @@ impl Keyfile {
 
     /// Asks the user if it is okay to overwrite the file.
     pub fn _may_overwrite(&self) -> bool {
-        print!("File {} already exists. Overwrite? (y/N) ", self.path);
-        stdout().flush().expect("Can not update stdout.");
-
-        let mut choice = String::new();
-        stdin()
-            .read_line(&mut choice)
-            .expect("Failed to read input.");
+        let choice = utils::prompt(format!(
+            "File {} already exists. Overwrite? (y/N) ",
+            self.path
+        )).expect("Failed to read input.");
 
         choice.trim().to_lowercase() == "y"
     }

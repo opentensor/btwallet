@@ -27,7 +27,6 @@ base64 = "0.22.1"
 scrypt = "0.11.0"
 pkcs8 = "0.10.2"
 schnorrkel = "0.11.4"
-rpassword = "7.3.1"
 
 [features]
 extension-module = ["pyo3/extension-module"]
