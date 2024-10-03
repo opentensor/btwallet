@@ -1,6 +1,6 @@
 [project]
 name = "bittensor-wallet"
-version = "2.0.0-a1"
+version = "2.0.0-a2"
 description = ""
 readme = "README.md"
 license = {file = "LICENSE"}
