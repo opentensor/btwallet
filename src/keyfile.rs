@@ -83,8 +83,9 @@ pub fn serialized_keypair_to_keyfile_data(py: Python, keypair: &Keypair) -> PyRe
     }
 
     // Serialize the data into JSON string and return it as bytes
-    let json_data = serde_json::to_string(&data)
-        .map_err(|e| PyErr::new::<PyUnicodeDecodeError, _>(format!("Serialization error: {}", e)))?;
+    let json_data = serde_json::to_string(&data).map_err(|e| {
+        PyErr::new::<PyUnicodeDecodeError, _>(format!("Serialization error: {}", e))
+    })?;
     Ok(PyBytes::new_bound(py, &json_data.into_bytes()).into_py(py))
 }
 
@@ -159,8 +160,9 @@ pub fn validate_password(_py: Python, password: &str) -> PyResult<bool> {
     // Check conditions
     if password.len() >= min_length && score >= min_score {
         // Prompt user to retype the password
-        let password_verification_response = utils::prompt_password("Retype your password: ".to_string())
-            .expect("Failed to read the password.");
+        let password_verification_response =
+            utils::prompt_password("Retype your password: ".to_string())
+                .expect("Failed to read the password.");
 
         // Remove potential newline or whitespace at the end
         let password_verification = password_verification_response.trim();
@@ -289,9 +291,7 @@ pub fn legacy_encrypt_keyfile_data(
         // function to get password from user
         ask_password().unwrap());
 
-    utils::print(
-        ":exclamation_mark: Encrypting key with legacy encryption method...".to_string()
-    );
+    utils::print(":exclamation_mark: Encrypting key with legacy encryption method...".to_string());
 
     // Encrypting key with legacy encryption method
     let encrypted_data = encrypt_vault(keyfile_data, password.as_str())
@@ -394,13 +394,11 @@ pub fn decrypt_keyfile_data(
     // decrypt of keyfile_data with secretbox
     fn nacl_decrypt(keyfile_data: &[u8], key: &secretbox::Key) -> PyResult<Vec<u8>> {
         let data = &keyfile_data[5..]; // Remove the $NACL prefix
-        let nonce =
-            secretbox::Nonce::from_slice(&data[0..secretbox::NONCEBYTES]).ok_or(
-                PyErr::new::<PyRuntimeError, _>(
-                 "Invalid nonce."
-            ))?;
+        let nonce = secretbox::Nonce::from_slice(&data[0..secretbox::NONCEBYTES])
+            .ok_or(PyErr::new::<PyRuntimeError, _>("Invalid nonce."))?;
         let ciphertext = &data[secretbox::NONCEBYTES..];
-        secretbox::open(ciphertext, &nonce, key).map_err(|_| PyErr::new::<KeyFileError, _>("Wrong password for nacl decryption."))
+        secretbox::open(ciphertext, &nonce, key)
+            .map_err(|_| PyErr::new::<KeyFileError, _>("Wrong password for nacl decryption."))
     }
 
     // decrypt of keyfile_data with legacy way
@@ -412,7 +410,9 @@ pub fn decrypt_keyfile_data(
         let fernet_key = Fernet::generate_key();
         let fernet = Fernet::new(&fernet_key).unwrap();
         let keyfile_data_str = from_utf8(keyfile_data)?;
-        fernet.decrypt(keyfile_data_str).map_err(|_| PyErr::new::<KeyFileError, _>("Wrong password for nacl decryption."))
+        fernet
+            .decrypt(keyfile_data_str)
+            .map_err(|_| PyErr::new::<KeyFileError, _>("Wrong password for nacl decryption."))
     }
 
     let mut password = password;
@@ -462,8 +462,7 @@ pub fn decrypt_keyfile_data(
 }
 
 fn confirm_prompt(question: &str) -> bool {
-    let choice = utils::prompt(format!("{} (y/N): ", question))
-        .expect("Failed to read input.");
+    let choice = utils::prompt(format!("{} (y/N): ", question)).expect("Failed to read input.");
     choice.trim().to_lowercase() == "y"
 }
 
@@ -621,8 +620,9 @@ impl Keyfile {
         }
 
         // get file metadata
-        let metadata = fs::metadata(&self.path)
-            .map_err(|e| PyErr::new::<PyIOError, _>(format!("Failed to get metadata for file: {}.", e)))?;
+        let metadata = fs::metadata(&self.path).map_err(|e| {
+            PyErr::new::<PyIOError, _>(format!("Failed to get metadata for file: {}.", e))
+        })?;
 
         // check permissions
         let permissions = metadata.permissions();
@@ -642,8 +642,9 @@ impl Keyfile {
         }
 
         // get file metadata
-        let metadata = fs::metadata(&self.path)
-            .map_err(|e| PyErr::new::<PyIOError, _>(format!("Failed to get metadata for file: {}", e)))?;
+        let metadata = fs::metadata(&self.path).map_err(|e| {
+            PyErr::new::<PyIOError, _>(format!("Failed to get metadata for file: {}", e))
+        })?;
 
         // check the permissions
         let permissions = metadata.permissions();
@@ -681,7 +682,8 @@ impl Keyfile {
         let choice = utils::prompt(format!(
             "File {} already exists. Overwrite? (y/N) ",
             self.path
-        )).expect("Failed to read input.");
+        ))
+        .expect("Failed to read input.");
 
         choice.trim().to_lowercase() == "y"
     }
@@ -734,7 +736,7 @@ impl Keyfile {
                     // check mnemonic if saved
                     while !stored_mnemonic {
                         utils::print(
-                            "Please store your mnemonic in case an error occurs...".to_string()
+                            "Please store your mnemonic in case an error occurs...".to_string(),
                         );
                         if confirm_prompt("Have you stored the mnemonic?") {
                             stored_mnemonic = true;

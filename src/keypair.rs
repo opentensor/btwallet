@@ -95,8 +95,10 @@ impl Keypair {
 
         // if public_key is passed
         if let Some(public_key_str) = &public_key_res {
-            let public_key_vec = hex::decode(public_key_str.trim_start_matches("0x"))
-                .map_err(|e| PyErr::new::<PyValueError, _>(format!("Invalid `public_key` string: {}", e)))?;
+            let public_key_vec =
+                hex::decode(public_key_str.trim_start_matches("0x")).map_err(|e| {
+                    PyErr::new::<PyValueError, _>(format!("Invalid `public_key` string: {}", e))
+                })?;
 
             let public_key_array: [u8; 32] = public_key_vec
                 .try_into()
@@ -151,8 +153,8 @@ impl Keypair {
     #[staticmethod]
     #[pyo3(signature = (n_words = 12))]
     pub fn generate_mnemonic(n_words: usize) -> PyResult<String> {
-        let mnemonic =
-            Mnemonic::generate(n_words).map_err(|e| PyErr::new::<PyRuntimeError, _>(e.to_string()))?;
+        let mnemonic = Mnemonic::generate(n_words)
+            .map_err(|e| PyErr::new::<PyRuntimeError, _>(e.to_string()))?;
         Ok(mnemonic.to_string())
     }
 
@@ -181,8 +183,9 @@ impl Keypair {
 
             if seed_hex.is_instance_of::<PyString>() {
                 let seed_str: &str = seed_hex.extract()?;
-                seed = hex::decode(seed_str.trim_start_matches("0x"))
-                    .map_err(|e| PyErr::new::<PyValueError, _>(format!("Invalid hex string: {}", e)))?;
+                seed = hex::decode(seed_str.trim_start_matches("0x")).map_err(|e| {
+                    PyErr::new::<PyValueError, _>(format!("Invalid hex string: {}", e))
+                })?;
             } else if seed_hex.is_instance_of::<PyBytes>() {
                 seed = seed_hex.extract()?;
             } else {
@@ -315,7 +318,8 @@ impl Keypair {
             .map_err(|e| PyErr::new::<PyValueError, _>(e.to_string()))?;
         let message = &encrypted[24..];
 
-        let key = Key::from_slice(&password).ok_or(PyErr::new::<PyValueError, _>("Invalid key length"))?;
+        let key = Key::from_slice(&password)
+            .ok_or(PyErr::new::<PyValueError, _>("Invalid key length"))?;
         let decrypted_data =
             secretbox::open(message, &nonce, &key).map_err(PyErr::new::<PyValueError, _>)?;
         let (private_key, public_key) =
@@ -469,7 +473,9 @@ impl Keypair {
                 sr25519::Pair::verify(&signature, &data_bytes, &public)
             }
             _ => {
-                return Err(PyErr::new::<ConfigurationError, _>("Crypto type not supported"));
+                return Err(PyErr::new::<ConfigurationError, _>(
+                    "Crypto type not supported",
+                ));
             }
         };
 
@@ -482,7 +488,9 @@ impl Keypair {
                     sr25519::Pair::verify(&signature, wrapped_data, &public)
                 }
                 _ => {
-                    return Err(PyErr::new::<ConfigurationError, _>("Crypto type not supported"));
+                    return Err(PyErr::new::<ConfigurationError, _>(
+                        "Crypto type not supported",
+                    ));
                 }
             };
 
@@ -516,8 +524,9 @@ impl Keypair {
             let public_key_vec = pair.public().to_vec();
             Ok(Some(PyBytes::new_bound(py, &public_key_vec).into_py(py)))
         } else if let Some(public_key) = &self.public_key {
-            let public_key_vec = hex::decode(public_key.trim_start_matches("0x"))
-                .map_err(|e| PyErr::new::<PyValueError, _>(format!("Invalid `public_key` string: {}", e)))?;
+            let public_key_vec = hex::decode(public_key.trim_start_matches("0x")).map_err(|e| {
+                PyErr::new::<PyValueError, _>(format!("Invalid `public_key` string: {}", e))
+            })?;
             Ok(Some(PyBytes::new_bound(py, &public_key_vec).into_py(py)))
         } else {
             Ok(None)

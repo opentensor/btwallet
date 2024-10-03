@@ -1,6 +1,6 @@
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
-use pyo3::types::{PyBytes, PyDict, PyString, IntoPyDict};
+use pyo3::types::{IntoPyDict, PyBytes, PyDict, PyString};
 
 use sp_core::crypto::{AccountId32, Ss58Codec};
 use std::str;
@@ -151,13 +151,13 @@ pub fn prompt(prompt: String) -> Option<String> {
 ///     response: Option<String>
 pub fn prompt_password(prompt: String) -> Option<String> {
     let result: Result<String, ()> = Python::with_gil(|py| {
-        let locals = [
-            ("getpass", 
-                py.import_bound("getpass").map_err(|e| {
-                    e.print_and_set_sys_last_vars(py);
-                })?
-            )
-        ].into_py_dict_bound(py);
+        let locals = [(
+            "getpass",
+            py.import_bound("getpass").map_err(|e| {
+                e.print_and_set_sys_last_vars(py);
+            })?,
+        )]
+        .into_py_dict_bound(py);
         let result = py
             .eval_bound(
                 &format!("getpass.getpass(\"{}\")", prompt),

@@ -113,10 +113,18 @@ impl Wallet {
     /// Accept specific arguments from parser.
     #[classmethod]
     #[pyo3(signature = (parser, prefix = None))]
-    pub fn add_args(_: &Bound<'_, PyType>, parser: &Bound<'_, PyAny>, prefix: Option<String>, py: Python) -> PyResult<PyObject> {
-        let default_name = env::var("BT_WALLET_NAME").unwrap_or_else(|_| BT_WALLET_NAME.to_string());
-        let default_hotkey = env::var("BT_WALLET_HOTKEY").unwrap_or_else(|_| BT_WALLET_HOTKEY.to_string());
-        let default_path = env::var("BT_WALLET_PATH").unwrap_or_else(|_| BT_WALLET_PATH.to_string());
+    pub fn add_args(
+        _: &Bound<'_, PyType>,
+        parser: &Bound<'_, PyAny>,
+        prefix: Option<String>,
+        py: Python,
+    ) -> PyResult<PyObject> {
+        let default_name =
+            env::var("BT_WALLET_NAME").unwrap_or_else(|_| BT_WALLET_NAME.to_string());
+        let default_hotkey =
+            env::var("BT_WALLET_HOTKEY").unwrap_or_else(|_| BT_WALLET_HOTKEY.to_string());
+        let default_path =
+            env::var("BT_WALLET_PATH").unwrap_or_else(|_| BT_WALLET_PATH.to_string());
 
         let prefix_str = if let Some(value) = prefix {
             format!("\"{}\"", value)
@@ -124,7 +132,8 @@ impl Wallet {
             "None".to_string()
         };
 
-        let code = format!(r#"
+        let code = format!(
+            r#"
 prefix = {}
 prefix_str = "" if prefix is None else prefix + "."
 
@@ -149,11 +158,16 @@ try:
         help="The path to your bittensor wallets",
     )
 except argparse.ArgumentError:
-    pass"#, prefix_str, default_name, default_hotkey, default_path);
+    pass"#,
+            prefix_str, default_name, default_hotkey, default_path
+        );
 
-        py
-            .run_bound(&code, Some(&[("parser", parser)].into_py_dict_bound(py)), None)
-            .expect("Python parser parse failed.");
+        py.run_bound(
+            &code,
+            Some(&[("parser", parser)].into_py_dict_bound(py)),
+            None,
+        )
+        .expect("Python parser parse failed.");
         Ok(parser.to_object(py))
     }
 
