@@ -25,7 +25,7 @@ pub fn display_mnemonic_msg(mnemonic: String, key_type: &str) {
         mnemonic.green()
     ));
     utils::print(format!(
-        "\nYou can use the mnemonic to recreate the key with `{}` in case it gets lost.",
+        "\nYou can use the mnemonic to recreate the key with `{}` in case it gets lost.\n",
         "btcli".green()
     ));
 }
