@@ -18,11 +18,7 @@
 import json
 import time
 import pytest
-import random
-import re
 from bittensor_wallet import Wallet, keyfile
-from bittensor_wallet.errors import KeyFileError
-from rich.prompt import Confirm
 from ansible_vault import Vault
 from unittest.mock import patch
 

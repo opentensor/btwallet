@@ -18,7 +18,6 @@
 from typing import Optional
 
 from bittensor_wallet import keyfile, Keypair, Keyfile
-from bittensor_wallet import Keypair
 
 
 class MockKeyfile(Keyfile):
