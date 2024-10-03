@@ -38,7 +38,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install OpenSSL
-        run: sudo apt-get update && sudo apt-get install -y libssl-dev pkg-config
+        run: apt update && apt install -y openssl libssl-dev pkg-config
       - uses: actions/setup-python@v5
         with:
           python-version: 3.x
@@ -71,7 +71,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install OpenSSL
-        run: sudo apt-get update && sudo apt-get install -y libssl-dev pkg-config
+        run: apt update && apt install -y openssl libssl-dev pkg-config
       - uses: actions/setup-python@v5
         with:
           python-version: 3.x
