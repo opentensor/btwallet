@@ -47,4 +47,22 @@ impl Config {
     fn __repr__(&self) -> PyResult<String> {
         self.__str__()
     }
+
+    /// Returns wallet name
+    #[getter]
+    pub fn name(&self) -> PyResult<String> {
+        Ok(self.wallet.name.clone())
+    }
+
+    /// Returns wallet name
+    #[getter]
+    pub fn path(&self) -> PyResult<String> {
+        Ok(self.wallet.path.clone())
+    }
+
+    /// Returns wallet name
+    #[getter]
+    pub fn hotkey(&self) -> PyResult<String> {
+        Ok(self.wallet.hotkey.clone())
+    }
 }
