@@ -170,7 +170,7 @@ pub fn validate_password(_py: Python, password: &str) -> PyResult<bool> {
         if password == password_verification {
             Ok(true)
         } else {
-            utils::print("Passwords do not match.".to_string());
+            utils::print("Passwords do not match.\n".to_string());
             Ok(false)
         }
     } else {
@@ -184,8 +184,19 @@ pub fn validate_password(_py: Python, password: &str) -> PyResult<bool> {
 ///     Returns:
 ///         password (str): The valid password entered by the user.
 #[pyfunction]
-pub fn ask_password() -> PyResult<String> {
+pub fn ask_password(py: Python) -> PyResult<String> {
+
+    let mut valid = false;
     let password = utils::prompt_password("Enter your password: ".to_string());
+
+    while !valid {
+        if let Some(ref password) = password {
+            valid = validate_password(py, &password)?;
+        } else {
+            valid = true
+        }
+    }
+
     Ok(password.unwrap_or("".to_string()).trim().to_string())
 }
 
@@ -289,7 +300,7 @@ pub fn legacy_encrypt_keyfile_data(
 ) -> PyResult<PyObject> {
     let password = password.unwrap_or_else(||
         // function to get password from user
-        ask_password().unwrap());
+        ask_password(py).unwrap());
 
     utils::print(":exclamation_mark: Encrypting key with legacy encryption method...".to_string());
 
@@ -353,7 +364,7 @@ pub fn encrypt_keyfile_data(
     // get password or ask user
     let password = match password {
         Some(pwd) => pwd,
-        None => ask_password()?,
+        None => ask_password(py)?,
     };
 
     utils::print("Encrypting...".to_string());
@@ -426,7 +437,7 @@ pub fn decrypt_keyfile_data(
 
     // If password is still None, ask the user for input
     if password.is_none() {
-        password = Some(ask_password()?);
+        password = Some(ask_password(py)?);
     }
 
     let password = password.unwrap();
@@ -749,7 +760,7 @@ impl Keyfile {
                     let mut decrypted_keyfile_data: Option<Vec<u8>> = None;
                     let mut password: Option<String> = None;
                     while decrypted_keyfile_data.is_none() {
-                        let pwd = ask_password()?;
+                        let pwd = ask_password(py)?;
                         password = Some(pwd.clone());
 
                         match decrypt_keyfile_data(
