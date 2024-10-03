@@ -20,7 +20,7 @@ from typing import Optional
 
 from Crypto.Hash import keccak
 
-from bittensor_wallet import Keyfile, Wallet, utils, Keypair
+from bittensor_wallet import Keyfile, Wallet, Keypair
 from .keyfile_mock import MockKeyfile
 
 
