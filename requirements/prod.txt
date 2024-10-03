@@ -1,3 +1,4 @@
+py-bip39-bindings==0.1.11
 termcolor
 eth-utils<2.3.0
 substrate-interface~=1.7.9
