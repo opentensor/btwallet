@@ -26,7 +26,6 @@ use crate::utils;
 
 use sodiumoxide::crypto::pwhash;
 use sodiumoxide::crypto::secretbox;
-use crate::errors::KeyFileError;
 
 const NACL_SALT: &[u8] = b"\x13q\x83\xdf\xf1Z\t\xbc\x9c\x90\xb5Q\x879\xe9\xb1";
 const LEGACY_SALT: &[u8] = b"Iguesscyborgslikemyselfhaveatendencytobeparanoidaboutourorigins";
