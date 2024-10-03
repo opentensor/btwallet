@@ -49,6 +49,13 @@ Repository = "https://github.com/opentensor/btwallet"
 requires = ["maturin>=1.0,<2.0"]
 build-backend = "maturin"
 
+[tool.setuptools]
+include-package-data = false
+
+[tool.setuptools.packages.find]
+include = ["bittensor_wallet*", "src*"]
+exclude = ["tests*"]
+
 [project.optional-dependencies]
 dev = [
     "pytest==7.2.0",
@@ -69,5 +76,6 @@ dev = [
     "ruff==0.4.7",
     "aioresponses==0.7.6",
     "factory-boy==3.3.0",
-    "maturin==1.7.0"
+    "maturin==1.7.0",
+    "py-bip39-bindings==0.1.11",
 ]

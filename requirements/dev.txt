@@ -17,3 +17,4 @@ ruff==0.4.7
 aioresponses==0.7.6
 factory-boy==3.3.0
 maturin==1.7.0
+py-bip39-bindings==0.1.11
