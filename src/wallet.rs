@@ -1,8 +1,9 @@
 use pyo3::exceptions::{PyRuntimeError, PyValueError};
 use pyo3::prelude::*;
-use pyo3::types::{PyString, PyType};
+use pyo3::types::{IntoPyDict, PyString, PyType};
 
 use colored::Colorize;
+use std::env;
 
 use crate::config::Config;
 use crate::constants::{BT_WALLET_HOTKEY, BT_WALLET_NAME, BT_WALLET_PATH};
@@ -12,6 +13,7 @@ use crate::keypair::Keypair;
 use crate::utils::{self, is_valid_bittensor_address_or_public_key};
 
 use dirs::home_dir;
+
 
 /// Display the mnemonic and a warning message to keep the mnemonic safe.
 #[pyfunction]
@@ -105,6 +107,53 @@ impl Wallet {
     #[classmethod]
     pub fn help(_: &Bound<'_, PyType>) -> PyResult<Config> {
         unimplemented!()
+    }
+
+    /// Accept specific arguments from parser.
+    #[classmethod]
+    #[pyo3(signature = (parser, prefix = None))]
+    pub fn add_args(_: &Bound<'_, PyType>, parser: &Bound<'_, PyAny>, prefix: Option<String>, py: Python) -> PyResult<PyObject> {
+        let default_name = env::var("BT_WALLET_NAME").unwrap_or_else(|_| BT_WALLET_NAME.to_string());
+        let default_hotkey = env::var("BT_WALLET_HOTKEY").unwrap_or_else(|_| BT_WALLET_HOTKEY.to_string());
+        let default_path = env::var("BT_WALLET_PATH").unwrap_or_else(|_| BT_WALLET_PATH.to_string());
+
+        let prefix_str = if let Some(value) = prefix {
+            format!("\"{}\"", value)
+        } else {
+            "None".to_string()
+        };
+
+        let code = format!(r#"
+prefix = {}
+prefix_str = "" if prefix is None else prefix + "."
+
+try:
+    parser.add_argument(
+        "--" + prefix_str + "wallet.name",
+        required=False,
+        default="{}",
+        help="The name of the wallet to unlock for running bittensor "
+        "(name mock is reserved for mocking this wallet)",
+    )
+    parser.add_argument(
+        "--" + prefix_str + "wallet.hotkey",
+        required=False,
+        default="{}",
+        help="The name of the wallet's hotkey.",
+    )
+    parser.add_argument(
+        "--" + prefix_str + "wallet.path",
+        required=False,
+        default="{}",
+        help="The path to your bittensor wallets",
+    )
+except argparse.ArgumentError:
+    pass"#, prefix_str, default_name, default_hotkey, default_path);
+
+        py
+            .run_bound(&*code, Some(&[("parser", parser)].into_py_dict_bound(py)), None)
+            .expect("Python parser parse failed.");
+        Ok(parser.to_object(py))
     }
 
     /// Checks for existing coldkeypub and hotkeys, and creates them if non-existent.
