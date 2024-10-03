@@ -9,143 +9,68 @@ on:
   push:
     branches:
       - main
-    tags:
-      - '*'
   pull_request:
+    branches:
+      - main
+  release:
+    types: [published]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  linux:
+  build-wheels:
     runs-on: ${{ matrix.platform.runner }}
     strategy:
       matrix:
-        platform:
-          - runner: ubuntu-latest
-            target: x86_64
-          # - runner: ubuntu-latest
-          #   target: x86
-          # - runner: ubuntu-latest
-          #   target: aarch64
-          # - runner: ubuntu-latest
-          #   target: armv7
-          # - runner: ubuntu-latest
-          #   target: s390x
-          # - runner: ubuntu-latest
-          #   target: ppc64le
+        os: [ubuntu-latest, macos-latest]
+        python-version: ['3.9', '3.10', '3.11']
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
         with:
-          python-version: 3.x
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install system dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libsodium-dev
+
+      - name: Install system dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: brew install libsodium
+
+      - name: Install maturin
+        run: pip install maturin
+
       - name: Build wheels
-        uses: PyO3/maturin-action@v1.44.0
-        with:
-          target: ${{ matrix.platform.target }}
-          args: --release --out dist --find-interpreter
-          sccache: 'true'
-          manylinux: auto
-          before-script-linux: (apt-get update && apt-get install apt-utils && apt-get install -y pkg-config libssl-dev) || (yum install openssl openssl-devel -y) 
+        run: maturin build --release --out dist --manylinux auto
+
+      - name: Install built package
+        run: pip install dist/*.whl
+
+      - name: Run tests
+        run: |
+          # Здесь вы можете запустить ваши тесты
+          python -c "import bittensor_wallet; print('Module imported successfully')"
+
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
-          name: wheels-linux-${{ matrix.platform.target }}
-          path: dist
-
-  musllinux:
-    runs-on: ${{ matrix.platform.runner }}
-    strategy:
-      matrix:
-        platform:
-          - runner: ubuntu-latest
-            target: x86_64
-          # - runner: ubuntu-latest
-          #   target: x86
-          # - runner: ubuntu-latest
-          #   target: aarch64
-          # - runner: ubuntu-latest
-          #   target: armv7
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: 3.x
-      - name: Build wheels
-        uses: PyO3/maturin-action@v1.44.0
-        with:
-          target: ${{ matrix.platform.target }}
-          args: --release --out dist --find-interpreter
-          sccache: 'true'
-          manylinux: musllinux_1_2
-          before-script-linux: (apt-get update && apt-get install apt-utils && apt-get install -y pkg-config libssl-dev) || (yum install openssl openssl-devel -y) 
-      - name: Upload wheels
-        uses: actions/upload-artifact@v4
-        with:
-          name: wheels-musllinux-${{ matrix.platform.target }}
-          path: dist
-
-  macos:
-    runs-on: ${{ matrix.platform.runner }}
-    strategy:
-      matrix:
-        platform:
-          - runner: macos-12
-            target: x86_64
-          - runner: macos-14
-            target: aarch64
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: 3.x
-      - name: Build wheels
-        uses: PyO3/maturin-action@v1.44.0
-        with:
-          target: ${{ matrix.platform.target }}
-          args: --release --out dist --find-interpreter
-          sccache: 'true'
-      - name: Upload wheels
-        uses: actions/upload-artifact@v4
-        with:
-          name: wheels-macos-${{ matrix.platform.target }}
-          path: dist
-
-  sdist:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Build sdist
-        uses: PyO3/maturin-action@v1.44.0
-        with:
-          command: sdist
-          args: --out dist
-      - name: Upload sdist
-        uses: actions/upload-artifact@v4
-        with:
-          name: wheels-sdist
-          path: dist
+          name: wheels-${{ matrix.os }}-py${{ matrix.python-version }}
+          path: dist/*.whl
 
   release:
     name: Release
     runs-on: ubuntu-latest
-    environment: release
-    if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
-    needs: [linux, musllinux, macos, sdist]
-    permissions:
-      # Use to sign the release artifacts
-      id-token: write
-      # Used to upload release artifacts
-      contents: write
-      # Used to generate artifact attestation
-      attestations: write
     steps:
       - uses: actions/download-artifact@v4
-      - name: Generate artifact attestation
-        uses: actions/attest-build-provenance@v1
         with:
-          subject-path: 'wheels-*/*'
+          name: wheels-*
+          path: dist
+
       - name: Publish to PyPI
         if: "startsWith(github.ref, 'refs/tags/')"
         uses: PyO3/maturin-action@v1.44.0
