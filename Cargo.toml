@@ -1,6 +1,6 @@
 [package]
 name = "bittensor_wallet"
-version = "2.0.0-a2"
+version = "2.0.0-a3"
 edition = "2021"
 
 [lib]
