@@ -533,28 +533,6 @@ impl Keypair {
         }
     }
 
-    /// TODO (Roman): remove this when Wallet is ready
-    /// Returns the private key as a bytes.
-    #[getter]
-    pub fn private_key(&self, py: Python) -> PyResult<Option<PyObject>> {
-        match &self.pair {
-            Some(pair) => {
-                let seed = pair.to_raw_vec();
-                Ok(Some(PyBytes::new_bound(py, &seed).into_py(py)))
-            }
-            None => {
-                if self.private_key.is_none() {
-                    Ok(None)
-                } else {
-                    Ok(Some(
-                        PyBytes::new_bound(py, self.private_key.as_ref().unwrap().as_bytes())
-                            .into_py(py),
-                    ))
-                }
-            }
-        }
-    }
-
     /// Returns the ss58_format as integer.
     #[getter]
     pub fn ss58_format(&self) -> PyResult<u8> {
@@ -586,6 +564,29 @@ impl Keypair {
         }
     }
 }
+
+impl Keypair {
+    /// Returns the private key as a bytes for internal usage.
+    pub fn private_key(&self, py: Python) -> PyResult<Option<PyObject>> {
+        match &self.pair {
+            Some(pair) => {
+                let seed = pair.to_raw_vec();
+                Ok(Some(PyBytes::new_bound(py, &seed).into_py(py)))
+            }
+            None => {
+                if self.private_key.is_none() {
+                    Ok(None)
+                } else {
+                    Ok(Some(
+                        PyBytes::new_bound(py, self.private_key.as_ref().unwrap().as_bytes())
+                            .into_py(py),
+                    ))
+                }
+            }
+        }
+    }
+}
+
 
 // Default values for Keypair
 impl Default for Keypair {
