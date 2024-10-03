@@ -38,7 +38,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install OpenSSL development packages
-        run: sudo apt-get update && sudo apt-get install -y pkgconf libssl-dev openssl openssl-dev openssl-devel
+        run: sudo apt-get update && sudo apt-get install -y pkgconf libssl-dev openssl
       - name: Set PKG_CONFIG_PATH
         run: |
           echo "PKG_CONFIG_PATH=$(pkg-config --variable pc_path pkg-config)" >> $GITHUB_ENV
