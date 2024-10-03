@@ -1,6 +1,6 @@
 use pyo3::exceptions::{
     PyFileNotFoundError, PyIOError, PyOSError, PyPermissionError, PyUnicodeDecodeError,
-    PyUserWarning, PyValueError,
+    PyValueError,
 };
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyString};
@@ -26,6 +26,7 @@ use crate::utils;
 
 use sodiumoxide::crypto::pwhash;
 use sodiumoxide::crypto::secretbox;
+use crate::errors::KeyFileError;
 
 const NACL_SALT: &[u8] = b"\x13q\x83\xdf\xf1Z\t\xbc\x9c\x90\xb5Q\x879\xe9\xb1";
 const LEGACY_SALT: &[u8] = b"Iguesscyborgslikemyselfhaveatendencytobeparanoidaboutourorigins";
@@ -934,10 +935,9 @@ impl Keyfile {
     ) -> PyResult<()> {
         // ask user for rewriting
         if self.exists_on_device()? && !overwrite && !self._may_overwrite() {
-            return Err(PyUserWarning::new_err(format!(
-                "Keyfile at: {} is not writable",
-                self.path
-            )));
+            return Err(
+                PyErr::new::<KeyFileError, _>(format!("Keyfile at: {} is not writable", self.path)
+            ));
         }
 
         let mut keyfile = fs::OpenOptions::new()
