@@ -349,7 +349,7 @@ pub fn encrypt_keyfile_data(
         None => ask_password()?,
     };
 
-    utils::print("Encryption data...".to_string());
+    utils::print("Encrypting data...".to_string());
 
     // crate the key with pwhash Argon2i
     let key = derive_key(password.as_bytes());
@@ -421,7 +421,7 @@ pub fn decrypt_keyfile_data(
 
     let password = password.unwrap();
 
-    utils::print("Decrypt data...".to_string());
+    utils::print("Decrypting data...".to_string());
 
     // NaCl decryption
     if keyfile_data_is_encrypted_nacl(py, keyfile_data)? {
