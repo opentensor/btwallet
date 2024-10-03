@@ -114,7 +114,6 @@ def get_mock_keypair(uid: int, test_name: Optional[str] = None) -> Keypair:
 
     return Keypair.create_from_seed(
         seed_hex=int.to_bytes(uid, 32, "big", signed=False),
-        ss58_format=utils.SS58_FORMAT,
     )
 
 

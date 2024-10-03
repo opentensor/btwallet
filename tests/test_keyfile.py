@@ -163,7 +163,7 @@ def test_sign_and_verify_invalid_signature():
     mnemonic = Keypair.generate_mnemonic()
     keypair = Keypair.create_from_mnemonic(mnemonic)
     signature = "Test"
-    with pytest.raises(TypeError):
+    with pytest.raises(ValueError):
         keypair.verify("Test1231223123123", signature)
 
 
