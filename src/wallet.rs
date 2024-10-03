@@ -273,7 +273,11 @@ except argparse.ArgumentError:
     /// Loads the coldkey from wallet.path/wallet.name/coldkey or raises an error.
     #[getter(coldkey)]
     pub fn coldkey_py_property(&self, py: Python) -> PyResult<Keypair> {
-        self.get_coldkey(None, py)
+        if let Some(coldkey) = &self._coldkey {
+            Ok(coldkey.clone())
+        } else {
+            self.get_coldkey(None, py)
+        }
     }
 
     /// Loads the coldkeypub from wallet.path/wallet.name/coldkeypub.txt or raises an error.
