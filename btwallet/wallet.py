@@ -881,13 +881,13 @@ class Wallet:
     ) -> "Wallet": ...
 
     def regenerate_hotkey(
-            self,
-            mnemonic: Optional[str] = None,
-            seed: Optional[str] = None,
-            json: Optional[Tuple[str, str]] = None,
-            use_password: bool = True,
-            overwrite: bool = False,
-            suppress: bool = False,
+        self,
+        mnemonic: Optional[str] = None,
+        seed: Optional[str] = None,
+        json: Optional[Tuple[str, str]] = None,
+        use_password: bool = True,
+        overwrite: bool = False,
+        suppress: bool = False,
     ) -> "Wallet":
         """Regenerates the hotkey from passed mnemonic or seed, encrypts it with the user's password and saves the file.
 

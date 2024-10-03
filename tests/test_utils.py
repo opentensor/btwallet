@@ -39,14 +39,11 @@ def test_get_ss58_format(mocker):
         ("InvalidAddress", False),
     ],
 )
-def test_is_valid_ss58_address(
-    address, expected_result
-):
+def test_is_valid_ss58_address(address, expected_result):
     """Test `is_valid_ss58_address` function with different inputs."""
 
     # Mock ss58.is_valid_ss58_address
     assert utils.is_valid_ss58_address(address) == expected_result
-
 
 
 # @pytest.mark.parametrize(

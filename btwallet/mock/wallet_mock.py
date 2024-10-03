@@ -35,7 +35,7 @@ class MockWallet(Wallet):
     def __init__(self, *args, **kwargs) -> None:
         pass
 
-    def __new__(cls, *args, **kwargs) -> 'MockWallet':
+    def __new__(cls, *args, **kwargs) -> "MockWallet":
         r"""Init bittensor wallet object containing a hot and coldkey.
         Args:
             _mock (required=True, default=False):
