@@ -49,10 +49,7 @@ Repository = "https://github.com/opentensor/btwallet"
 requires = ["maturin>=1.0,<2.0"]
 build-backend = "maturin"
 
-[tool.setuptools]
-include-package-data = false
-
-[tool.setuptools.packages.find]
+[tool.maturin]
 include = ["bittensor_wallet*", "src*"]
 exclude = ["tests*"]
 
