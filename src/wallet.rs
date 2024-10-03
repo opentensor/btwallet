@@ -1,4 +1,4 @@
-use pyo3::exceptions::{PyRuntimeError, PyValueError};
+use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::{PyString, PyType};
 
@@ -12,6 +12,9 @@ use crate::keypair::Keypair;
 use crate::utils::{self, is_valid_bittensor_address_or_public_key};
 
 use dirs::home_dir;
+
+// TODO: Replace alias with imports
+type PyRuntimeError = KeyFileError;
 
 /// Display the mnemonic and a warning message to keep the mnemonic safe.
 #[pyfunction]
@@ -169,7 +172,7 @@ impl Wallet {
     pub fn hotkey_file(&self) -> PyResult<Keyfile> {
         // get home dir
         let home = home_dir()
-            .ok_or_else(|| PyRuntimeError::new_err("Failed to get user home directory."))?;
+            .ok_or_else(|| PyErr::new::<PyRuntimeError, _>("Failed to get user home directory."))?;
 
         // concatenate wallet path
         let wallet_path = home.join(&self.path).join(&self.name);
@@ -188,7 +191,7 @@ impl Wallet {
     pub fn coldkey_file(&self) -> PyResult<Keyfile> {
         // get home dir
         let home = home_dir()
-            .ok_or_else(|| PyRuntimeError::new_err("Failed to get user home directory."))?;
+            .ok_or_else(|| PyErr::new::<PyRuntimeError, _>("Failed to get user home directory."))?;
 
         // concatenate wallet path
         let wallet_path = home.join(&self.path).join(&self.name);
@@ -207,7 +210,7 @@ impl Wallet {
     pub fn coldkeypub_file(&self) -> PyResult<Keyfile> {
         // get home dir
         let home = home_dir()
-            .ok_or_else(|| PyRuntimeError::new_err("Failed to get user home directory."))?;
+            .ok_or_else(|| PyErr::new::<PyRuntimeError, _>("Failed to get user home directory."))?;
 
         // concatenate wallet path
         let wallet_path = home.join(&self.path).join(&self.name);
@@ -489,7 +492,7 @@ impl Wallet {
         py: Python,
     ) -> PyResult<Self> {
         if ss58_address.is_none() && public_key.is_none() {
-            return Err(PyValueError::new_err(
+            return Err(PyErr::new::<PyValueError, _>(
                 "Either ss58_address or public_key must be passed.",
             ));
         }
@@ -500,7 +503,7 @@ impl Wallet {
         let address_to_check: &Bound<PyAny> = binding_py_string.as_ref();
 
         if !is_valid_bittensor_address_or_public_key(address_to_check)? {
-            return Err(PyValueError::new_err(format!(
+            return Err(PyErr::new::<PyValueError, _>(format!(
                 "Invalid {}.",
                 if ss58_address.is_some() {
                     "ss58_address"
@@ -544,7 +547,7 @@ impl Wallet {
             // json_data + passphrase
             Keypair::create_from_encrypted_json(&json_data, &passphrase)?
         } else {
-            return Err(PyValueError::new_err(
+            return Err(PyErr::new::<PyValueError, _>(
                 "Must pass either mnemonic, seed, or json.",
             ));
         };
@@ -582,7 +585,7 @@ impl Wallet {
             // json_data + passphrase
             Keypair::create_from_encrypted_json(&json_data, &passphrase)?
         } else {
-            return Err(PyValueError::new_err(
+            return Err(PyErr::new::<PyValueError, _>(
                 "Must pass either mnemonic, seed, or json.",
             ));
         };
