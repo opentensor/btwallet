@@ -20,6 +20,7 @@ use passwords::analyzer;
 use passwords::scorer;
 use serde_json::json;
 
+use crate::errors::KeyFileError;
 use crate::keypair::Keypair;
 use crate::utils;
 
@@ -384,24 +385,24 @@ pub fn decrypt_keyfile_data(
     coldkey_name: Option<String>,
 ) -> PyResult<PyObject> {
     // decrypt of keyfile_data with secretbox
-    fn nacl_decrypt(keyfile_data: &[u8], key: &secretbox::Key) -> Vec<u8> {
+    fn nacl_decrypt(keyfile_data: &[u8], key: &secretbox::Key) -> PyResult<Vec<u8>> {
         let data = &keyfile_data[5..]; // Remove the $NACL prefix
         let nonce =
             secretbox::Nonce::from_slice(&data[0..secretbox::NONCEBYTES]).expect("Invalid nonce.");
         let ciphertext = &data[secretbox::NONCEBYTES..];
-        secretbox::open(ciphertext, &nonce, key).expect("Wrong password.")
+        Ok(secretbox::open(ciphertext, &nonce, key).map_err(|_| PyErr::new::<KeyFileError, _>("Wrong password for nacl decryption."))?)
     }
 
     // decrypt of keyfile_data with legacy way
-    fn legacy_decrypt(password: &str, keyfile_data: &[u8]) -> Vec<u8> {
+    fn legacy_decrypt(password: &str, keyfile_data: &[u8]) -> PyResult<Vec<u8>> {
         let kdf = pbkdf2::pbkdf2_hmac::<sha2::Sha256>;
         let mut key = vec![0; 32];
         kdf(password.as_bytes(), LEGACY_SALT, 10000000, &mut key);
 
         let fernet_key = Fernet::generate_key();
         let fernet = Fernet::new(&fernet_key).unwrap();
-        let keyfile_data_str = from_utf8(keyfile_data).unwrap();
-        fernet.decrypt(keyfile_data_str).unwrap()
+        let keyfile_data_str = from_utf8(keyfile_data)?;
+        Ok(fernet.decrypt(keyfile_data_str).map_err(|_| PyErr::new::<KeyFileError, _>("Wrong password for nacl decryption."))?)
     }
 
     let mut password = password;
@@ -425,20 +426,22 @@ pub fn decrypt_keyfile_data(
     // NaCl decryption
     if keyfile_data_is_encrypted_nacl(py, keyfile_data)? {
         let key = derive_key(password.as_bytes());
-        let decrypted_data = nacl_decrypt(keyfile_data, &key);
+        let decrypted_data = nacl_decrypt(keyfile_data, &key)
+            .map_err(|_| PyErr::new::<KeyFileError, _>("Wrong password for decryption."))?;
         return Ok(PyBytes::new_bound(py, &decrypted_data).into_py(py));
     }
 
     // Ansible Vault decryption
     if keyfile_data_is_encrypted_ansible(py, keyfile_data)? {
         let decrypted_data = decrypt_vault(keyfile_data, password.as_str())
-            .map_err(|err| PyErr::new::<PyValueError, _>(format!("{}", err)))?;
+            .map_err(|_| PyErr::new::<KeyFileError, _>("Wrong password for decryption."))?;
         return Ok(PyBytes::new_bound(py, &decrypted_data).into_py(py));
     }
 
     // Legacy decryption
     if keyfile_data_is_encrypted_legacy(py, keyfile_data)? {
-        let decrypted_data = legacy_decrypt(&password, keyfile_data);
+        let decrypted_data = legacy_decrypt(&password, keyfile_data)
+            .map_err(|_| PyErr::new::<KeyFileError, _>("Wrong password for decryption."))?;
         return Ok(PyBytes::new_bound(py, &decrypted_data).into_py(py));
     }
 

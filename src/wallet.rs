@@ -242,7 +242,7 @@ except argparse.ArgumentError:
         // concatenate wallet path
         let wallet_path = home.join(&self.path).join(&self.name);
 
-        // concatenate hotkey path
+        // concatenate coldkey path
         let coldkey_path = wallet_path.join("coldkey");
 
         Keyfile::new(
