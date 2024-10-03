@@ -152,7 +152,7 @@ except argparse.ArgumentError:
     pass"#, prefix_str, default_name, default_hotkey, default_path);
 
         py
-            .run_bound(&*code, Some(&[("parser", parser)].into_py_dict_bound(py)), None)
+            .run_bound(&code, Some(&[("parser", parser)].into_py_dict_bound(py)), None)
             .expect("Python parser parse failed.");
         Ok(parser.to_object(py))
     }

@@ -400,7 +400,7 @@ pub fn decrypt_keyfile_data(
                  "Invalid nonce."
             ))?;
         let ciphertext = &data[secretbox::NONCEBYTES..];
-        Ok(secretbox::open(ciphertext, &nonce, key).map_err(|_| PyErr::new::<KeyFileError, _>("Wrong password for nacl decryption."))?)
+        secretbox::open(ciphertext, &nonce, key).map_err(|_| PyErr::new::<KeyFileError, _>("Wrong password for nacl decryption."))
     }
 
     // decrypt of keyfile_data with legacy way
@@ -412,7 +412,7 @@ pub fn decrypt_keyfile_data(
         let fernet_key = Fernet::generate_key();
         let fernet = Fernet::new(&fernet_key).unwrap();
         let keyfile_data_str = from_utf8(keyfile_data)?;
-        Ok(fernet.decrypt(keyfile_data_str).map_err(|_| PyErr::new::<KeyFileError, _>("Wrong password for nacl decryption."))?)
+        fernet.decrypt(keyfile_data_str).map_err(|_| PyErr::new::<KeyFileError, _>("Wrong password for nacl decryption."))
     }
 
     let mut password = password;
