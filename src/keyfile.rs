@@ -1,6 +1,5 @@
 use pyo3::exceptions::{
-    PyFileNotFoundError, PyIOError, PyOSError, PyPermissionError, PyUnicodeDecodeError,
-    PyValueError,
+    PyFileNotFoundError, PyIOError, PyOSError, PyPermissionError, PyRuntimeError, PyUnicodeDecodeError, PyValueError
 };
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyString};
@@ -22,10 +21,10 @@ use serde_json::json;
 
 use crate::keypair::Keypair;
 use crate::utils;
+use crate::errors::KeyFileError;
 
 use sodiumoxide::crypto::pwhash;
 use sodiumoxide::crypto::secretbox;
-use crate::errors::KeyFileError;
 
 const NACL_SALT: &[u8] = b"\x13q\x83\xdf\xf1Z\t\xbc\x9c\x90\xb5Q\x879\xe9\xb1";
 const LEGACY_SALT: &[u8] = b"Iguesscyborgslikemyselfhaveatendencytobeparanoidaboutourorigins";
@@ -385,12 +384,17 @@ pub fn decrypt_keyfile_data(
     coldkey_name: Option<String>,
 ) -> PyResult<PyObject> {
     // decrypt of keyfile_data with secretbox
-    fn nacl_decrypt(keyfile_data: &[u8], key: &secretbox::Key) -> Vec<u8> {
+    fn nacl_decrypt(keyfile_data: &[u8], key: &secretbox::Key) -> Result<Vec<u8>, PyErr> {
         let data = &keyfile_data[5..]; // Remove the $NACL prefix
         let nonce =
-            secretbox::Nonce::from_slice(&data[0..secretbox::NONCEBYTES]).expect("Invalid nonce.");
+            secretbox::Nonce::from_slice(&data[0..secretbox::NONCEBYTES]).ok_or(
+                PyRuntimeError::new_err(
+                 "Invalid nonce."
+            ))?;
         let ciphertext = &data[secretbox::NONCEBYTES..];
-        secretbox::open(ciphertext, &nonce, key).expect("Wrong password.")
+        secretbox::open(ciphertext, &nonce, key).map_err(|_| PyValueError::new_err(
+            "Wrong password."
+        ))
     }
 
     // decrypt of keyfile_data with legacy way
@@ -426,7 +430,7 @@ pub fn decrypt_keyfile_data(
     // NaCl decryption
     if keyfile_data_is_encrypted_nacl(py, keyfile_data)? {
         let key = derive_key(password.as_bytes());
-        let decrypted_data = nacl_decrypt(keyfile_data, &key);
+        let decrypted_data = nacl_decrypt(keyfile_data, &key)?;
         return Ok(PyBytes::new_bound(py, &decrypted_data).into_py(py));
     }
 
@@ -932,9 +936,10 @@ impl Keyfile {
     ) -> PyResult<()> {
         // ask user for rewriting
         if self.exists_on_device()? && !overwrite && !self._may_overwrite() {
-            return Err(
-                PyErr::new::<KeyFileError, _>(format!("Keyfile at: {} is not writable", self.path)
-            ));
+            return Err(PyErr::new::<KeyFileError, _>(format!(
+                "Keyfile at: {} is not writable",
+                self.path
+            )));
         }
 
         let mut keyfile = fs::OpenOptions::new()
