@@ -14,7 +14,7 @@ pub(crate) const SS58_FORMAT: u8 = 42;
 pub fn get_ss58_format(ss58_address: &str) -> PyResult<u16> {
     match <AccountId32 as Ss58Codec>::from_ss58check_with_version(ss58_address) {
         Ok((_, format)) => Ok(u16::from(format)),
-        Err(_) => Err(PyValueError::new_err("Invalid SS58 address.")),
+        Err(_) => Err(PyErr::new::<PyValueError, _>("Invalid SS58 address.")),
     }
 }
 

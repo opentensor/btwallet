@@ -71,7 +71,7 @@ impl Keypair {
         crypto_type: u8,
     ) -> PyResult<Self> {
         if crypto_type != 1 {
-            return Err(PyTypeError::new_err(format!(
+            return Err(PyErr::new::<PyTypeError, _>(format!(
                 "Unsupported crypto type: {}.",
                 crypto_type
             )));
@@ -96,7 +96,7 @@ impl Keypair {
         // if public_key is passed
         if let Some(public_key_str) = &public_key_res {
             let public_key_vec = hex::decode(public_key_str.trim_start_matches("0x"))
-                .map_err(|e| PyException::new_err(format!("Invalid `public_key` string: {}", e)))?;
+                .map_err(|e| PyErr::new::<PyException, _>(format!("Invalid `public_key` string: {}", e)))?;
 
             let public_key_array: [u8; 32] = public_key_vec
                 .try_into()
@@ -129,7 +129,7 @@ impl Keypair {
 
         // If public_key is missing (ss58_address wasn't created), return an error
         if kp.public_key.is_none() {
-            return Err(PyValueError::new_err(
+            return Err(PyErr::new::<PyValueError, _>(
                 "No SS58 formatted address or public key provided.",
             ));
         }
@@ -182,17 +182,17 @@ impl Keypair {
             if seed_hex.is_instance_of::<PyString>() {
                 let seed_str: &str = seed_hex.extract()?;
                 seed = hex::decode(seed_str.trim_start_matches("0x"))
-                    .map_err(|e| PyException::new_err(format!("Invalid hex string: {}", e)))?;
+                    .map_err(|e| PyErr::new::<PyException, _>(format!("Invalid hex string: {}", e)))?;
             } else if seed_hex.is_instance_of::<PyBytes>() {
                 seed = seed_hex.extract()?;
             } else {
-                return Err(PyValueError::new_err(
+                return Err(PyErr::new::<PyValueError, _>(
                     "Unsupported seed format. Expected hex string or bytes.",
                 ));
             }
 
             let pair = sr25519::Pair::from_seed_slice(&seed).map_err(|e| {
-                PyException::new_err(format!("Failed to create pair from seed: {}", e))
+                PyErr::new::<PyException, _>(format!("Failed to create pair from seed: {}", e))
             })?;
 
             let kp = Keypair {
@@ -282,7 +282,7 @@ impl Keypair {
         let json_data: JsonStructure = serde_json::from_str(json_data).unwrap();
 
         if json_data.encoding.version != "3" {
-            return Err(PyValueError::new_err("Unsupported JSON format"));
+            return Err(PyErr::new::<PyValueError, _>("Unsupported JSON format"));
         }
 
         let mut encrypted = general_purpose::STANDARD
@@ -315,7 +315,7 @@ impl Keypair {
             .map_err(|e| PyErr::new::<PyException, _>(e.to_string()))?;
         let message = &encrypted[24..];
 
-        let key = Key::from_slice(&password).ok_or(PyValueError::new_err("Invalid key length"))?;
+        let key = Key::from_slice(&password).ok_or(PyErr::new::<PyValueError, _>("Invalid key length"))?;
         let decrypted_data =
             secretbox::open(message, &nonce, &key).map_err(PyErr::new::<PyException, _>)?;
         let (private_key, public_key) =
@@ -329,7 +329,7 @@ impl Keypair {
                 assert_eq!(public_key, converted_public_key);
                 Keypair::create_from_private_key(&hex::encode(secret))
             }
-            _ => return Err(PyValueError::new_err("Unsupported keypair type.")),
+            _ => return Err(PyErr::new::<PyValueError, _>("Unsupported keypair type.")),
         };
 
         keypair
@@ -517,7 +517,7 @@ impl Keypair {
             Ok(Some(PyBytes::new_bound(py, &public_key_vec).into_py(py)))
         } else if let Some(public_key) = &self.public_key {
             let public_key_vec = hex::decode(public_key.trim_start_matches("0x"))
-                .map_err(|e| PyException::new_err(format!("Invalid `public_key` string: {}", e)))?;
+                .map_err(|e| PyErr::new::<PyException, _>(format!("Invalid `public_key` string: {}", e)))?;
             Ok(Some(PyBytes::new_bound(py, &public_key_vec).into_py(py)))
         } else {
             Ok(None)
