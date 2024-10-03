@@ -290,7 +290,11 @@ except argparse.ArgumentError:
     /// Loads the hotkey from wallet.path/wallet.name/hotkeys/wallet.hotkey or raises an error.
     #[getter(hotkey)]
     pub fn hotkey_py_property(&self, py: Python) -> PyResult<Keypair> {
-        self.get_hotkey(None, py)
+        if let Some(hotkey) = &self._hotkey {
+            Ok(hotkey.clone())
+        } else {
+            self.get_hotkey(None, py)
+        }
     }
 
     /// Loads the name from wallet.path/wallet.name/coldkeypub.txt or raises an error.
