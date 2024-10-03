@@ -932,7 +932,9 @@ impl Keyfile {
     ) -> PyResult<()> {
         // ask user for rewriting
         if self.exists_on_device()? && !overwrite && !self._may_overwrite() {
-            return PyErr::new::<KeyFileError, _>(format!("Keyfile at: {} is not writable", self.path))?;
+            return Err(
+                PyErr::new::<KeyFileError, _>(format!("Keyfile at: {} is not writable", self.path)
+            ));
         }
 
         let mut keyfile = fs::OpenOptions::new()
