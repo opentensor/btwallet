@@ -351,6 +351,7 @@ def test_create(keyfile_setup_teardown):
 
     repr(keyfile)
 
+
 def test_validate_password():
     """
     Test case for the validate_password function.

@@ -28,7 +28,7 @@ class MockWallet(Wallet):
     """
     Mocked Version of the bittensor wallet class, meant to be used for testing
     """
-    
+
     def __init__(self, *args, **kwargs):
         pass
 
@@ -38,7 +38,9 @@ class MockWallet(Wallet):
             _mock (required=True, default=False):
                 If true creates a mock wallet with random keys.
         """
-        cls = super().__new__(cls, name=name, hotkey=hotkey, path=path, config=config, *args, **kwargs)
+        cls = super().__new__(
+            cls, name=name, hotkey=hotkey, path=path, config=config, *args, **kwargs
+        )
         # For mocking.
         cls._is_mock = True
         cls._mocked_coldkey_keyfile = None

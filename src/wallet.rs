@@ -1,4 +1,4 @@
-use pyo3::exceptions::{PyRuntimeError, PyValueError};
+use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::{IntoPyDict, PyString, PyType};
 
@@ -14,6 +14,7 @@ use crate::utils::{self, is_valid_bittensor_address_or_public_key};
 
 use dirs::home_dir;
 
+type PyRuntimeError = KeyFileError;
 
 /// Display the mnemonic and a warning message to keep the mnemonic safe.
 #[pyfunction]
@@ -112,10 +113,18 @@ impl Wallet {
     /// Accept specific arguments from parser.
     #[classmethod]
     #[pyo3(signature = (parser, prefix = None))]
-    pub fn add_args(_: &Bound<'_, PyType>, parser: &Bound<'_, PyAny>, prefix: Option<String>, py: Python) -> PyResult<PyObject> {
-        let default_name = env::var("BT_WALLET_NAME").unwrap_or_else(|_| BT_WALLET_NAME.to_string());
-        let default_hotkey = env::var("BT_WALLET_HOTKEY").unwrap_or_else(|_| BT_WALLET_HOTKEY.to_string());
-        let default_path = env::var("BT_WALLET_PATH").unwrap_or_else(|_| BT_WALLET_PATH.to_string());
+    pub fn add_args(
+        _: &Bound<'_, PyType>,
+        parser: &Bound<'_, PyAny>,
+        prefix: Option<String>,
+        py: Python,
+    ) -> PyResult<PyObject> {
+        let default_name =
+            env::var("BT_WALLET_NAME").unwrap_or_else(|_| BT_WALLET_NAME.to_string());
+        let default_hotkey =
+            env::var("BT_WALLET_HOTKEY").unwrap_or_else(|_| BT_WALLET_HOTKEY.to_string());
+        let default_path =
+            env::var("BT_WALLET_PATH").unwrap_or_else(|_| BT_WALLET_PATH.to_string());
 
         let prefix_str = if let Some(value) = prefix {
             format!("\"{}\"", value)
@@ -123,7 +132,8 @@ impl Wallet {
             "None".to_string()
         };
 
-        let code = format!(r#"
+        let code = format!(
+            r#"
 prefix = {}
 prefix_str = "" if prefix is None else prefix + "."
 
@@ -148,11 +158,16 @@ try:
         help="The path to your bittensor wallets",
     )
 except argparse.ArgumentError:
-    pass"#, prefix_str, default_name, default_hotkey, default_path);
+    pass"#,
+            prefix_str, default_name, default_hotkey, default_path
+        );
 
-        py
-            .run_bound(&*code, Some(&[("parser", parser)].into_py_dict_bound(py)), None)
-            .expect("Python parser parse failed.");
+        py.run_bound(
+            &code,
+            Some(&[("parser", parser)].into_py_dict_bound(py)),
+            None,
+        )
+        .expect("Python parser parse failed.");
         Ok(parser.to_object(py))
     }
 
@@ -218,7 +233,7 @@ except argparse.ArgumentError:
     pub fn hotkey_file(&self) -> PyResult<Keyfile> {
         // get home dir
         let home = home_dir()
-            .ok_or_else(|| PyRuntimeError::new_err("Failed to get user home directory."))?;
+            .ok_or_else(|| PyErr::new::<PyRuntimeError, _>("Failed to get user home directory."))?;
 
         // concatenate wallet path
         let wallet_path = home.join(&self.path).join(&self.name);
@@ -237,7 +252,7 @@ except argparse.ArgumentError:
     pub fn coldkey_file(&self) -> PyResult<Keyfile> {
         // get home dir
         let home = home_dir()
-            .ok_or_else(|| PyRuntimeError::new_err("Failed to get user home directory."))?;
+            .ok_or_else(|| PyErr::new::<PyRuntimeError, _>("Failed to get user home directory."))?;
 
         // concatenate wallet path
         let wallet_path = home.join(&self.path).join(&self.name);
@@ -256,7 +271,7 @@ except argparse.ArgumentError:
     pub fn coldkeypub_file(&self) -> PyResult<Keyfile> {
         // get home dir
         let home = home_dir()
-            .ok_or_else(|| PyRuntimeError::new_err("Failed to get user home directory."))?;
+            .ok_or_else(|| PyErr::new::<PyRuntimeError, _>("Failed to get user home directory."))?;
 
         // concatenate wallet path
         let wallet_path = home.join(&self.path).join(&self.name);
@@ -546,7 +561,7 @@ except argparse.ArgumentError:
         py: Python,
     ) -> PyResult<Self> {
         if ss58_address.is_none() && public_key.is_none() {
-            return Err(PyValueError::new_err(
+            return Err(PyErr::new::<PyValueError, _>(
                 "Either ss58_address or public_key must be passed.",
             ));
         }
@@ -557,7 +572,7 @@ except argparse.ArgumentError:
         let address_to_check: &Bound<PyAny> = binding_py_string.as_ref();
 
         if !is_valid_bittensor_address_or_public_key(address_to_check)? {
-            return Err(PyValueError::new_err(format!(
+            return Err(PyErr::new::<PyValueError, _>(format!(
                 "Invalid {}.",
                 if ss58_address.is_some() {
                     "ss58_address"
@@ -601,7 +616,7 @@ except argparse.ArgumentError:
             // json_data + passphrase
             Keypair::create_from_encrypted_json(&json_data, &passphrase)?
         } else {
-            return Err(PyValueError::new_err(
+            return Err(PyErr::new::<PyValueError, _>(
                 "Must pass either mnemonic, seed, or json.",
             ));
         };
@@ -639,7 +654,7 @@ except argparse.ArgumentError:
             // json_data + passphrase
             Keypair::create_from_encrypted_json(&json_data, &passphrase)?
         } else {
-            return Err(PyValueError::new_err(
+            return Err(PyErr::new::<PyValueError, _>(
                 "Must pass either mnemonic, seed, or json.",
             ));
         };

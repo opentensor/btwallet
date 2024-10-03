@@ -132,6 +132,7 @@ def test_encrypt_and_decrypt():
     assert not keyfile.keyfile_data_is_encrypted_nacl(decrypted_message)
     assert keyfile.keyfile_data_is_encrypted_ansible(encrypted_message)
 
+
 #
 # def test_check_and_update_encryption_not_updated(wallet_update_setup):
 #     """Test for a few cases where wallet should not be updated.
@@ -272,6 +273,7 @@ def mock_wallet():
 
     return wallet
 
+
 #
 # def test_regen_coldkeypub_from_ss58_addr(mock_wallet):
 #     """Test the `regenerate_coldkeypub` method of the wallet class, which regenerates the cold key pair from an SS58 address.
@@ -334,6 +336,7 @@ def test_regen_coldkeypub_no_pubkey(mock_wallet):
         mock_wallet.regenerate_coldkeypub(
             ss58_address=None, public_key=None, overwrite=True
         )
+
 
 #
 # def test_regen_coldkey_from_hex_seed_str(mock_wallet):

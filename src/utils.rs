@@ -1,6 +1,6 @@
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
-use pyo3::types::{PyBytes, PyDict, PyString, IntoPyDict};
+use pyo3::types::{IntoPyDict, PyBytes, PyDict, PyString};
 
 use sp_core::crypto::{AccountId32, Ss58Codec};
 use std::str;
@@ -14,7 +14,7 @@ pub(crate) const SS58_FORMAT: u8 = 42;
 pub fn get_ss58_format(ss58_address: &str) -> PyResult<u16> {
     match <AccountId32 as Ss58Codec>::from_ss58check_with_version(ss58_address) {
         Ok((_, format)) => Ok(u16::from(format)),
-        Err(_) => Err(PyValueError::new_err("Invalid SS58 address.")),
+        Err(_) => Err(PyErr::new::<PyValueError, _>("Invalid SS58 address.")),
     }
 }
 
@@ -151,13 +151,13 @@ pub fn prompt(prompt: String) -> Option<String> {
 ///     response: Option<String>
 pub fn prompt_password(prompt: String) -> Option<String> {
     let result: Result<String, ()> = Python::with_gil(|py| {
-        let locals = [
-            ("getpass", 
-                py.import_bound("getpass").map_err(|e| {
-                    e.print_and_set_sys_last_vars(py);
-                })?
-            )
-        ].into_py_dict_bound(py);
+        let locals = [(
+            "getpass",
+            py.import_bound("getpass").map_err(|e| {
+                e.print_and_set_sys_last_vars(py);
+            })?,
+        )]
+        .into_py_dict_bound(py);
         let result = py
             .eval_bound(
                 &format!("getpass.getpass(\"{}\")", prompt),
