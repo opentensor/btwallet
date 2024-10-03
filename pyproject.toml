@@ -1,0 +1,79 @@
+[project]
+name = "bittensor-wallet"
+version = "2.0.0"
+description = ""
+readme = "README.md"
+license = {file = "LICENSE"}
+keywords = ["substrate", "scale", "codec", "bittensor", "wallet"]
+
+dependencies = [
+    "termcolor",
+    "eth-utils<2.3.0",
+    "password_strength",
+    "cryptography~=42.0.5",
+    "ansible~=6.7",
+    "ansible_vault~=2.1",
+    "munch~=2.5.0",
+    "rich",
+    "py-bip39-bindings==0.1.11"
+]
+requires-python = ">= 3.9"
+
+authors = [
+  {name = "Cameron Fairchild", email = "cameron@opentensor.dev"},
+  {name = "Opentensor Foundation", email = "hello@bittensor.com"},
+]
+maintainers = [
+  {name = "Cameron Fairchild", email = "cameron@opentensor.dev"}
+]
+classifiers = [
+        "Development Status :: 5 - Production/Stable",
+        "Intended Audience :: Developers",
+        "Topic :: Software Development :: Build Tools",
+        "License :: OSI Approved :: MIT License",
+        "Programming Language :: Python :: 3 :: Only",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
+        "Topic :: Scientific/Engineering",
+        "Topic :: Scientific/Engineering :: Mathematics",
+        "Topic :: Scientific/Engineering :: Artificial Intelligence",
+        "Topic :: Software Development",
+        "Topic :: Software Development :: Libraries",
+        "Topic :: Software Development :: Libraries :: Python Modules",]
+
+[project.urls]
+Repository = "https://github.com/opentensor/btwallet"
+
+[build-system]
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
+
+[tool.maturin]
+include = ["bittensor_wallet*", "src*"]
+exclude = ["tests*"]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==7.2.0",
+    "pytest-asyncio==0.23.7",
+    "pytest-mock==3.12.0",
+    "pytest-split==0.8.0",
+    "pytest-xdist==3.0.2",
+    "pytest-rerunfailures==10.2",
+    "coveralls==3.3.1",
+    "pytest-cov==4.0.0",
+    "ddt==1.6.0",
+    "hypothesis==6.81.1",
+    "flake8==7.0.0",
+    "mypy==1.8.0",
+    "types-retry==0.9.9.4",
+    "freezegun==1.5.0",
+    "httpx==0.27.0",
+    "ruff==0.4.7",
+    "aioresponses==0.7.6",
+    "factory-boy==3.3.0",
+    "maturin==1.7.0",
+    "py-bip39-bindings==0.1.11",
+]
