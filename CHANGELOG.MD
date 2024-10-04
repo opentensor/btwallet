@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.0.1 /2024-10-04
+
+## What's Changed
+* add keypair getter to Keyfile by @roman-opentensor in https://github.com/opentensor/btwallet/pull/41
+* fix/roman/avoid-double-asking-password-in-unlocking by @roman-opentensor in https://github.com/opentensor/btwallet/pull/43
+
+**Full Changelog**: https://github.com/opentensor/btwallet/compare/v2.0.0...v2.0.1
+
 ## 2.0.0 /2024-10-03
 
 ## What's Changed
