@@ -184,16 +184,18 @@ pub fn validate_password(_py: Python, password: &str) -> PyResult<bool> {
 ///     Returns:
 ///         password (str): The valid password entered by the user.
 #[pyfunction]
-pub fn ask_password(py: Python) -> PyResult<String> {
+pub fn ask_password(py: Python, validation_required: bool) -> PyResult<String> {
 
     let mut valid = false;
     let password = utils::prompt_password("Enter your password: ".to_string());
 
-    while !valid {
-        if let Some(ref password) = password {
-            valid = validate_password(py, &password)?;
-        } else {
-            valid = true
+    if validation_required {
+        while !valid {
+            if let Some(ref password) = password {
+                valid = validate_password(py, &password)?;
+            } else {
+                valid = true
+            }
         }
     }
 
@@ -300,7 +302,7 @@ pub fn legacy_encrypt_keyfile_data(
 ) -> PyResult<PyObject> {
     let password = password.unwrap_or_else(||
         // function to get password from user
-        ask_password(py).unwrap());
+        ask_password(py, true).unwrap());
 
     utils::print(":exclamation_mark: Encrypting key with legacy encryption method...".to_string());
 
@@ -342,7 +344,7 @@ fn derive_key(password: &[u8]) -> secretbox::Key {
         pwhash::argon2i13::OPSLIMIT_SENSITIVE,
         pwhash::argon2i13::MEMLIMIT_SENSITIVE,
     )
-    .expect("Failed to derive key for NaCl decryption.");
+        .expect("Failed to derive key for NaCl decryption.");
     key
 }
 
@@ -364,7 +366,7 @@ pub fn encrypt_keyfile_data(
     // get password or ask user
     let password = match password {
         Some(pwd) => pwd,
-        None => ask_password(py)?,
+        None => ask_password(py, true)?,
     };
 
     utils::print("Encrypting...".to_string());
@@ -437,7 +439,7 @@ pub fn decrypt_keyfile_data(
 
     // If password is still None, ask the user for input
     if password.is_none() {
-        password = Some(ask_password(py)?);
+        password = Some(ask_password(py, false)?);
     }
 
     let password = password.unwrap();
@@ -693,7 +695,7 @@ impl Keyfile {
             "File {} already exists. Overwrite? (y/N) ",
             self.path
         ))
-        .expect("Failed to read input.");
+            .expect("Failed to read input.");
 
         choice.trim().to_lowercase() == "y"
     }
@@ -759,7 +761,7 @@ impl Keyfile {
                     let mut decrypted_keyfile_data: Option<Vec<u8>> = None;
                     let mut password: Option<String> = None;
                     while decrypted_keyfile_data.is_none() {
-                        let pwd = ask_password(py)?;
+                        let pwd = ask_password(py, false)?;
                         password = Some(pwd.clone());
 
                         match decrypt_keyfile_data(
