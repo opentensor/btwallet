@@ -522,12 +522,11 @@ impl Keyfile {
         self.__str__(py)
     }
 
-    // TODO (devs): rust creates the same function automatically by `keypair` getter function and the error accuses. We need to understand how to avoid this.
     /// Returns the keypair from path, decrypts data if the file is encrypted.
-    // #[getter]
-    // pub fn keypair(&self, py: Python) -> PyResult<bool>{
-    //     self.get_keypair(None, py)
-    // }
+    #[getter(keypair)]
+    pub fn keypair_py(&self, py: Python) -> PyResult<Keypair>{
+        self.get_keypair(None, py)
+    }
 
     /// Returns the keypair from the path, decrypts data if the file is encrypted.
     #[pyo3(signature = (password = None))]
