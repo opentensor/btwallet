@@ -1,0 +1,33 @@
+[package]
+name = "bittensor_wallet"
+version = "2.0.0"
+edition = "2021"
+
+[lib]
+name = "bittensor_wallet"
+crate-type = ["cdylib"]
+
+[dependencies]
+sp-core = "34.0.0"
+pyo3 = { version = "0.22.3", features = ["gil-refs"] }
+bip39 = { version = "2.0.0", features = ["rand"] }
+rand = "0.8.5"
+hex = "0.4.3"
+colored = "2.1.0"
+serde_json = "1.0.128"
+passwords = "3.1.16"
+sodiumoxide = "0.2"
+ansible-vault = "0.2.1"
+fernet = "=0.2.1"
+pbkdf2 = "0.12.2"
+sha2 = "0.10.8"
+dirs = "5.0.1"
+serde = { version = "1.0.210", features = ["derive"] }
+base64 = "0.22.1"
+scrypt = "0.11.0"
+pkcs8 = "0.10.2"
+schnorrkel = "0.11.4"
+
+[features]
+extension-module = ["pyo3/extension-module"]
+default = ["extension-module"]

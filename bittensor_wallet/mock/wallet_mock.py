@@ -19,12 +19,9 @@ import os
 from typing import Optional
 
 from Crypto.Hash import keccak
-from substrateinterface import Keypair
 
-from bittensor_wallet.utils import SS58_FORMAT
+from bittensor_wallet import Keyfile, Wallet, Keypair
 from .keyfile_mock import MockKeyfile
-from ..keyfile import Keyfile
-from ..wallet import Wallet
 
 
 class MockWallet(Wallet):
@@ -32,17 +29,24 @@ class MockWallet(Wallet):
     Mocked Version of the bittensor wallet class, meant to be used for testing
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def __new__(cls, name=None, hotkey=None, path=None, config=None, *args, **kwargs):
         r"""Init bittensor wallet object containing a hot and coldkey.
         Args:
             _mock (required=True, default=False):
                 If true creates a mock wallet with random keys.
         """
-        super().__init__(**kwargs)
+        cls = super().__new__(
+            cls, name=name, hotkey=hotkey, path=path, config=config, *args, **kwargs
+        )
         # For mocking.
-        self._is_mock = True
-        self._mocked_coldkey_keyfile = None
-        self._mocked_hotkey_keyfile = None
+        cls._is_mock = True
+        cls._mocked_coldkey_keyfile = None
+        cls._mocked_hotkey_keyfile = None
+
+        return cls
 
     @property
     def hotkey_file(self) -> "Keyfile":
@@ -110,7 +114,6 @@ def get_mock_keypair(uid: int, test_name: Optional[str] = None) -> Keypair:
 
     return Keypair.create_from_seed(
         seed_hex=int.to_bytes(uid, 32, "big", signed=False),
-        ss58_format=SS58_FORMAT,
     )
 
 

@@ -17,9 +17,7 @@
 
 from typing import Optional
 
-from substrateinterface import Keypair
-
-from bittensor_wallet.keyfile import serialized_keypair_to_keyfile_data, Keyfile
+from bittensor_wallet import keyfile, Keypair, Keyfile
 
 
 class MockKeyfile(Keyfile):
@@ -31,7 +29,7 @@ class MockKeyfile(Keyfile):
         self._mock_keypair = Keypair.create_from_mnemonic(
             mnemonic="arrive produce someone view end scout bargain coil slight festival excess struggle"
         )
-        self._mock_data = serialized_keypair_to_keyfile_data(self._mock_keypair)
+        self._mock_data = keyfile.serialized_keypair_to_keyfile_data(self._mock_keypair)
 
     def __str__(self):
         if not self.exists_on_device():
@@ -64,7 +62,7 @@ class MockKeyfile(Keyfile):
         password: Optional[str] = None,
     ):
         self._mock_keypair = keypair
-        self._mock_data = serialized_keypair_to_keyfile_data(self._mock_keypair)
+        self._mock_data = keyfile.serialized_keypair_to_keyfile_data(self._mock_keypair)
 
     def get_keypair(self, password: Optional[str] = None) -> "Keypair":
         return self._mock_keypair
