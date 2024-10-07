@@ -576,6 +576,11 @@ impl Keyfile {
         self._read_keyfile_data_from_file(py)
     }
 
+    #[getter]
+    pub fn env_var(&self, _py: Python) -> PyResult<String> {
+        Ok(format!("BT_PW_{}", self.path.clone().replace(std::path::MAIN_SEPARATOR, "_").replace(".", "_").to_uppercase()))
+    }
+
     /// Writes the keypair to the file and optionally encrypts data.
     #[pyo3(signature = (keypair, encrypt = true, overwrite = false, password = None))]
     pub fn set_keypair(
