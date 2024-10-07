@@ -243,7 +243,7 @@ except argparse.ArgumentError:
 
         Keyfile::new(
             hotkey_path.to_string_lossy().into_owned(),
-            Some(self.name.clone()),
+            Some(self.hotkey.clone()),
         )
     }
 
@@ -262,7 +262,7 @@ except argparse.ArgumentError:
 
         Keyfile::new(
             coldkey_path.to_string_lossy().into_owned(),
-            Some(self.name.clone()),
+            Some("coldkey".to_string()),
         )
     }
 
@@ -281,7 +281,7 @@ except argparse.ArgumentError:
 
         Keyfile::new(
             coldkeypub_path.to_string_lossy().into_owned(),
-            Some(self.name.clone()),
+            Some("coldkeypub.txt".parse()?),
         )
     }
 
