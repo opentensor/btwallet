@@ -17,10 +17,12 @@
 
 import json
 import time
-import pytest
-from bittensor_wallet import Wallet, keyfile
-from ansible_vault import Vault
 from unittest.mock import patch
+
+import pytest
+from ansible_vault import Vault
+
+from bittensor_wallet import Wallet, keyfile
 
 
 def legacy_encrypt_keyfile_data(keyfile_data: bytes, password: str = None) -> bytes:
