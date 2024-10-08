@@ -20,7 +20,7 @@ type PyRuntimeError = KeyFileError;
 #[pyfunction]
 #[pyo3(signature = (mnemonic, key_type))]
 pub fn display_mnemonic_msg(mnemonic: String, key_type: &str) {
-    utils::print(format!("{}", "\nIMPORTANT: Store this mnemonic in a secure (preferable offline place), as anyone who has possession of this mnemonic can use it to regenerate the key and access your tokens.".red()));
+    utils::print(format!("{}", "\nIMPORTANT: Store this mnemonic in a secure (preferable offline place), as anyone who has possession of this mnemonic can use it to regenerate the key and access your tokens.\n".red()));
 
     utils::print(format!(
         "\nThe mnemonic to the new {} is: {}",

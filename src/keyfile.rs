@@ -175,7 +175,7 @@ pub fn validate_password(_py: Python, password: &str) -> PyResult<bool> {
             Ok(false)
         }
     } else {
-        utils::print("Password not strong enough. Try increasing the length of the password or the password complexity.".to_string());
+        utils::print("Password not strong enough. Try increasing the length of the password or the password complexity.\n".to_string());
         Ok(false)
     }
 }
@@ -305,7 +305,7 @@ pub fn legacy_encrypt_keyfile_data(
         // function to get password from user
         ask_password(py, true).unwrap());
 
-    utils::print(":exclamation_mark: Encrypting key with legacy encryption method...".to_string());
+    utils::print(":exclamation_mark: Encrypting key with legacy encryption method...\n".to_string());
 
     // Encrypting key with legacy encryption method
     let encrypted_data = encrypt_vault(keyfile_data, password.as_str())
@@ -750,21 +750,21 @@ impl Keyfile {
     ) -> PyResult<bool> {
         if !self.exists_on_device()? {
             if print_result {
-                utils::print(format!("Keyfile does not exist. {}", self.path));
+                utils::print(format!("Keyfile '{}' does not exist.\n", self.path));
             }
             return Ok(false);
         }
 
         if !self.is_readable()? {
             if print_result {
-                utils::print(format!("Keyfile is not readable. {}", self.path));
+                utils::print(format!("Keyfile '{}' is not readable.\n", self.path));
             }
             return Ok(false);
         }
 
         if !self.is_writable()? {
             if print_result {
-                utils::print(format!("Keyfile is not writable. {}", self.path));
+                utils::print(format!("Keyfile '{}' is not writable.\n", self.path));
             }
             return Ok(false);
         }
@@ -779,7 +779,7 @@ impl Keyfile {
             if keyfile_data_is_encrypted(py, keyfile_data_bytes)?
                 && !keyfile_data_is_encrypted_nacl(py, keyfile_data_bytes)?
             {
-                utils::print("You may update the keyfile to improve security...".to_string());
+                utils::print("You may update the keyfile to improve security...\n".to_string());
 
                 // ask user for the confirmation for updating
                 if update_keyfile == confirm_prompt("Update keyfile?") {
@@ -788,7 +788,7 @@ impl Keyfile {
                     // check mnemonic if saved
                     while !stored_mnemonic {
                         utils::print(
-                            "Please store your mnemonic in case an error occurs...".to_string(),
+                            "Please store your mnemonic in case an error occurs...\n".to_string(),
                         );
                         if confirm_prompt("Have you stored the mnemonic?") {
                             stored_mnemonic = true;
@@ -844,17 +844,17 @@ impl Keyfile {
 
             return if !keyfile_data_is_encrypted(py, keyfile_data_bytes)? {
                 if print_result {
-                    utils::print("Keyfile is not encrypted.".to_string());
+                    utils::print("Keyfile is not encrypted.\n".to_string());
                 }
                 Ok(false)
             } else if keyfile_data_is_encrypted_nacl(py, keyfile_data_bytes)? {
                 if print_result {
-                    utils::print("Keyfile is updated.".to_string());
+                    utils::print("Keyfile is updated.\n".to_string());
                 }
                 Ok(true)
             } else {
                 if print_result {
-                    utils::print("Keyfile is outdated, please update using 'btcli'.".to_string());
+                    utils::print("Keyfile is outdated, please update using 'btcli'.\n".to_string());
                 }
                 Ok(false)
             };
