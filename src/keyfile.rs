@@ -34,7 +34,6 @@ type PyRuntimeError = KeyFileError;
 type PyUnicodeDecodeError = KeyFileError;
 type PyValueError = KeyFileError;
 
-
 const NACL_SALT: &[u8] = b"\x13q\x83\xdf\xf1Z\t\xbc\x9c\x90\xb5Q\x879\xe9\xb1";
 const LEGACY_SALT: &[u8] = b"Iguesscyborgslikemyselfhaveatendencytobeparanoidaboutourorigins";
 
@@ -186,7 +185,6 @@ pub fn validate_password(_py: Python, password: &str) -> PyResult<bool> {
 ///         password (str): The valid password entered by the user.
 #[pyfunction]
 pub fn ask_password(py: Python, validation_required: bool) -> PyResult<String> {
-
     let mut valid = false;
     let password = utils::prompt_password("Enter your password: ".to_string());
 
@@ -305,7 +303,9 @@ pub fn legacy_encrypt_keyfile_data(
         // function to get password from user
         ask_password(py, true).unwrap());
 
-    utils::print(":exclamation_mark: Encrypting key with legacy encryption method...\n".to_string());
+    utils::print(
+        ":exclamation_mark: Encrypting key with legacy encryption method...\n".to_string(),
+    );
 
     // Encrypting key with legacy encryption method
     let encrypted_data = encrypt_vault(keyfile_data, password.as_str())
@@ -332,9 +332,7 @@ pub fn get_password_from_environment(
             let decrypted_password = decrypt_password(encrypted_password, env_var_name);
             Ok(Some(decrypted_password))
         }
-        Err(_) => {
-            Ok(None)
-        }
+        Err(_) => Ok(None),
     }
 }
 
@@ -349,7 +347,7 @@ fn derive_key(password: &[u8]) -> secretbox::Key {
         pwhash::argon2i13::OPSLIMIT_SENSITIVE,
         pwhash::argon2i13::MEMLIMIT_SENSITIVE,
     )
-        .expect("Failed to derive key for NaCl decryption.");
+    .expect("Failed to derive key for NaCl decryption.");
     key
 }
 
@@ -500,7 +498,10 @@ fn encrypt_password(key: String, value: String) -> String {
         let encrypted_char = (c as u8) ^ (key.chars().nth(i % key.len()).unwrap() as u8);
         encrypted.push(encrypted_char as char);
     }
-    println!(">>> key: {}, value: {}, encrypted: {}", key, value, encrypted);
+    println!(
+        ">>> key: {}, value: {}, encrypted: {}",
+        key, value, encrypted
+    );
     encrypted
 }
 
@@ -529,7 +530,11 @@ impl Keyfile {
     pub fn new(path: String, name: Option<String>, should_save_to_env: bool) -> PyResult<Self> {
         let path = expand_tilde(&path);
         let name = name.unwrap_or_else(|| "Keyfile".to_string());
-        Ok(Keyfile { path, name, should_save_to_env })
+        Ok(Keyfile {
+            path,
+            name,
+            should_save_to_env,
+        })
     }
 
     #[allow(clippy::bool_comparison)]
@@ -553,7 +558,7 @@ impl Keyfile {
 
     /// Returns the keypair from path, decrypts data if the file is encrypted.
     #[getter(keypair)]
-    pub fn keypair_py(&self, py: Python) -> PyResult<Keypair>{
+    pub fn keypair_py(&self, py: Python) -> PyResult<Keypair> {
         self.get_keypair(None, py)
     }
 
@@ -606,7 +611,10 @@ impl Keyfile {
     /// Returns local environment variable key name based on Keyfile path.
     #[getter]
     fn env_var_name(&self) -> PyResult<String> {
-        let path = &self.path.replace(std::path::MAIN_SEPARATOR, "_").replace('.', "_");
+        let path = &self
+            .path
+            .replace(std::path::MAIN_SEPARATOR, "_")
+            .replace('.', "_");
         Ok(format!("BT_PW_{}", path.to_uppercase()))
     }
 
@@ -625,7 +633,8 @@ impl Keyfile {
         let keyfile_data = serialized_keypair_to_keyfile_data(py, &keypair)?;
 
         let final_keyfile_data = if encrypt {
-            let encrypted_data = encrypt_keyfile_data(py, keyfile_data.extract(py)?, password.clone())?;
+            let encrypted_data =
+                encrypt_keyfile_data(py, keyfile_data.extract(py)?, password.clone())?;
 
             // store password to local env
             if self.should_save_to_env {
@@ -735,7 +744,7 @@ impl Keyfile {
             "File {} already exists. Overwrite? (y/N) ",
             self.path
         ))
-            .expect("Failed to read input.");
+        .expect("Failed to read input.");
 
         choice.trim().to_lowercase() == "y"
     }
@@ -900,7 +909,8 @@ impl Keyfile {
                 password = get_password_from_environment(py, self.env_var_name()?)?;
             }
 
-            let encrypted_keyfile_data = encrypt_keyfile_data(py, serialized_data.extract(py)?, password.clone())?;
+            let encrypted_keyfile_data =
+                encrypt_keyfile_data(py, serialized_data.extract(py)?, password.clone())?;
 
             if self.should_save_to_env {
                 self.save_password_to_env(password.clone(), py)?;
@@ -1042,15 +1052,13 @@ impl Keyfile {
         // checking the password
         let password = match password {
             Some(pwd) => pwd,
-            None => {
-                match ask_password(py, true) {
-                    Ok(pwd) => pwd,
-                    Err(e) => {
-                        utils::print(format!("Error asking password: {:?}.\n", e));
-                        return Ok(false);
-                    }
+            None => match ask_password(py, true) {
+                Ok(pwd) => pwd,
+                Err(e) => {
+                    utils::print(format!("Error asking password: {:?}.\n", e));
+                    return Ok(false);
                 }
-            }
+            },
         };
         // saving password
         match self.env_var_name() {
@@ -1060,12 +1068,18 @@ impl Keyfile {
                 // store encrypted password
                 env::set_var(&env_var_name, encrypted_password);
 
-                let message = format!("The password has been saved to environment variable '{}'.\n", env_var_name);
+                let message = format!(
+                    "The password has been saved to environment variable '{}'.\n",
+                    env_var_name
+                );
                 utils::print(message);
                 Ok(true)
-            },
+            }
             Err(e) => {
-                utils::print(format!("Error saving environment variable name: {:?}.\n", e));
+                utils::print(format!(
+                    "Error saving environment variable name: {:?}.\n",
+                    e
+                ));
                 Ok(false)
             }
         }

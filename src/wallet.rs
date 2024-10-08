@@ -185,7 +185,17 @@ except argparse.ArgumentError:
         suppress: bool,
         py: Python,
     ) -> PyResult<Wallet> {
-        self.create(coldkey_use_password, hotkey_use_password, save_coldkey_to_env, save_hotkey_to_env, coldkey_password, hotkey_password, overwrite, suppress, py)
+        self.create(
+            coldkey_use_password,
+            hotkey_use_password,
+            save_coldkey_to_env,
+            save_hotkey_to_env,
+            coldkey_password,
+            hotkey_password,
+            overwrite,
+            suppress,
+            py,
+        )
     }
 
     /// Checks for existing coldkeypub and hotkeys, and creates them if non-existent.
@@ -215,10 +225,19 @@ except argparse.ArgumentError:
         suppress: bool,
         py: Python,
     ) -> PyResult<Self> {
-        if overwrite || self.coldkey_file()?.exists_on_device()? == false
-            && self.coldkeypub_file()?.exists_on_device()? == false
+        if overwrite
+            || self.coldkey_file()?.exists_on_device()? == false
+                && self.coldkeypub_file()?.exists_on_device()? == false
         {
-            self.create_new_coldkey(12, coldkey_use_password, overwrite, suppress, save_coldkey_to_env, coldkey_password, py)?;
+            self.create_new_coldkey(
+                12,
+                coldkey_use_password,
+                overwrite,
+                suppress,
+                save_coldkey_to_env,
+                coldkey_password,
+                py,
+            )?;
         } else {
             utils::print(format!(
                 "ColdKey for the wallet '{}' already exists.\n",
@@ -227,7 +246,15 @@ except argparse.ArgumentError:
         }
 
         if overwrite || !self.hotkey_file()?.exists_on_device()? {
-            self.create_new_hotkey(12, hotkey_use_password, overwrite, suppress, save_hotkey_to_env, hotkey_password, py)?;
+            self.create_new_hotkey(
+                12,
+                hotkey_use_password,
+                overwrite,
+                suppress,
+                save_hotkey_to_env,
+                hotkey_password,
+                py,
+            )?;
         } else {
             utils::print(format!(
                 "HotKey for the wallet '{}' already exists.\n",
@@ -265,12 +292,27 @@ except argparse.ArgumentError:
         suppress: bool,
         py: Python,
     ) -> PyResult<Wallet> {
-        self.create_new_coldkey(12, coldkey_use_password, overwrite, suppress, save_coldkey_to_env, coldkey_password, py)?;
-        self.create_new_hotkey(12, hotkey_use_password, overwrite, suppress, save_hotkey_to_env, hotkey_password, py)?;
+        self.create_new_coldkey(
+            12,
+            coldkey_use_password,
+            overwrite,
+            suppress,
+            save_coldkey_to_env,
+            coldkey_password,
+            py,
+        )?;
+        self.create_new_hotkey(
+            12,
+            hotkey_use_password,
+            overwrite,
+            suppress,
+            save_hotkey_to_env,
+            hotkey_password,
+            py,
+        )?;
 
         Ok(self.clone())
     }
-
 
     /// Property that returns the hotkey file.
     #[getter]
@@ -294,7 +336,7 @@ except argparse.ArgumentError:
         Keyfile::new(
             hotkey_path.to_string_lossy().into_owned(),
             Some(self.hotkey.clone()),
-            save_hotkey_to_env
+            save_hotkey_to_env,
         )
     }
 
@@ -399,8 +441,13 @@ except argparse.ArgumentError:
         py: Python,
     ) -> PyResult<()> {
         self._coldkey = Some(keypair.clone());
-        self.create_coldkey_file(save_coldkey_to_env)?
-            .set_keypair(keypair, encrypt, overwrite, coldkey_password, py)
+        self.create_coldkey_file(save_coldkey_to_env)?.set_keypair(
+            keypair,
+            encrypt,
+            overwrite,
+            coldkey_password,
+            py,
+        )
     }
 
     /// Sets the coldkeypub for the wallet.
@@ -437,8 +484,13 @@ except argparse.ArgumentError:
         py: Python,
     ) -> PyResult<()> {
         self._hotkey = Some(keypair.clone());
-        self.create_hotkey_file(save_hotkey_to_env)?
-            .set_keypair(keypair.clone(), encrypt, overwrite, hotkey_password, py)
+        self.create_hotkey_file(save_hotkey_to_env)?.set_keypair(
+            keypair.clone(),
+            encrypt,
+            overwrite,
+            hotkey_password,
+            py,
+        )
     }
 
     /// Gets the coldkey from the wallet.
@@ -479,7 +531,14 @@ except argparse.ArgumentError:
             }
         }
 
-        self.set_coldkey(keypair.clone(), use_password, overwrite, save_coldkey_to_env, coldkey_password, py)?;
+        self.set_coldkey(
+            keypair.clone(),
+            use_password,
+            overwrite,
+            save_coldkey_to_env,
+            coldkey_password,
+            py,
+        )?;
         self.set_coldkeypub(keypair.clone(), false, overwrite, py)?;
         Ok(self.clone())
     }
@@ -504,7 +563,14 @@ except argparse.ArgumentError:
             }
         }
 
-        self.set_hotkey(keypair.clone(), use_password, overwrite, save_hotkey_to_env, hotkey_password, py)?;
+        self.set_hotkey(
+            keypair.clone(),
+            use_password,
+            overwrite,
+            save_hotkey_to_env,
+            hotkey_password,
+            py,
+        )?;
         Ok(self.clone())
     }
 
@@ -559,7 +625,15 @@ except argparse.ArgumentError:
         coldkey_password: Option<String>,
         py: Python,
     ) -> PyResult<Wallet> {
-        self.create_new_coldkey(n_words, use_password, overwrite, suppress, save_coldkey_to_env, coldkey_password, py)
+        self.create_new_coldkey(
+            n_words,
+            use_password,
+            overwrite,
+            suppress,
+            save_coldkey_to_env,
+            coldkey_password,
+            py,
+        )
     }
 
     /// Creates a new coldkey, optionally encrypts it with the user-provided password and saves to disk.
@@ -588,7 +662,14 @@ except argparse.ArgumentError:
             use_password
         };
 
-        self.set_coldkey(keypair.clone(), use_password, overwrite, save_coldkey_to_env, coldkey_password, py)?;
+        self.set_coldkey(
+            keypair.clone(),
+            use_password,
+            overwrite,
+            save_coldkey_to_env,
+            coldkey_password,
+            py,
+        )?;
         self.set_coldkeypub(keypair.clone(), false, overwrite, py)?;
 
         Ok(self.clone())
@@ -606,7 +687,15 @@ except argparse.ArgumentError:
         hotkey_password: Option<String>,
         py: Python,
     ) -> PyResult<Wallet> {
-        self.create_new_hotkey(n_words, use_password, overwrite, suppress, save_hotkey_to_env, hotkey_password, py)
+        self.create_new_hotkey(
+            n_words,
+            use_password,
+            overwrite,
+            suppress,
+            save_hotkey_to_env,
+            hotkey_password,
+            py,
+        )
     }
 
     /// Creates a new hotkey, optionally encrypts it with the user-provided password and saves to disk.
@@ -635,7 +724,14 @@ except argparse.ArgumentError:
             use_password
         };
 
-        self.set_hotkey(keypair.clone(), use_password, overwrite, save_hotkey_to_env, hotkey_password, py)?;
+        self.set_hotkey(
+            keypair.clone(),
+            use_password,
+            overwrite,
+            save_hotkey_to_env,
+            hotkey_password,
+            py,
+        )?;
         Ok(self.clone())
     }
 
@@ -711,7 +807,14 @@ except argparse.ArgumentError:
             ));
         };
 
-        self.set_coldkey(keypair.clone(), use_password, overwrite, save_coldkey_to_env, coldkey_password, py)?;
+        self.set_coldkey(
+            keypair.clone(),
+            use_password,
+            overwrite,
+            save_coldkey_to_env,
+            coldkey_password,
+            py,
+        )?;
         self.set_coldkeypub(keypair.clone(), false, overwrite, py)?;
         Ok(self.clone())
     }
@@ -751,7 +854,14 @@ except argparse.ArgumentError:
             ));
         };
 
-        self.set_hotkey(keypair, use_password, overwrite, save_hotkey_to_env, hotkey_password, py)?;
+        self.set_hotkey(
+            keypair,
+            use_password,
+            overwrite,
+            save_hotkey_to_env,
+            hotkey_password,
+            py,
+        )?;
 
         Ok(self.clone())
     }
