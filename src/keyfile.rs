@@ -1086,7 +1086,7 @@ impl Keyfile {
     }
 
     /// Removes the password associated with the Keyfile from the local environment.
-    fn delete_password_from_env(&self) -> PyResult<bool> {
+    fn remove_password_from_env(&self) -> PyResult<bool> {
         let env_var_name = self.env_var_name()?;
 
         if env::var(&env_var_name).is_ok() {
