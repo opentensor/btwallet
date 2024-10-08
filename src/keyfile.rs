@@ -23,6 +23,9 @@ use crate::errors::KeyFileError;
 use crate::keypair::Keypair;
 use crate::utils;
 
+use sodiumoxide::crypto::pwhash;
+use sodiumoxide::crypto::secretbox;
+
 type PyFileNotFoundError = KeyFileError;
 type PyIOError = KeyFileError;
 type PyOSError = KeyFileError;
@@ -31,8 +34,6 @@ type PyRuntimeError = KeyFileError;
 type PyUnicodeDecodeError = KeyFileError;
 type PyValueError = KeyFileError;
 
-use sodiumoxide::crypto::pwhash;
-use sodiumoxide::crypto::secretbox;
 
 const NACL_SALT: &[u8] = b"\x13q\x83\xdf\xf1Z\t\xbc\x9c\x90\xb5Q\x879\xe9\xb1";
 const LEGACY_SALT: &[u8] = b"Iguesscyborgslikemyselfhaveatendencytobeparanoidaboutourorigins";
@@ -321,16 +322,20 @@ pub fn legacy_encrypt_keyfile_data(
 /// # Returns
 /// * `Option<String>` - The password retrieved from the environment variables, or `None` if not found.
 #[pyfunction]
-#[pyo3(signature = (coldkey_name))]
-pub fn get_coldkey_password_from_environment(
+#[pyo3(signature = (env_var_name))]
+pub fn get_password_from_environment(
     _py: Python,
-    coldkey_name: String,
+    env_var_name: String,
 ) -> PyResult<Option<String>> {
-    let env_key: String = format!(
-        "BT_COLD_PW_{}",
-        coldkey_name.to_uppercase().replace('-', "_")
-    );
-    Ok(env::var(env_key).ok())
+    match env::var(&env_var_name) {
+        Ok(encrypted_password) => {
+            let decrypted_password = decrypt_password(encrypted_password, env_var_name);
+            Ok(Some(decrypted_password))
+        }
+        Err(_) => {
+            Ok(None)
+        }
+    }
 }
 
 // decrypt of keyfile_data with secretbox
@@ -369,7 +374,7 @@ pub fn encrypt_keyfile_data(
         None => ask_password(py, true)?,
     };
 
-    utils::print("Encrypting...".to_string());
+    utils::print("Encrypting...\n".to_string());
 
     // crate the key with pwhash Argon2i
     let key = derive_key(password.as_bytes());
@@ -397,12 +402,12 @@ pub fn encrypt_keyfile_data(
 ///     Returns
 ///         decrypted_data (bytes): The decrypted data.
 #[pyfunction]
-#[pyo3(signature = (keyfile_data, password = None, coldkey_name = None))]
+#[pyo3(signature = (keyfile_data, password = None, password_env_var = None))]
 pub fn decrypt_keyfile_data(
     py: Python,
     keyfile_data: &[u8],
     password: Option<String>,
-    coldkey_name: Option<String>,
+    password_env_var: Option<String>,
 ) -> PyResult<PyObject> {
     // decrypt of keyfile_data with secretbox
     fn nacl_decrypt(keyfile_data: &[u8], key: &secretbox::Key) -> PyResult<Vec<u8>> {
@@ -430,10 +435,10 @@ pub fn decrypt_keyfile_data(
 
     let mut password = password;
 
-    // Retrieve password from environment variable if coldkey_name is provided
-    if let Some(coldkey) = coldkey_name {
+    // Retrieve password from environment variable if env_var_name is provided
+    if let Some(env_var_name_) = password_env_var {
         if password.is_none() {
-            password = get_coldkey_password_from_environment(py, coldkey)?;
+            password = get_password_from_environment(py, env_var_name_)?;
         }
     }
 
@@ -444,7 +449,7 @@ pub fn decrypt_keyfile_data(
 
     let password = password.unwrap();
 
-    utils::print("Decrypting...".to_string());
+    utils::print("Decrypting...\n".to_string());
 
     // NaCl decryption
     if keyfile_data_is_encrypted_nacl(py, keyfile_data)? {
@@ -488,21 +493,43 @@ fn expand_tilde(path: &str) -> String {
     path.to_string()
 }
 
+// Encryption password
+fn encrypt_password(key: String, value: String) -> String {
+    let mut encrypted = String::new();
+    for (i, c) in value.chars().enumerate() {
+        let encrypted_char = (c as u8) ^ (key.chars().nth(i % key.len()).unwrap() as u8);
+        encrypted.push(encrypted_char as char);
+    }
+    println!(">>> key: {}, value: {}, encrypted: {}", key, value, encrypted);
+    encrypted
+}
+
+// Decrypting password
+fn decrypt_password(data: String, key: String) -> String {
+    let mut decrypted = String::new();
+    for (i, c) in data.chars().enumerate() {
+        let decrypted_char = (c as u8) ^ (key.chars().nth(i % key.len()).unwrap() as u8);
+        decrypted.push(decrypted_char as char);
+    }
+    decrypted
+}
+
 #[derive(Clone)]
 #[pyclass(subclass)]
 pub struct Keyfile {
     path: String,
     name: String,
+    should_save_to_env: bool,
 }
 
 #[pymethods]
 impl Keyfile {
     #[new]
-    #[pyo3(signature = (path, name = None))]
-    pub fn new(path: String, name: Option<String>) -> PyResult<Self> {
+    #[pyo3(signature = (path, name=None, should_save_to_env=false))]
+    pub fn new(path: String, name: Option<String>, should_save_to_env: bool) -> PyResult<Self> {
         let path = expand_tilde(&path);
         let name = name.unwrap_or_else(|| "Keyfile".to_string());
-        Ok(Keyfile { path, name })
+        Ok(Keyfile { path, name, should_save_to_env })
     }
 
     #[allow(clippy::bool_comparison)]
@@ -540,7 +567,7 @@ impl Keyfile {
 
         // check if encrypted
         let decrypted_keyfile_data = if keyfile_data_is_encrypted(py, keyfile_data_bytes)? {
-            decrypt_keyfile_data(py, keyfile_data_bytes, password, Some(self.name.clone()))?
+            decrypt_keyfile_data(py, keyfile_data_bytes, password, Some(self.env_var_name()?))?
         } else {
             keyfile_data
         };
@@ -576,9 +603,11 @@ impl Keyfile {
         self._read_keyfile_data_from_file(py)
     }
 
+    /// Returns local environment variable key name based on Keyfile path.
     #[getter]
-    pub fn env_var(&self, _py: Python) -> PyResult<String> {
-        Ok(format!("BT_PW_{}", self.path.clone().replace(std::path::MAIN_SEPARATOR, "_").replace(".", "_").to_uppercase()))
+    fn env_var_name(&self) -> PyResult<String> {
+        let path = &self.path.replace(std::path::MAIN_SEPARATOR, "_").replace('.', "_");
+        Ok(format!("BT_PW_{}", path.to_uppercase()))
     }
 
     /// Writes the keypair to the file and optionally encrypts data.
@@ -596,7 +625,13 @@ impl Keyfile {
         let keyfile_data = serialized_keypair_to_keyfile_data(py, &keypair)?;
 
         let final_keyfile_data = if encrypt {
-            let encrypted_data = encrypt_keyfile_data(py, keyfile_data.extract(py)?, password)?;
+            let encrypted_data = encrypt_keyfile_data(py, keyfile_data.extract(py)?, password.clone())?;
+
+            // store password to local env
+            if self.should_save_to_env {
+                self.save_password_to_env(password.clone(), py)?;
+            }
+
             encrypted_data.extract::<&[u8]>(py)?
         } else {
             keyfile_data.extract::<&[u8]>(py)?
@@ -773,7 +808,7 @@ impl Keyfile {
                             py,
                             keyfile_data_bytes,
                             Some(pwd),
-                            Some(self.name.clone()),
+                            Some(self.env_var_name()?),
                         ) {
                             Ok(decrypted_data) => {
                                 let data: Vec<u8> = decrypted_data.extract(py)?;
@@ -829,7 +864,7 @@ impl Keyfile {
 
     /// Encrypts the file under the path.
     #[pyo3(signature = (password = None))]
-    pub fn encrypt(&self, password: Option<String>, py: Python) -> PyResult<()> {
+    pub fn encrypt(&self, mut password: Option<String>, py: Python) -> PyResult<()> {
         // checkers
         if !self.exists_on_device()? {
             return Err(PyErr::new::<PyValueError, _>(format!(
@@ -860,7 +895,18 @@ impl Keyfile {
             let as_keypair = deserialize_keypair_from_keyfile_data(keyfile_data_bytes, py)?;
             let serialized_data = serialized_keypair_to_keyfile_data(py, &as_keypair)?;
 
-            encrypt_keyfile_data(py, serialized_data.extract(py)?, password)?
+            // get password from local env if exist
+            if password.is_none() {
+                password = get_password_from_environment(py, self.env_var_name()?)?;
+            }
+
+            let encrypted_keyfile_data = encrypt_keyfile_data(py, serialized_data.extract(py)?, password.clone())?;
+
+            if self.should_save_to_env {
+                self.save_password_to_env(password.clone(), py)?;
+            }
+
+            encrypted_keyfile_data
         } else {
             keyfile_data
         };
@@ -899,7 +945,7 @@ impl Keyfile {
         let keyfile_data_bytes: &[u8] = keyfile_data.extract(py)?;
 
         let decrypted_data = if keyfile_data_is_encrypted(py, keyfile_data_bytes)? {
-            decrypt_keyfile_data(py, keyfile_data_bytes, password, Some(self.name.clone()))?
+            decrypt_keyfile_data(py, keyfile_data_bytes, password, Some(self.env_var_name()?))?
         } else {
             keyfile_data
         };
@@ -988,5 +1034,56 @@ impl Keyfile {
             PyErr::new::<PyPermissionError, _>(format!("Failed to set permissions: {}.", e))
         })?;
         Ok(())
+    }
+
+    /// Saves the key's password to the associated local environment variable.
+    #[pyo3(signature = (password=None))]
+    fn save_password_to_env(&self, password: Option<String>, py: Python) -> PyResult<bool> {
+        // checking the password
+        let password = match password {
+            Some(pwd) => pwd,
+            None => {
+                match ask_password(py, true) {
+                    Ok(pwd) => pwd,
+                    Err(e) => {
+                        utils::print(format!("Error asking password: {:?}.\n", e));
+                        return Ok(false);
+                    }
+                }
+            }
+        };
+        // saving password
+        match self.env_var_name() {
+            Ok(env_var_name) => {
+                // encrypt password
+                let encrypted_password = encrypt_password(self.env_var_name()?, password);
+                // store encrypted password
+                env::set_var(&env_var_name, encrypted_password);
+
+                let message = format!("The password has been saved to environment variable '{}'.\n", env_var_name);
+                utils::print(message);
+                Ok(true)
+            },
+            Err(e) => {
+                utils::print(format!("Error saving environment variable name: {:?}.\n", e));
+                Ok(false)
+            }
+        }
+    }
+
+    /// Removes the password associated with the Keyfile from the local environment.
+    fn delete_password_from_env(&self) -> PyResult<bool> {
+        let env_var_name = self.env_var_name()?;
+
+        if env::var(&env_var_name).is_ok() {
+            env::remove_var(&env_var_name);
+            let message = format!("Environment variable '{}' removed.\n", env_var_name);
+            utils::print(message);
+            Ok(true)
+        } else {
+            let message = format!("Environment variable '{}' does not exist.\n", env_var_name);
+            utils::print(message);
+            Ok(false)
+        }
     }
 }

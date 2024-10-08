@@ -115,7 +115,11 @@ pub fn print(s: String) {
     Python::with_gil(|py| {
         let locals = PyDict::new_bound(py);
         locals.set_item("s", s).unwrap();
-        py.run_bound("print(s, end='')", None, Some(&locals))
+        py.run_bound(r#"
+import sys
+print(s, end='')
+sys.stdout.flush()
+"#, None, Some(&locals))
             .unwrap();
     });
 }
