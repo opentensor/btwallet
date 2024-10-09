@@ -11,7 +11,9 @@ keyfile_data_is_encrypted_legacy = _.keyfile_data_is_encrypted_legacy
 keyfile_data_is_encrypted = _.keyfile_data_is_encrypted
 keyfile_data_encryption_method = _.keyfile_data_encryption_method
 legacy_encrypt_keyfile_data = _.legacy_encrypt_keyfile_data
-get_coldkey_password_from_environment = _.get_coldkey_password_from_environment
+get_coldkey_password_from_environment = _.get_password_from_environment
+# backwards compatibility
+get_password_from_environment = get_coldkey_password_from_environment
 encrypt_keyfile_data = _.encrypt_keyfile_data
 decrypt_keyfile_data = _.decrypt_keyfile_data
 Keyfile = _.Keyfile
