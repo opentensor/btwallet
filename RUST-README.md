@@ -307,3 +307,28 @@ assert kf.exists_on_device() == True
 assert kf.is_writable() == True
 assert kf.is_readable() == True
 ```
+
+### Config parsing test
+```python
+import argparse
+import bittensor as bt
+
+parser = argparse.ArgumentParser(description='My parser')
+
+bt.wallet.add_args(parser)
+bt.subtensor.add_args(parser)
+bt.axon.add_args(parser)
+bt.logging.add_args(parser)
+
+config = bt.config(parser)
+
+config.wallet.name = "new_wallet_name"
+config.wallet.hotkey = "new_hotkey"
+config.wallet.path = "/some/not_default/path"
+
+wallet = bt.wallet(config=config)
+
+assert wallet.name == config.wallet.name
+assert wallet.hotkey_str == config.wallet.hotkey
+assert wallet.path == config.wallet.path
+```
