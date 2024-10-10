@@ -587,7 +587,6 @@ impl Keypair {
     }
 }
 
-
 // Default values for Keypair
 impl Default for Keypair {
     fn default() -> Self {

@@ -80,7 +80,7 @@ fn register_keyfile_module(main_module: &Bound<'_, PyModule>) -> PyResult<()> {
         &keyfile_module
     )?)?;
     keyfile_module.add_function(wrap_pyfunction!(
-        keyfile::get_coldkey_password_from_environment,
+        keyfile::get_password_from_environment,
         &keyfile_module
     )?)?;
     keyfile_module.add_function(wrap_pyfunction!(
