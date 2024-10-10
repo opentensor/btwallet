@@ -1,6 +1,6 @@
 [project]
 name = "bittensor-wallet"
-version = "2.0.1"
+version = "2.0.2"
 description = ""
 readme = "README.md"
 license = {file = "LICENSE"}
@@ -20,11 +20,10 @@ dependencies = [
 requires-python = ">= 3.9"
 
 authors = [
-  {name = "Cameron Fairchild", email = "cameron@opentensor.dev"},
-  {name = "Opentensor Foundation", email = "hello@bittensor.com"},
+  {name = "Roman Chkhaidze", email = "roman@opentensor.dev"},
 ]
 maintainers = [
-  {name = "Cameron Fairchild", email = "cameron@opentensor.dev"}
+  {name = "Cortex Team", email = "cortex@opentensor.dev"},
 ]
 classifiers = [
         "Development Status :: 5 - Production/Stable",
