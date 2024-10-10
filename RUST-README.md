@@ -64,14 +64,12 @@ kpw = WKeypair.create_from_mnemonic("stool feel open east woman high can denial 
 assert kps.ss58_address == kpw.ss58_address
 assert kps.seed_hex == kpw.seed_hex
 assert kps.public_key == kpw.public_key
-assert kps.private_key == kpw.private_key
 
 kps = SKeypair.create_from_seed("0x023d5fbd7981676587a9f7232aeae1087ac7c265f9658fb643b6f5e61961dfbf")
 kpw = WKeypair.create_from_seed("0x023d5fbd7981676587a9f7232aeae1087ac7c265f9658fb643b6f5e61961dfbf")
 assert kps.ss58_address == kpw.ss58_address
 assert kps.seed_hex == kpw.seed_hex
 assert kps.public_key == kpw.public_key
-assert kps.private_key == kpw.private_key
 
 # substrateinterface has a bug -> can't create the KP without `ss58_format` passed
 kps = SKeypair.create_from_private_key("0x2b400f61c21cbaad4d5cb2dcbb4ef4fcdc238b98d04d48c6d2a451ebfd306c0eed845edcc69b0a19a6905afed0dd84c16ebd0f458928f2e91a6b67b95fc0b42f", ss58_format=42)
@@ -79,14 +77,12 @@ kpw = WKeypair.create_from_private_key("0x2b400f61c21cbaad4d5cb2dcbb4ef4fcdc238b
 assert kps.ss58_address == kpw.ss58_address
 assert kps.seed_hex == kpw.seed_hex
 assert kps.public_key == kpw.public_key
-assert kps.private_key == kpw.private_key
 
 kps = SKeypair.create_from_uri("//Alice")
 kpw = WKeypair.create_from_uri("//Alice")
 assert kps.ss58_address == kpw.ss58_address
 assert kps.seed_hex == kpw.seed_hex
 assert kps.public_key == kpw.public_key
-assert kps.private_key == kpw.private_key
 
 # substrateinterface has a bug -> can't create the KP without `ss58_format` passed
 from_private_key_new_kps = SKeypair(public_key=kps.public_key.hex(), ss58_format=42)
@@ -94,14 +90,13 @@ from_private_key_new_kpw = WKeypair(public_key=kps.public_key.hex())
 assert from_private_key_new_kps.ss58_address == from_private_key_new_kpw.ss58_address
 assert from_private_key_new_kps.seed_hex == from_private_key_new_kpw.seed_hex
 assert from_private_key_new_kps.public_key == from_private_key_new_kpw.public_key
-assert from_private_key_new_kps.private_key == from_private_key_new_kpw.private_key
+
 
 from_address_kps = SKeypair(ss58_address="5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY")
 from_address_kpw = WKeypair(ss58_address="5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY")
 assert from_address_kps.ss58_address == from_address_kpw.ss58_address
 assert from_address_kps.seed_hex == from_address_kpw.seed_hex
 assert from_address_kps.public_key == from_address_kpw.public_key
-assert from_address_kps.private_key == from_address_kpw.private_key
 
 # check signature
 assert kps.verify("asd", kpw.sign("asd")) == True
@@ -120,8 +115,6 @@ skp = S_Keypair.create_from_encrypted_json(data, passphrase)
 wkp = W_Keypair.create_from_encrypted_json(data, passphrase)
 
 assert skp.ss58_format == wkp.ss58_format
-assert skp.private_key == wkp.private_key
-assert skp.private_key.hex() == wkp.private_key.hex()
 assert skp.public_key == wkp.public_key
 assert skp.public_key.hex() == wkp.public_key.hex()
 ```
@@ -192,7 +185,6 @@ assert isinstance(kp_2, Keypair)
 assert kp.ss58_address == kp_2.ss58_address
 assert kp.seed_hex == kp_2.seed_hex
 assert kp.public_key == kp_2.public_key
-assert kp.private_key == kp_2.private_key
 ```
 
 #### Test Keyfile encrypt and decrypt
