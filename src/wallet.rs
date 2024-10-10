@@ -33,13 +33,33 @@ pub fn display_mnemonic_msg(mnemonic: String, key_type: &str) {
     ));
 }
 
+// Function to safely retrieve attribute as Option<String> from passed python object
+fn get_attribute_string(py: Python, obj: &Bound<PyAny>, attr_name: &str) -> PyResult<Option<String>> {
+    match obj.getattr(attr_name) {
+        Ok(attr) => {
+            if attr.is_none() {
+                Ok(None)
+            } else {
+                let value: String = attr.extract()?;
+                Ok(Some(value))
+            }
+        }
+        Err(e) => {
+            if e.is_instance_of::<pyo3::exceptions::PyAttributeError>(py) {
+                Ok(None)
+            } else {
+                Err(e)
+            }
+        }
+    }
+}
+
 #[derive(Clone)]
 #[pyclass(subclass)]
 pub struct Wallet {
     pub name: String,
     pub path: String,
     pub hotkey: String,
-    pub config: Option<Config>,
 
     _coldkey: Option<Keypair>,
     _coldkeypub: Option<Keypair>,
@@ -61,23 +81,63 @@ impl Wallet {
         name: Option<String>,
         hotkey: Option<String>,
         path: Option<String>,
-        config: Option<Config>,
+        config: Option<PyObject>,
+        py: Python
     ) -> PyResult<Wallet> {
-        let final_name = name
-            .or_else(|| Some(config.clone()?.wallet.name.clone()))
-            .unwrap_or_else(|| BT_WALLET_NAME.to_string());
-        let final_hotkey = hotkey
-            .or_else(|| Some(config.clone()?.wallet.hotkey.clone()))
-            .unwrap_or_else(|| BT_WALLET_HOTKEY.to_string());
-        let final_path = path
-            .or_else(|| Some(config.clone()?.wallet.path.clone()))
-            .unwrap_or_else(|| BT_WALLET_PATH.to_string());
+
+        // default config's values if config and config.wallet exist
+        let mut conf_name: Option<String> = None;
+        let mut conf_hotkey: Option<String> = None;
+        let mut conf_path: Option<String> = None;
+
+        // parse python config object if passed
+        if let Some(config_obj) = config {
+            let config_ref = config_obj.bind(py);
+
+            // parse python config.wallet object if exist in config object
+            if config_ref.hasattr("wallet")? {
+                let wallet_obj = config_ref.getattr("wallet")?;
+
+                if !wallet_obj.is_none() {
+                    let wallet_ref = wallet_obj.as_ref();
+
+                    // assign values instead of default ones
+                    conf_name = get_attribute_string(py, wallet_ref, "name")?;
+                    conf_hotkey = get_attribute_string(py, wallet_ref, "hotkey")?;
+                    conf_path = get_attribute_string(py, wallet_ref, "path")?;
+                }
+            }
+        }
+
+        let final_name = if let Some(name) = name {
+            name
+        } else if let Some(conf_name) = conf_name {
+            conf_name
+        } else {
+            BT_WALLET_NAME.to_string()
+        };
+
+        let final_hotkey = if let Some(hotkey) = hotkey {
+            hotkey
+        } else if let Some(conf_hotkey) = conf_hotkey {
+            conf_hotkey
+        } else {
+            BT_WALLET_HOTKEY.to_string()
+        };
+
+        let final_path = if let Some(path) = path {
+            path
+        } else if let Some(conf_path) = conf_path {
+            conf_path.strip_prefix("~/").unwrap_or(&conf_path).to_string()
+        } else {
+            BT_WALLET_PATH.to_string()
+        };
 
         Ok(Wallet {
             name: final_name,
             hotkey: final_hotkey,
             path: final_path,
-            config: config.or(None),
+
             _coldkey: None,
             _coldkeypub: None,
             _hotkey: None,
@@ -124,7 +184,7 @@ impl Wallet {
         let default_hotkey =
             env::var("BT_WALLET_HOTKEY").unwrap_or_else(|_| BT_WALLET_HOTKEY.to_string());
         let default_path =
-            env::var("BT_WALLET_PATH").unwrap_or_else(|_| BT_WALLET_PATH.to_string());
+            env::var("BT_WALLET_PATH").unwrap_or_else(|_| format!("~/{}", BT_WALLET_PATH.to_string()));
 
         let prefix_str = if let Some(value) = prefix {
             format!("\"{}\"", value)
