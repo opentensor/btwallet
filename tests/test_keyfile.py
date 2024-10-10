@@ -463,10 +463,11 @@ def test_deserialize_keypair_from_keyfile_data(keyfile_setup_teardown):
     [
         ("BT_PW_COLD_WALLET", "61,$>18", "testin{"),
         ("BT_PW_COLD_WALLET", " =+$21,:!t``", "bittenoum0?7"),
-    ]
+    ],
 )
-def test_get_coldkey_password_from_environment(monkeypatch, env_name, encrypted, decrypted):
-
+def test_get_coldkey_password_from_environment(
+    monkeypatch, env_name, encrypted, decrypted
+):
     # Preps
     monkeypatch.setenv(env_name, encrypted)
 
