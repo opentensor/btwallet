@@ -34,7 +34,11 @@ pub fn display_mnemonic_msg(mnemonic: String, key_type: &str) {
 }
 
 // Function to safely retrieve attribute as Option<String> from passed python object
-fn get_attribute_string(py: Python, obj: &Bound<PyAny>, attr_name: &str) -> PyResult<Option<String>> {
+fn get_attribute_string(
+    py: Python,
+    obj: &Bound<PyAny>,
+    attr_name: &str,
+) -> PyResult<Option<String>> {
     match obj.getattr(attr_name) {
         Ok(attr) => {
             if attr.is_none() {
@@ -82,9 +86,8 @@ impl Wallet {
         hotkey: Option<String>,
         path: Option<String>,
         config: Option<PyObject>,
-        py: Python
+        py: Python,
     ) -> PyResult<Wallet> {
-
         // default config's values if config and config.wallet exist
         let mut conf_name: Option<String> = None;
         let mut conf_hotkey: Option<String> = None;
@@ -128,7 +131,10 @@ impl Wallet {
         let final_path = if let Some(path) = path {
             path
         } else if let Some(conf_path) = conf_path {
-            conf_path.strip_prefix("~/").unwrap_or(&conf_path).to_string()
+            conf_path
+                .strip_prefix("~/")
+                .unwrap_or(&conf_path)
+                .to_string()
         } else {
             BT_WALLET_PATH.to_string()
         };
@@ -183,8 +189,8 @@ impl Wallet {
             env::var("BT_WALLET_NAME").unwrap_or_else(|_| BT_WALLET_NAME.to_string());
         let default_hotkey =
             env::var("BT_WALLET_HOTKEY").unwrap_or_else(|_| BT_WALLET_HOTKEY.to_string());
-        let default_path =
-            env::var("BT_WALLET_PATH").unwrap_or_else(|_| format!("~/{}", BT_WALLET_PATH.to_string()));
+        let default_path = env::var("BT_WALLET_PATH")
+            .unwrap_or_else(|_| format!("~/{}", BT_WALLET_PATH.to_string()));
 
         let prefix_str = if let Some(value) = prefix {
             format!("\"{}\"", value)
