@@ -10,7 +10,7 @@ dependencies = [
     "termcolor",
     "eth-utils<2.3.0",
     "password_strength",
-    "cryptography~=42.0.5",
+    "cryptography~=43.0.1",
     "ansible~=6.7",
     "ansible_vault~=2.1",
     "munch~=2.5.0",
