@@ -9,7 +9,7 @@ use std::env;
 use std::fs;
 use std::io::{Read, Write};
 use std::os::unix::fs::PermissionsExt;
-use std::path::Path;
+use std::path::PathBuf;
 use std::str::from_utf8;
 
 use ansible_vault::{decrypt_vault, encrypt_vault};
@@ -519,6 +519,7 @@ fn decrypt_password(data: String, key: String) -> String {
 #[pyclass(subclass)]
 pub struct Keyfile {
     path: String,
+    _path: PathBuf,
     name: String,
     should_save_to_env: bool,
 }
@@ -528,10 +529,11 @@ impl Keyfile {
     #[new]
     #[pyo3(signature = (path, name=None, should_save_to_env=false))]
     pub fn new(path: String, name: Option<String>, should_save_to_env: bool) -> PyResult<Self> {
-        let path = expand_tilde(&path);
+        let expanded_path: PathBuf = PathBuf::from(expand_tilde(&path));
         let name = name.unwrap_or_else(|| "Keyfile".to_string());
         Ok(Keyfile {
             path,
+            _path: expanded_path,
             name,
             should_save_to_env,
         })
@@ -653,9 +655,7 @@ impl Keyfile {
 
     /// Creates directories for the path if they do not exist.
     pub fn make_dirs(&self) -> PyResult<()> {
-        // convert String to Path
-        let path: &Path = self.path.as_ref();
-        if let Some(directory) = path.parent() {
+        if let Some(directory) = self._path.parent() {
             // check if the dir is exit already
             if !directory.exists() {
                 // create the dir if not
@@ -670,7 +670,7 @@ impl Keyfile {
     /// Returns:
     ///     readable (bool): ``True`` if the file is readable.
     pub fn exists_on_device(&self) -> PyResult<bool> {
-        Ok(Path::new(&self.path).exists())
+        Ok(self._path.exists())
     }
 
     /// Returns ``True`` if the file under path is readable.
@@ -681,7 +681,7 @@ impl Keyfile {
         }
 
         // get file metadata
-        let metadata = fs::metadata(&self.path).map_err(|e| {
+        let metadata = fs::metadata(&self._path).map_err(|e| {
             PyErr::new::<PyIOError, _>(format!("Failed to get metadata for file: {}.", e))
         })?;
 
@@ -703,7 +703,7 @@ impl Keyfile {
         }
 
         // get file metadata
-        let metadata = fs::metadata(&self.path).map_err(|e| {
+        let metadata = fs::metadata(&self._path).map_err(|e| {
             PyErr::new::<PyIOError, _>(format!("Failed to get metadata for file: {}", e))
         })?;
 
@@ -993,7 +993,7 @@ impl Keyfile {
         }
 
         // open and read the file
-        let mut file = fs::File::open(&self.path)
+        let mut file = fs::File::open(&self._path)
             .map_err(|e| PyErr::new::<PyOSError, _>(format!("Failed to open file: {}.", e)))?;
         let mut data_vec = Vec::new();
         file.read_to_end(&mut data_vec)
@@ -1029,7 +1029,7 @@ impl Keyfile {
             .write(true)
             .create(true)
             .truncate(true) // cleanup if rewrite
-            .open(&self.path)
+            .open(&self._path)
             .map_err(|e| PyErr::new::<PyIOError, _>(format!("Failed to open file: {}.", e)))?;
 
         // write data
@@ -1038,9 +1038,9 @@ impl Keyfile {
             .map_err(|e| PyErr::new::<PyIOError, _>(format!("Failed to write to file: {}.", e)))?;
 
         // set permissions
-        let mut permissions = fs::metadata(&self.path)?.permissions();
+        let mut permissions = fs::metadata(&self._path)?.permissions();
         permissions.set_mode(0o600); // just for owner
-        fs::set_permissions(&self.path, permissions).map_err(|e| {
+        fs::set_permissions(&self._path, permissions).map_err(|e| {
             PyErr::new::<PyPermissionError, _>(format!("Failed to set permissions: {}.", e))
         })?;
         Ok(())
