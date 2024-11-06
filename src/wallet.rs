@@ -828,7 +828,7 @@ except argparse.ArgumentError:
 
         let keypair = Keypair::new(ss58_address, public_key, None, 42, None, 1)?;
 
-        self.set_coldkeypub(keypair, overwrite, false, py)?;
+        self.set_coldkeypub(keypair, false, overwrite, py)?;
         Ok(self.clone())
     }
 
