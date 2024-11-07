@@ -4,6 +4,7 @@ use pyo3::types::{IntoPyDict, PyString, PyType};
 
 use colored::Colorize;
 use std::env;
+use std::path::PathBuf;
 
 use crate::config::Config;
 use crate::constants::{BT_WALLET_HOTKEY, BT_WALLET_NAME, BT_WALLET_PATH};
@@ -11,10 +12,6 @@ use crate::errors::KeyFileError;
 use crate::keyfile::Keyfile;
 use crate::keypair::Keypair;
 use crate::utils::{self, is_valid_bittensor_address_or_public_key};
-
-use dirs::home_dir;
-
-type PyRuntimeError = KeyFileError;
 
 /// Display the mnemonic and a warning message to keep the mnemonic safe.
 #[pyfunction]
@@ -64,6 +61,8 @@ pub struct Wallet {
     pub name: String,
     pub path: String,
     pub hotkey: String,
+
+    _path: PathBuf,
 
     _coldkey: Option<Keypair>,
     _coldkeypub: Option<Keypair>,
@@ -132,17 +131,18 @@ impl Wallet {
             path
         } else if let Some(conf_path) = conf_path {
             conf_path
-                .strip_prefix("~/")
-                .unwrap_or(&conf_path)
-                .to_string()
         } else {
             BT_WALLET_PATH.to_string()
         };
 
+        let expanded_path: PathBuf = PathBuf::from(shellexpand::tilde(&final_path).to_string());
+
         Ok(Wallet {
             name: final_name,
             hotkey: final_hotkey,
-            path: final_path,
+            path: final_path.clone(),
+
+            _path: expanded_path,
 
             _coldkey: None,
             _coldkeypub: None,
@@ -152,14 +152,14 @@ impl Wallet {
 
     fn __str__(&self) -> PyResult<String> {
         Ok(format!(
-            "Wallet (Name: '{:}', Hotkey: '{:}', Path: '~/{:}')",
+            "Wallet (Name: '{:}', Hotkey: '{:}', Path: '{:}')",
             self.name, self.hotkey, self.path
         ))
     }
 
     fn __repr__(&self) -> PyResult<String> {
         Ok(format!(
-            "name: '{:}', hotkey: '{:}', path: '~/{:}'",
+            "name: '{:}', hotkey: '{:}', path: '{:}'",
             self.name, self.hotkey, self.path
         ))
     }
@@ -389,12 +389,8 @@ except argparse.ArgumentError:
     /// Created Hot Keyfile for Keypair
     #[pyo3(signature = (save_hotkey_to_env=false))]
     pub fn create_hotkey_file(&self, save_hotkey_to_env: bool) -> PyResult<Keyfile> {
-        // get home dir
-        let home = home_dir()
-            .ok_or_else(|| PyErr::new::<PyRuntimeError, _>("Failed to get user home directory."))?;
-
         // concatenate wallet path
-        let wallet_path = home.join(&self.path).join(&self.name);
+        let wallet_path = self._path.join(&self.name);
 
         // concatenate hotkey path
         let hotkey_path = wallet_path.join("hotkeys").join(&self.hotkey);
@@ -415,12 +411,8 @@ except argparse.ArgumentError:
     /// Created Cold Keyfile for Keypair
     #[pyo3(signature = (save_coldkey_to_env=false))]
     pub fn create_coldkey_file(&self, save_coldkey_to_env: bool) -> PyResult<Keyfile> {
-        // get home dir
-        let home = home_dir()
-            .ok_or_else(|| PyErr::new::<PyRuntimeError, _>("Failed to get user home directory."))?;
-
         // concatenate wallet path
-        let wallet_path = home.join(&self.path).join(&self.name);
+        let wallet_path = PathBuf::from(&self._path).join(&self.name);
 
         // concatenate coldkey path
         let coldkey_path = wallet_path.join("coldkey");
@@ -434,12 +426,8 @@ except argparse.ArgumentError:
     /// Property that returns the coldkeypub file.
     #[getter]
     pub fn coldkeypub_file(&self) -> PyResult<Keyfile> {
-        // get home dir
-        let home = home_dir()
-            .ok_or_else(|| PyErr::new::<PyRuntimeError, _>("Failed to get user home directory."))?;
-
         // concatenate wallet path
-        let wallet_path = home.join(&self.path).join(&self.name);
+        let wallet_path = self._path.join(&self.name);
 
         // concatenate hotkey path
         let coldkeypub_path = wallet_path.join("coldkeypub.txt");
@@ -834,7 +822,7 @@ except argparse.ArgumentError:
 
         let keypair = Keypair::new(ss58_address, public_key, None, 42, None, 1)?;
 
-        self.set_coldkeypub(keypair, overwrite, false, py)?;
+        self.set_coldkeypub(keypair, false, overwrite, py)?;
         Ok(self.clone())
     }
 

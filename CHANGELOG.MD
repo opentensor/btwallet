@@ -4,7 +4,7 @@
 
 ## What's Changed
 
-* Add the ability to use local variables to store hot/coldkey passwords by @roman-opentensor in https://github.com/opentensor/btwallet/pull/46
+* Add the ability to use environment variables to store hot/coldkey passwords by @roman-opentensor in https://github.com/opentensor/btwallet/pull/46
 * fix/roman/fix-config-parsing by @roman-opentensor in https://github.com/opentensor/btwallet/pull/47
 
 **Full Changelog**: https://github.com/opentensor/btwallet/compare/v2.0.1...v2.0.2
