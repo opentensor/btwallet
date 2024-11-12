@@ -13,4 +13,4 @@ from bittensor_wallet.bittensor_wallet import (
     wallet as wallet,
 )
 
-__version__ = "2.0.0"
+__version__ = "2.1.0"

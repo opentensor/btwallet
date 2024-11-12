@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.1.0 /2024-11-12
+
+## What's Changed
+
+* Fix hot/coldkey passwords in env by @roman-opentensor in https://github.com/opentensor/btwallet/pull/55
+* Fix wallet paths outside userhome by @camfairchild in https://github.com/opentensor/btwallet/pull/59
+* fix https://github.com/opentensor/btwallet/issues/51 by @camfairchild in https://github.com/opentensor/btwallet/pull/56
+* password fixes and new PasswordError by @roman-opentensor 
+
+**Full Changelog**: https://github.com/opentensor/btwallet/compare/v2.0.2...v2.1.0
+
 ## 2.0.2 /2024-10-10
 
 ## What's Changed
