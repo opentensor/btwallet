@@ -23,7 +23,6 @@ from unittest import mock
 
 import pytest
 from bip39 import bip39_validate
-from jedi.common import monkeypatch
 
 from bittensor_wallet.errors import ConfigurationError, KeyFileError
 from bittensor_wallet.keyfile import Keyfile

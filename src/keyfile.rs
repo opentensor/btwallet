@@ -19,7 +19,7 @@ use passwords::analyzer;
 use passwords::scorer;
 use serde_json::json;
 
-use crate::errors::KeyFileError;
+use crate::errors::{KeyFileError, PasswordError};
 use crate::keypair::Keypair;
 use crate::utils;
 
@@ -414,7 +414,7 @@ pub fn decrypt_keyfile_data(
             .ok_or(PyErr::new::<PyRuntimeError, _>("Invalid nonce."))?;
         let ciphertext = &data[secretbox::NONCEBYTES..];
         secretbox::open(ciphertext, &nonce, key)
-            .map_err(|_| PyErr::new::<KeyFileError, _>("Wrong password for nacl decryption."))
+            .map_err(|_| PyErr::new::<PasswordError, _>("Wrong password for nacl decryption."))
     }
 
     // decrypt of keyfile_data with legacy way
@@ -428,7 +428,7 @@ pub fn decrypt_keyfile_data(
         let keyfile_data_str = from_utf8(keyfile_data)?;
         fernet
             .decrypt(keyfile_data_str)
-            .map_err(|_| PyErr::new::<KeyFileError, _>("Wrong password for nacl decryption."))
+            .map_err(|_| PyErr::new::<PasswordError, _>("Wrong password for legacy decryption."))
     }
 
     let mut password = password;
@@ -453,21 +453,21 @@ pub fn decrypt_keyfile_data(
     if keyfile_data_is_encrypted_nacl(py, keyfile_data)? {
         let key = derive_key(password.as_bytes());
         let decrypted_data = nacl_decrypt(keyfile_data, &key)
-            .map_err(|_| PyErr::new::<KeyFileError, _>("Wrong password for decryption."))?;
+            .map_err(|_| PyErr::new::<PasswordError, _>("Wrong password for decryption."))?;
         return Ok(PyBytes::new_bound(py, &decrypted_data).into_py(py));
     }
 
     // Ansible Vault decryption
     if keyfile_data_is_encrypted_ansible(py, keyfile_data)? {
         let decrypted_data = decrypt_vault(keyfile_data, password.as_str())
-            .map_err(|_| PyErr::new::<KeyFileError, _>("Wrong password for decryption."))?;
+            .map_err(|_| PyErr::new::<PasswordError, _>("Wrong password for decryption."))?;
         return Ok(PyBytes::new_bound(py, &decrypted_data).into_py(py));
     }
 
     // Legacy decryption
     if keyfile_data_is_encrypted_legacy(py, keyfile_data)? {
         let decrypted_data = legacy_decrypt(&password, keyfile_data)
-            .map_err(|_| PyErr::new::<KeyFileError, _>("Wrong password for decryption."))?;
+            .map_err(|_| PyErr::new::<PasswordError, _>("Wrong password for decryption."))?;
         return Ok(PyBytes::new_bound(py, &decrypted_data).into_py(py));
     }
 
@@ -498,10 +498,6 @@ fn encrypt_password(key: String, value: String) -> String {
         let encrypted_char = (c as u8) ^ (key.chars().nth(i % key.len()).unwrap() as u8);
         encrypted.push(encrypted_char as char);
     }
-    println!(
-        ">>> key: {}, value: {}, encrypted: {}",
-        key, value, encrypted
-    );
     encrypted
 }
 
@@ -1048,7 +1044,7 @@ impl Keyfile {
 
     /// Saves the key's password to the associated local environment variable.
     #[pyo3(signature = (password=None))]
-    fn save_password_to_env(&self, password: Option<String>, py: Python) -> PyResult<bool> {
+    fn save_password_to_env(&self, password: Option<String>, py: Python) -> PyResult<String> {
         // checking the password
         let password = match password {
             Some(pwd) => pwd,
@@ -1056,7 +1052,7 @@ impl Keyfile {
                 Ok(pwd) => pwd,
                 Err(e) => {
                     utils::print(format!("Error asking password: {:?}.\n", e));
-                    return Ok(false);
+                    return Ok("".parse()?);
                 }
             },
         };
@@ -1066,21 +1062,21 @@ impl Keyfile {
                 // encrypt password
                 let encrypted_password = encrypt_password(self.env_var_name()?, password);
                 // store encrypted password
-                env::set_var(&env_var_name, encrypted_password);
+                env::set_var(&env_var_name, &encrypted_password);
 
                 let message = format!(
                     "The password has been saved to environment variable '{}'.\n",
                     env_var_name
                 );
                 utils::print(message);
-                Ok(true)
+                Ok(encrypted_password)
             }
             Err(e) => {
                 utils::print(format!(
                     "Error saving environment variable name: {:?}.\n",
                     e
                 ));
-                Ok(false)
+                Ok("".parse()?)
             }
         }
     }

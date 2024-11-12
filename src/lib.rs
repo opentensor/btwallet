@@ -36,6 +36,7 @@ fn register_errors_module(main_module: &Bound<'_, PyModule>) -> PyResult<()> {
     let errors_module = PyModule::new_bound(main_module.py(), "errors")?;
     errors_module.add_class::<errors::ConfigurationError>()?;
     errors_module.add_class::<errors::KeyFileError>()?;
+    errors_module.add_class::<errors::PasswordError>()?;
     main_module.add_submodule(&errors_module)
 }
 
