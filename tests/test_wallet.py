@@ -544,3 +544,31 @@ def test_unlock_coldkeypub(mock_wallet):
     assert result.seed_hex == mock_wallet.get_coldkeypub().seed_hex
     assert result.crypto_type == mock_wallet.get_coldkeypub().crypto_type
     assert result.mnemonic == mock_wallet.get_coldkeypub().mnemonic
+
+
+def test_wallet_string_representation_with_default_arguments():
+    """Tests wallet string representation with default arguments."""
+    # Call
+    w = Wallet()
+
+    # Asserts
+    assert str(w) == "Wallet (Name: 'default', Hotkey: 'default', Path: '~/.bittensor/wallets/')"
+    assert w.name == "default"
+    assert w.hotkey_str == "default"
+    assert w.path == "~/.bittensor/wallets/"
+
+def test_wallet_string_representation_with_custom_arguments():
+    """Tests wallet string representation with custom arguments."""
+    # Preps
+    wallet_name = "test_wallet"
+    wallet_hotkey = "test_hotkey"
+    wallet_path = "/tmp/tests_wallets/"
+
+    # Call
+    w = Wallet(name="test_wallet", hotkey="test_hotkey", path="/tmp/tests_wallets/")
+
+    # Asserts
+    assert str(w) == f"Wallet (Name: '{wallet_name}', Hotkey: '{wallet_hotkey}', Path: '{wallet_path}')"
+    assert w.name == wallet_name
+    assert w.hotkey_str == wallet_hotkey
+    assert w.path == wallet_path
