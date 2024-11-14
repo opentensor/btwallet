@@ -190,7 +190,7 @@ impl Wallet {
         let default_hotkey =
             env::var("BT_WALLET_HOTKEY").unwrap_or_else(|_| BT_WALLET_HOTKEY.to_string());
         let default_path = env::var("BT_WALLET_PATH")
-            .unwrap_or_else(|_| format!("~/{}", BT_WALLET_PATH.to_string()));
+            .unwrap_or_else(|_| BT_WALLET_PATH.to_string());
 
         let prefix_str = if let Some(value) = prefix {
             format!("\"{}\"", value)
