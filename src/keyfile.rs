@@ -186,12 +186,15 @@ pub fn validate_password(_py: Python, password: &str) -> PyResult<bool> {
 #[pyfunction]
 pub fn ask_password(py: Python, validation_required: bool) -> PyResult<String> {
     let mut valid = false;
-    let password = utils::prompt_password("Enter your password: ".to_string());
-
+    let mut password = utils::prompt_password("Enter your password: ".to_string());
+    
     if validation_required {
         while !valid {
-            if let Some(ref password) = password {
-                valid = validate_password(py, &password)?;
+            if let Some(ref pwd) = password {
+                valid = validate_password(py, &pwd)?;
+                if !valid {
+                    password = utils::prompt_password("Enter your password again: ".to_string());
+                }
             } else {
                 valid = true
             }
