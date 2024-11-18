@@ -19,7 +19,7 @@ import pytest
 from bittensor_wallet import utils
 
 
-def test_get_ss58_format(mocker):
+def test_get_ss58_format():
     """Checks that `get_ss58_format` function uses `ss58.get_ss58_format` call."""
     # Preps
     fake_ss58_addressss58_address = "5FvUhL6sQ5egLAvnyiY1n7gTuhmYg9sD3oJbvASWkpNULt3n"
