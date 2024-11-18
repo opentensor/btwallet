@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.1.1 /2024-11-18
+
+## What's Changed
+* Fix ruff by @camfairchild in https://github.com/opentensor/btwallet/pull/62
+* add rustup to CI by @camfairchild in https://github.com/opentensor/btwallet/pull/63
+* Fix `~/` in wallet path by @roman-opentensor in https://github.com/opentensor/btwallet/pull/67
+* Removes ansible as requirement by @thewhaleking in https://github.com/opentensor/btwallet/pull/68
+* fix: Prevent infinite loop when password is not strong enough by @Ham3798 in https://github.com/opentensor/btwallet/pull/60
+* Add base and mro updating logic before add Wallet Keypair class to the main_module by @roman-opentensor in https://github.com/opentensor/btwallet/pull/69
+
+## New Contributors
+* @Ham3798 made their first contribution in https://github.com/opentensor/btwallet/pull/60
+
+**Full Changelog**: https://github.com/opentensor/btwallet/compare/v2.1.0...v2.1.1
+
 ## 2.1.0 /2024-11-12
 
 ## What's Changed
