@@ -1,5 +1,7 @@
 /// Main module for declaration of python package structure
 use pyo3::prelude::*;
+use pyo3::types::{PyTuple, PyType};
+use pyo3::ffi;
 
 mod config;
 mod constants;
@@ -10,7 +12,7 @@ mod utils;
 mod wallet;
 
 #[pymodule]
-fn bittensor_wallet(module: &Bound<'_, PyModule>) -> PyResult<()> {
+fn bittensor_wallet(py: Python<'_>,module: &Bound<'_, PyModule>) -> PyResult<()> {
     // classes to main module
     module.add_class::<config::Config>()?;
     module.add_class::<keyfile::Keyfile>()?;
@@ -20,7 +22,7 @@ fn bittensor_wallet(module: &Bound<'_, PyModule>) -> PyResult<()> {
     register_config_module(module)?;
     register_errors_module(module)?;
     register_keyfile_module(module)?;
-    register_keypair_module(module)?;
+    register_keypair_module(py, module)?;
     register_utils_module(module)?;
     register_wallet_module(module)?;
     Ok(())
@@ -97,11 +99,33 @@ fn register_keyfile_module(main_module: &Bound<'_, PyModule>) -> PyResult<()> {
 }
 
 // keypair module with functions
-fn register_keypair_module(main_module: &Bound<'_, PyModule>) -> PyResult<()> {
-    let keypair_module = PyModule::new_bound(main_module.py(), "keypair")?;
-    keypair_module.add_class::<keypair::Keypair>()?;
+fn register_keypair_module(py: Python, main_module: &Bound<'_, PyModule>) -> PyResult<()> {
+    let keypair_module = PyModule::new_bound(py, "keypair")?;
+
+    // import python substrateinterface into the rust
+    let substrate_module = py.import_bound("substrateinterface")?;
+    let origin_keypair_class = substrate_module.getattr("Keypair")?;
+
+    // defining Wallet Keypair class
+    let keypair_type = PyType::new_bound::<keypair::Keypair>(py);
+
+    // update base and mro in Wallet Keypair type
+    unsafe {
+        (*keypair_type.as_type_ptr()).tp_base = origin_keypair_class.as_ptr() as *mut _;
+
+        let mro_tuple = PyTuple::new_bound(py, &[keypair_type.as_ref(), &origin_keypair_class]);
+        ffi::Py_INCREF(mro_tuple.as_ptr());
+        (*keypair_type.as_type_ptr()).tp_mro = mro_tuple.as_ptr() as *mut _;
+
+        if ffi::PyType_Ready(keypair_type.as_type_ptr()) != 0 {
+            return Err(PyErr::fetch(py));
+        }
+    }
+
+    keypair_module.add("Keypair", keypair_type)?;
     main_module.add_submodule(&keypair_module)
 }
+
 
 // utils module with functions
 fn register_utils_module(main_module: &Bound<'_, PyModule>) -> PyResult<()> {
