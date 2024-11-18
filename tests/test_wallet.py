@@ -552,10 +552,14 @@ def test_wallet_string_representation_with_default_arguments():
     w = Wallet()
 
     # Asserts
-    assert str(w) == "Wallet (Name: 'default', Hotkey: 'default', Path: '~/.bittensor/wallets/')"
+    assert (
+        str(w)
+        == "Wallet (Name: 'default', Hotkey: 'default', Path: '~/.bittensor/wallets/')"
+    )
     assert w.name == "default"
     assert w.hotkey_str == "default"
     assert w.path == "~/.bittensor/wallets/"
+
 
 def test_wallet_string_representation_with_custom_arguments():
     """Tests wallet string representation with custom arguments."""
@@ -568,7 +572,10 @@ def test_wallet_string_representation_with_custom_arguments():
     w = Wallet(name="test_wallet", hotkey="test_hotkey", path="/tmp/tests_wallets/")
 
     # Asserts
-    assert str(w) == f"Wallet (Name: '{wallet_name}', Hotkey: '{wallet_hotkey}', Path: '{wallet_path}')"
+    assert (
+        str(w)
+        == f"Wallet (Name: '{wallet_name}', Hotkey: '{wallet_hotkey}', Path: '{wallet_path}')"
+    )
     assert w.name == wallet_name
     assert w.hotkey_str == wallet_hotkey
     assert w.path == wallet_path

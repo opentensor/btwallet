@@ -3,6 +3,7 @@ import pytest
 from bittensor_wallet import Wallet
 import time
 
+
 @pytest.fixture
 def mock_wallet():
     wallet = Wallet(
@@ -14,6 +15,7 @@ def mock_wallet():
     wallet.create_new_hotkey(use_password=False, overwrite=True, suppress=True)
 
     return wallet
+
 
 def test_keypair_type(mock_wallet):
     """Makes sure that the wallet fields coldkey, hotkey, coldkeypub are compatible with substrateinterface.Keypair."""
