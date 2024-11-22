@@ -1,93 +1,60 @@
-use pyo3::exceptions::PyException;
-use pyo3::prelude::*;
-use std::{error, fmt};
+use thiserror::Error;
 
-// KeyFileError
-#[pyclass(extends=PyException)]
-#[derive(Debug)]
-pub struct KeyFileError {
-    pub message: String,
+#[derive(Error, Debug)]
+pub enum KeyFileError {
+    #[error("Failed to create directory: {0}")]
+    DirectoryCreation(String),
+    #[error("Failed to get metadata: {0}")]
+    MetadataError(String),
+    #[error("File does not exist: {0}")]
+    FileNotFound(String),
+    #[error("File is not readable: {0}")]
+    NotReadable(String),
+    #[error("File is not writable: {0}")]
+    NotWritable(String),
+    #[error("Failed to open file: {0}")]
+    FileOpen(String),
+    #[error("Failed to read file: {0}")]
+    FileRead(String),
+    #[error("Failed to write file: {0}")]
+    FileWrite(String),
+    #[error("Failed to set permissions: {0}")]
+    PermissionError(String),
+    #[error("Serialization error: {0}")]
+    SerializationError(String),
+    #[error("Deserialization error: {0}")]
+    DeserializationError(String),
+    #[error("Encryption error: {0}")]
+    EncryptionError(String),
+    #[error("Decryption error: {0}")]
+    DecryptionError(String),
+    #[error("Invalid encryption method: {0}")]
+    InvalidEncryption(String),
+    #[error("Environment variable error: {0}")]
+    EnvVarError(String),
+    #[error("Password error: {0}")]
+    PasswordError(String),
+    #[error("Generic error: {0}")]
+    Generic(String),
 }
 
-/// Error thrown when the keyfile is corrupt, non-writable, non-readable.
-#[pymethods]
-impl KeyFileError {
-    #[new]
-    #[pyo3(signature = (message=None))]
-    pub fn new(message: Option<String>) -> Self {
-        let msg = message.unwrap_or_default();
-        KeyFileError { message: msg }
-    }
-
-    pub fn __str__(&self) -> String {
-        self.message.clone()
-    }
+#[derive(Error, Debug)]
+pub enum ConfigurationError {
+    #[error("ConfigurationError: {0}")]
+    Message(String), 
 }
 
-impl fmt::Display for KeyFileError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "KeyFileError: {}", self.message)
-    }
+#[derive(Error, Debug)]
+pub enum PasswordError {
+    #[error("PasswordError: {0}")]
+    Message(String),
 }
-
-impl error::Error for KeyFileError {}
-
-// ConfigurationError
-#[pyclass(extends=PyException)]
-#[derive(Debug)]
-pub struct ConfigurationError {
-    pub message: String,
+#[derive(Error, Debug)]
+pub enum WalletError {
+    #[error("WalletError: {0}")]
+    KeyGeneration(String),
+    #[error("WalletError: {0}")]
+    InvalidInput(String),
+    #[error("WalletError: {0}")]
+    KeyFileError(#[from] KeyFileError),
 }
-
-/// ConfigurationError
-#[pymethods]
-impl ConfigurationError {
-    #[new]
-    #[pyo3(signature = (message=None))]
-    pub fn new(message: Option<String>) -> Self {
-        let msg = message.unwrap_or_default();
-        ConfigurationError { message: msg }
-    }
-
-    pub fn __str__(&self) -> String {
-        self.message.clone()
-    }
-}
-
-impl fmt::Display for ConfigurationError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "ConfigurationError: {}", self.message)
-    }
-}
-
-impl error::Error for ConfigurationError {}
-
-// PasswordError
-#[pyclass(extends=PyException)]
-#[derive(Debug)]
-pub struct PasswordError {
-    pub message: String,
-}
-
-/// PasswordError occurs if the password used for decryption is invalid.
-#[pymethods]
-impl PasswordError {
-    #[new]
-    #[pyo3(signature = (message=None))]
-    pub fn new(message: Option<String>) -> Self {
-        let msg = message.unwrap_or_default();
-        PasswordError { message: msg }
-    }
-
-    pub fn __str__(&self) -> String {
-        self.message.clone()
-    }
-}
-
-impl fmt::Display for PasswordError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "PasswordError: {}", self.message)
-    }
-}
-
-impl error::Error for PasswordError {}

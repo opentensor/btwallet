@@ -1,18 +1,19 @@
+use pyo3::ffi;
 /// Main module for declaration of python package structure
 use pyo3::prelude::*;
 use pyo3::types::{PyTuple, PyType};
-use pyo3::ffi;
 
 mod config;
 mod constants;
 mod errors;
 mod keyfile;
 mod keypair;
+mod python_bindings;
 mod utils;
 mod wallet;
 
 #[pymodule]
-fn bittensor_wallet(py: Python<'_>,module: &Bound<'_, PyModule>) -> PyResult<()> {
+fn bittensor_wallet(py: Python<'_>, module: &Bound<'_, PyModule>) -> PyResult<()> {
     // classes to main module
     module.add_class::<config::Config>()?;
     module.add_class::<keyfile::Keyfile>()?;
@@ -125,7 +126,6 @@ fn register_keypair_module(py: Python, main_module: &Bound<'_, PyModule>) -> PyR
     keypair_module.add("Keypair", keypair_type)?;
     main_module.add_submodule(&keypair_module)
 }
-
 
 // utils module with functions
 fn register_utils_module(main_module: &Bound<'_, PyModule>) -> PyResult<()> {
