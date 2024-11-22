@@ -65,12 +65,15 @@ pub fn serialized_keypair_to_keyfile_data(keypair: &Keypair) -> Result<Vec<u8>, 
 /// Deserializes Keypair object from passed keyfile data.
 pub fn deserialize_keypair_from_keyfile_data(keyfile_data: &[u8]) -> Result<Keypair, KeyFileError> {
     // Decode the keyfile data from bytes to a string
-    let decoded = from_utf8(keyfile_data)
-        .map_err(|_| KeyFileError::DeserializationError("Failed to decode keyfile data.".to_string()))?;
+    let decoded = from_utf8(keyfile_data).map_err(|_| {
+        KeyFileError::DeserializationError("Failed to decode keyfile data.".to_string())
+    })?;
 
     // Parse the JSON string into a HashMap
-    let keyfile_dict: HashMap<String, Option<String>> = serde_json::from_str(decoded)
-        .map_err(|_| KeyFileError::DeserializationError("Failed to parse keyfile data.".to_string()))?;
+    let keyfile_dict: HashMap<String, Option<String>> =
+        serde_json::from_str(decoded).map_err(|_| {
+            KeyFileError::DeserializationError("Failed to parse keyfile data.".to_string())
+        })?;
 
     // Extract data from the keyfile
     let secret_seed = keyfile_dict.get("secretSeed").and_then(|v| v.clone());
@@ -80,8 +83,7 @@ pub fn deserialize_keypair_from_keyfile_data(keyfile_data: &[u8]) -> Result<Keyp
 
     // Create the `Keypair` based on the available data
     if let Some(secret_phrase) = secret_phrase {
-        Keypair::create_from_mnemonic(secret_phrase.as_str())
-            .map_err(|e| KeyFileError::Generic(e))
+        Keypair::create_from_mnemonic(secret_phrase.as_str()).map_err(|e| KeyFileError::Generic(e))
     } else if let Some(seed) = secret_seed {
         // Remove 0x prefix if present
         let seed = seed.trim_start_matches("0x");
@@ -286,11 +288,13 @@ pub fn decrypt_keyfile_data(
     // decrypt of keyfile_data with secretbox
     fn nacl_decrypt(keyfile_data: &[u8], key: &secretbox::Key) -> Result<Vec<u8>, KeyFileError> {
         let data = &keyfile_data[5..]; // Remove the $NACL prefix
-        let nonce = secretbox::Nonce::from_slice(&data[0..secretbox::NONCEBYTES])
-            .ok_or(KeyFileError::InvalidEncryption("Invalid nonce.".to_string()))?;
+        let nonce = secretbox::Nonce::from_slice(&data[0..secretbox::NONCEBYTES]).ok_or(
+            KeyFileError::InvalidEncryption("Invalid nonce.".to_string()),
+        )?;
         let ciphertext = &data[secretbox::NONCEBYTES..];
-        secretbox::open(ciphertext, &nonce, key)
-            .map_err(|_| KeyFileError::DecryptionError("Wrong password for nacl decryption.".to_string()))
+        secretbox::open(ciphertext, &nonce, key).map_err(|_| {
+            KeyFileError::DecryptionError("Wrong password for nacl decryption.".to_string())
+        })
     }
     // decrypt of keyfile_data with legacy way
     fn legacy_decrypt(password: &str, keyfile_data: &[u8]) -> Result<Vec<u8>, KeyFileError> {
@@ -300,8 +304,8 @@ pub fn decrypt_keyfile_data(
 
         let fernet_key = Fernet::generate_key();
         let fernet = Fernet::new(&fernet_key).unwrap();
-        let keyfile_data_str =
-            from_utf8(keyfile_data).map_err(|e| KeyFileError::DeserializationError(e.to_string()))?;
+        let keyfile_data_str = from_utf8(keyfile_data)
+            .map_err(|e| KeyFileError::DeserializationError(e.to_string()))?;
         fernet.decrypt(keyfile_data_str).map_err(|_| {
             KeyFileError::DecryptionError("Wrong password for legacy decryption.".to_string())
         })
@@ -327,22 +331,25 @@ pub fn decrypt_keyfile_data(
     // NaCl decryption
     if keyfile_data_is_encrypted_nacl(keyfile_data)? {
         let key = derive_key(password.as_bytes());
-        let decrypted_data = nacl_decrypt(keyfile_data, &key)
-            .map_err(|_| KeyFileError::DecryptionError("Wrong password for decryption.".to_string()))?;
+        let decrypted_data = nacl_decrypt(keyfile_data, &key).map_err(|_| {
+            KeyFileError::DecryptionError("Wrong password for decryption.".to_string())
+        })?;
         return Ok(decrypted_data);
     }
 
     // Ansible Vault decryption
     if keyfile_data_is_encrypted_ansible(keyfile_data)? {
-        let decrypted_data = decrypt_vault(keyfile_data, password.as_str())
-            .map_err(|_| KeyFileError::DecryptionError("Wrong password for decryption.".to_string()))?;
+        let decrypted_data = decrypt_vault(keyfile_data, password.as_str()).map_err(|_| {
+            KeyFileError::DecryptionError("Wrong password for decryption.".to_string())
+        })?;
         return Ok(decrypted_data);
     }
 
     // Legacy decryption
     if keyfile_data_is_encrypted_legacy(keyfile_data)? {
-        let decrypted_data = legacy_decrypt(&password, keyfile_data)
-            .map_err(|_| KeyFileError::DecryptionError("Wrong password for decryption.".to_string()))?;
+        let decrypted_data = legacy_decrypt(&password, keyfile_data).map_err(|_| {
+            KeyFileError::DecryptionError("Wrong password for decryption.".to_string())
+        })?;
         return Ok(decrypted_data);
     }
 
@@ -388,10 +395,18 @@ fn decrypt_password(data: String, key: String) -> String {
 
 #[derive(Clone)]
 pub struct Keyfile {
-    path: String,
+    pub path: String,
     _path: PathBuf,
     name: String,
     should_save_to_env: bool,
+}
+impl std::fmt::Display for Keyfile {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.__str__() {
+            Ok(s) => write!(f, "{}", s),
+            Err(e) => write!(f, "Error displaying keyfile: {}", e)
+        }
+    }
 }
 
 impl Keyfile {
@@ -510,7 +525,8 @@ impl Keyfile {
             // check if the dir is exit already
             if !directory.exists() {
                 // create the dir if not
-                fs::create_dir_all(directory).map_err(|e| KeyFileError::DirectoryCreation(e.to_string()))?;
+                fs::create_dir_all(directory)
+                    .map_err(|e| KeyFileError::DirectoryCreation(e.to_string()))?;
             }
         }
         Ok(())
@@ -861,7 +877,9 @@ impl Keyfile {
 
         // set permissions
         let mut permissions = fs::metadata(&self._path)
-            .map_err(|e| KeyFileError::MetadataError(format!("Failed to get metadata for file: {}.", e)))?
+            .map_err(|e| {
+                KeyFileError::MetadataError(format!("Failed to get metadata for file: {}.", e))
+            })?
             .permissions();
         permissions.set_mode(0o600); // just for owner
         fs::set_permissions(&self._path, permissions).map_err(|e| {

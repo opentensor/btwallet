@@ -1,17 +1,444 @@
-use pyo3::exceptions::{PyException, PyValueError};
+use pyo3::create_exception;
+use pyo3::exceptions::PyException;
+use pyo3::exceptions::PyValueError;
+use pyo3::ffi;
 use pyo3::prelude::*;
-use pyo3::types::{PyAny, PyDict, PyModule, PyString, PyType};
+use pyo3::types::{PyAny, PyDict, PyModule, PyString, PyTuple, PyType};
 use std::path::PathBuf;
-
-use crate::config::Config as RustConfig;
-use crate::constants::{BT_WALLET_HOTKEY, BT_WALLET_NAME, BT_WALLET_PATH};
-use crate::errors::{ConfigurationError, KeyFileError};
+// Import the necessary structs and enums
+// use crate::config::Config as RustConfig;
+use crate::errors::{ConfigurationError, KeyFileError, PasswordError};
 use crate::keyfile::Keyfile as RustKeyfile;
 use crate::keypair::Keypair as RustKeypair;
-use crate::utils;
+use crate::utils::{is_valid_bittensor_address_or_public_key, SS58_FORMAT};
 use crate::wallet::Wallet as RustWallet;
+#[pyclass]
+#[derive(Clone)]
+struct Config {
+    inner: crate::config::Config,
+}
 
-/// Python wrapper for the `Wallet` struct
+#[pymethods]
+impl Config {
+    #[new]
+    #[pyo3(signature = (name=None, hotkey=None, path=None))]
+    fn new(name: Option<String>, hotkey: Option<String>, path: Option<String>) -> Self {
+        Config {
+            inner: crate::config::Config::new(name, hotkey, path),
+        }
+    }
+
+    fn __str__(&self) -> PyResult<String> {
+        Ok(self.inner.to_string())
+    }
+
+    #[getter]
+    fn name(&self) -> String {
+        self.inner.name()
+    }
+
+    #[getter]
+    fn path(&self) -> String {
+        self.inner.path()
+    }
+
+    #[getter]
+    fn hotkey(&self) -> String {
+        self.inner.hotkey()
+    }
+}
+
+#[pyclass]
+#[derive(Clone)]
+struct Keyfile {
+    inner: RustKeyfile,
+}
+
+#[pymethods]
+impl Keyfile {
+    #[new]
+    #[pyo3(signature = (path=None, name=None, should_save_to_env=true))]
+    fn new(path: Option<String>, name: Option<String>, should_save_to_env: bool) -> Self {
+        Keyfile {
+            inner: RustKeyfile::new(path.unwrap_or_default(), name, should_save_to_env)
+                .expect("Failed to create keyfile"),
+        }
+    }
+
+    fn __str__(&self) -> PyResult<String> {
+        Ok(self.inner.to_string())
+    }
+
+    #[getter]
+    fn path(&self) -> String {
+        self.inner.path.clone()
+    }
+
+    fn exists_on_device(&self) -> PyResult<bool> {
+        self.inner
+            .exists_on_device()
+            .map_err(|e| PyErr::new::<PyValueError, _>(e.to_string()))
+    }
+
+    fn is_readable(&self) -> PyResult<bool> {
+        self.inner
+            .is_readable()
+            .map_err(|e| PyErr::new::<PyValueError, _>(e.to_string()))
+    }
+
+    fn is_writable(&self) -> PyResult<bool> {
+        self.inner
+            .is_writable()
+            .map_err(|e| PyErr::new::<PyValueError, _>(e.to_string()))
+    }
+
+    fn is_encrypted(&self) -> PyResult<bool> {
+        self.inner
+            .is_encrypted()
+            .map_err(|e| PyErr::new::<PyValueError, _>(e.to_string()))
+    }
+
+    #[pyo3(signature = (print_result=true, no_prompt=false))]
+    fn check_and_update_encryption(&self, print_result: bool, no_prompt: bool) -> PyResult<bool> {
+        self.inner
+            .check_and_update_encryption(print_result, no_prompt)
+            .map_err(|e| PyErr::new::<PyValueError, _>(e.to_string()))
+    }
+
+    #[pyo3(signature = (password=None))]
+    fn encrypt(&self, password: Option<String>) -> PyResult<()> {
+        self.inner
+            .encrypt(password)
+            .map_err(|e| PyErr::new::<PyValueError, _>(e.to_string()))
+    }
+
+    #[pyo3(signature = (password=None))]
+    fn decrypt(&self, password: Option<String>) -> PyResult<()> {
+        self.inner
+            .decrypt(password)
+            .map_err(|e| PyErr::new::<PyValueError, _>(e.to_string()))
+    }
+
+    #[pyo3(signature = (password=None))]
+    fn save_password_to_env(&self, password: Option<String>) -> PyResult<String> {
+        self.inner
+            .save_password_to_env(password)
+            .map_err(|e| PyErr::new::<PyValueError, _>(e.to_string()))
+    }
+
+    fn remove_password_from_env(&self) -> PyResult<bool> {
+        self.inner
+            .remove_password_from_env()
+            .map_err(|e| PyErr::new::<PyValueError, _>(e.to_string()))
+    }
+}
+#[pyclass(name = "Keypair")]
+#[derive(Clone)]
+pub struct PyKeypair {
+    inner: RustKeypair,
+}
+
+#[pymethods]
+impl PyKeypair {
+    #[new]
+    #[pyo3(signature = (ss58_address=None, public_key=None, private_key=None, ss58_format=42, seed_hex=None, crypto_type=1))]
+    fn new(
+        ss58_address: Option<String>,
+        public_key: Option<String>,
+        private_key: Option<String>,
+        ss58_format: u8,
+        seed_hex: Option<Vec<u8>>,
+        crypto_type: u8,
+    ) -> PyResult<Self> {
+        let keypair = RustKeypair::new(
+            ss58_address,
+            public_key,
+            private_key,
+            ss58_format,
+            seed_hex,
+            crypto_type,
+        )
+        .map_err(|e| PyErr::new::<PyValueError, _>(e))?;
+        Ok(PyKeypair { inner: keypair })
+    }
+
+    #[staticmethod]
+    fn generate_mnemonic(n_words: usize) -> PyResult<String> {
+        RustKeypair::generate_mnemonic(n_words).map_err(|e| PyErr::new::<PyValueError, _>(e))
+    }
+
+    #[staticmethod]
+    fn create_from_mnemonic(mnemonic: &str) -> PyResult<Self> {
+        let keypair = RustKeypair::create_from_mnemonic(mnemonic)
+            .map_err(|e| PyErr::new::<PyValueError, _>(e))?;
+        Ok(PyKeypair { inner: keypair })
+    }
+
+    #[staticmethod]
+    fn create_from_seed(py: Python, seed: Vec<u8>) -> PyResult<Py<Self>> {
+        let keypair = RustKeypair::create_from_seed(seed)
+            .map_err(|e| PyErr::new::<PyValueError, _>(e))?;
+        Py::new(py, PyKeypair { inner: keypair })
+    }
+
+    #[staticmethod]
+    fn create_from_private_key(private_key: &str) -> PyResult<Self> {
+        let keypair = RustKeypair::create_from_private_key(private_key)
+            .map_err(|e| PyErr::new::<PyValueError, _>(e))?;
+        Ok(PyKeypair { inner: keypair })
+    }
+
+    #[staticmethod]
+    fn create_from_encrypted_json(json_data: &str, passphrase: &str) -> PyResult<Self> {
+        let keypair = RustKeypair::create_from_encrypted_json(json_data, passphrase)
+            .map_err(|e| PyErr::new::<PyValueError, _>(e))?;
+        Ok(PyKeypair { inner: keypair })
+    }
+
+    #[staticmethod]
+    fn create_from_uri(uri: &str) -> PyResult<Self> {
+        let keypair =
+            RustKeypair::create_from_uri(uri).map_err(|e| PyErr::new::<PyValueError, _>(e))?;
+        Ok(PyKeypair { inner: keypair })
+    }
+
+    fn sign(&self, data: Vec<u8>) -> PyResult<Vec<u8>> {
+        self.inner
+            .sign(data)
+            .map_err(|e| PyErr::new::<PyValueError, _>(e))
+    }
+
+    fn verify(&self, data: Vec<u8>, signature: Vec<u8>) -> PyResult<bool> {
+        self.inner
+            .verify(data, signature)
+            .map_err(|e| PyErr::new::<PyValueError, _>(e))
+    }
+
+    fn ss58_address(&self) -> Option<String> {
+        self.inner.ss58_address()
+    }
+
+    fn public_key(&self) -> PyResult<Option<Vec<u8>>> {
+        self.inner
+            .public_key()
+            .map_err(|e| PyErr::new::<PyValueError, _>(e))
+    }
+
+    fn ss58_format(&self) -> u8 {
+        self.inner.ss58_format()
+    }
+
+    fn seed_hex(&self) -> Option<Vec<u8>> {
+        self.inner.seed_hex()
+    }
+
+    fn crypto_type(&self) -> u8 {
+        self.inner.crypto_type()
+    }
+
+    fn mnemonic(&self) -> Option<String> {
+        self.inner.mnemonic()
+    }
+
+    fn private_key(&self) -> PyResult<Option<Vec<u8>>> {
+        self.inner
+            .private_key()
+            .map_err(|e| PyErr::new::<PyValueError, _>(e))
+    }
+}
+
+
+
+// Error type bindings
+#[pyclass(name = "KeyFileError")]
+#[derive(Debug)]
+pub struct PyKeyFileError {
+    inner: KeyFileError,
+}
+
+#[pymethods]
+impl PyKeyFileError {
+    #[new]
+    fn new(msg: String) -> Self {
+        PyKeyFileError {
+            inner: KeyFileError::Generic(msg),
+        }
+    }
+
+    fn __str__(&self) -> PyResult<String> {
+        Ok(self.inner.to_string())
+    }
+}
+
+#[pyclass(name = "ConfigurationError")]
+#[derive(Debug)]
+pub struct PyConfigurationError {
+    inner: ConfigurationError,
+}
+
+#[pymethods]
+impl PyConfigurationError {
+    #[new]
+    fn new(msg: String) -> Self {
+        PyConfigurationError {
+            inner: ConfigurationError::Message(msg),
+        }
+    }
+
+    fn __str__(&self) -> PyResult<String> {
+        Ok(self.inner.to_string())
+    }
+}
+
+#[pyclass(name = "PasswordError")]
+#[derive(Debug)]
+pub struct PyPasswordError {
+    inner: PasswordError,
+}
+
+#[pymethods]
+impl PyPasswordError {
+    #[new]
+    fn new(msg: String) -> Self {
+        PyPasswordError {
+            inner: PasswordError::Message(msg),
+        }
+    }
+
+    fn __str__(&self) -> PyResult<String> {
+        Ok(self.inner.to_string())
+    }
+}
+
+// #[pyclass(name = "WalletError")]
+// #[derive(Debug)]
+// pub struct PyWalletError {
+//     inner: WalletError,
+// }
+
+// #[pymethods]
+// impl PyWalletError {
+//     #[new]
+//     fn new(msg: String) -> Self {
+//         PyWalletError {
+//             inner: WalletError::InvalidInput(msg),
+//         }
+//     }
+
+//     fn __str__(&self) -> PyResult<String> {
+//         Ok(self.inner.to_string())
+//     }
+// }
+
+create_exception!(errors, WalletError, PyException);
+
+// Define the Python module using PyO3
+#[pymodule]
+fn bittensor_wallet(py: Python<'_>, module: &PyModule) -> PyResult<()> {
+    // Add classes to the main module
+    module.add_class::<Config>()?;
+    module.add_class::<Keyfile>()?;
+    module.add_class::<Keypair>()?;
+    module.add_class::<Wallet>()?;
+
+    // Add submodules to the main module
+    register_config_module(module)?;
+    register_errors_module(module)?;
+    register_keyfile_module(module)?;
+    register_keypair_module(py, module)?;
+    register_utils_module(module)?;
+    register_wallet_module(module)?;
+    Ok(())
+}
+
+// Define the submodule registration functions
+fn register_config_module(main_module: &PyModule) -> PyResult<()> {
+    let config_module = PyModule::new(main_module.py(), "config")?;
+    config_module.add_class::<Config>()?;
+    main_module.add_submodule(config_module)
+}
+
+fn register_errors_module(main_module: &PyModule) -> PyResult<()> {
+    let errors_module = PyModule::new(main_module.py(), "errors")?;
+        // Register the WalletError exception
+    errors_module.add("WalletError", main_module.py().get_type::<crate::errors::WalletError>())?;
+    errors_module.add_class::<ConfigurationError>()?;
+    errors_module.add_class::<KeyFileError>()?;
+    errors_module.add_class::<PasswordError>()?;
+    main_module.add_submodule(errors_module)
+}
+
+fn register_keyfile_module(main_module: &PyModule) -> PyResult<()> {
+    let keyfile_module = PyModule::new(main_module.py(), "keyfile")?;
+    // Add functions to the keyfile module
+    keyfile_module.add_function(wrap_pyfunction!(
+        keyfile::serialized_keypair_to_keyfile_data,
+        keyfile_module
+    )?)?;
+    // ... Add other functions as needed
+
+    keyfile_module.add_class::<Keyfile>()?;
+    main_module.add_submodule(keyfile_module)
+}
+
+fn register_keypair_module(py: Python, main_module: &PyModule) -> PyResult<()> {
+    let keypair_module = PyModule::new(py, "keypair")?;
+
+    // Import the substrateinterface Keypair class
+    let substrate_module = py.import("substrateinterface")?;
+    let origin_keypair_class = substrate_module.getattr("Keypair")?;
+
+    // Define the Wallet Keypair class
+    let keypair_type = py.get_type::<PyKeypair>();
+
+    // Update base and MRO in Wallet Keypair type
+    unsafe {
+        (*keypair_type.as_type_ptr()).tp_base = origin_keypair_class.as_ptr() as *mut _;
+
+        let mro_tuple = PyTuple::new(py, &[keypair_type.as_ref(), &origin_keypair_class]);
+        ffi::Py_INCREF(mro_tuple.as_ptr());
+        (*keypair_type.as_type_ptr()).tp_mro = mro_tuple.as_ptr() as *mut _;
+
+        if ffi::PyType_Ready(keypair_type.as_type_ptr()) != 0 {
+            return Err(PyErr::fetch(py));
+        }
+    }
+
+    keypair_module.add("Keypair", keypair_type)?;
+    main_module.add_submodule(keypair_module)
+}
+
+fn register_utils_module(main_module: &PyModule) -> PyResult<()> {
+    let utils_module = PyModule::new(main_module.py(), "utils")?;
+    utils_module.add_function(wrap_pyfunction!(utils::get_ss58_format, utils_module)?)?;
+    utils_module.add_function(wrap_pyfunction!(
+        utils::is_valid_ss58_address,
+        utils_module
+    )?)?;
+    utils_module.add_function(wrap_pyfunction!(
+        utils::is_valid_ed25519_pubkey,
+        utils_module
+    )?)?;
+    utils_module.add_function(wrap_pyfunction!(
+        crate::utils::is_valid_bittensor_address_or_public_key,
+        utils_module
+    )?)?;
+    utils_module.add("SS58_FORMAT", SS58_FORMAT)?;
+    main_module.add_submodule(utils_module)
+}
+
+fn register_wallet_module(main_module: &PyModule) -> PyResult<()> {
+    let wallet_module = PyModule::new(main_module.py(), "wallet")?;
+    wallet_module.add_function(wrap_pyfunction!(
+        wallet::display_mnemonic_msg,
+        wallet_module
+    )?)?;
+    wallet_module.add_class::<Wallet>()?;
+    main_module.add_submodule(wallet_module)
+}
+
+// Implement the Python wrappers for the Rust structs
+// For example, the Wallet class:
 #[pyclass(subclass)]
 pub struct Wallet {
     pub inner: RustWallet,
@@ -31,419 +458,190 @@ impl Wallet {
         // Handle config conversion
         let rust_config = match config {
             Some(cfg) => {
-                let cfg_dict: &PyDict = cfg.extract(py)?;
-                let wallet_dict = cfg_dict.get_item("wallet");
-                let wallet_config = if let Some(wallet) = wallet_dict {
-                    let wallet = wallet.downcast::<PyDict>()?;
-                    let cfg_name: Option<String> =
-                        wallet.get_item("name").and_then(|v| v.extract().ok());
-                    let cfg_hotkey: Option<String> =
-                        wallet.get_item("hotkey").and_then(|v| v.extract().ok());
-                    let cfg_path: Option<String> =
-                        wallet.get_item("path").and_then(|v| v.extract().ok());
-                    Some(RustConfig::new(cfg_name, cfg_hotkey, cfg_path).unwrap())
-                } else {
-                    None
-                };
-                wallet_config
+                // Convert PyObject to RustConfig if necessary
+                // TODO: Implement config conversion
+                None
             }
             None => None,
         };
 
-        let rust_wallet = RustWallet::new(name, hotkey, path, rust_config.map(|c| c.wallet))
-            .map_err(|e| {
-                PyErr::new::<PyException, _>(format!("Failed to create Wallet: {:?}", e))
-            })?;
+        let rust_wallet = RustWallet::new(name, hotkey, path, rust_config);
         Ok(Wallet { inner: rust_wallet })
     }
 
-    #[getter]
-    fn name(&self) -> PyResult<String> {
-        Ok(self.inner.name.clone())
+    // Wallet methods
+    #[pyo3(text_signature = "($self)")]
+    fn to_string(&self) -> String {
+        self.inner.to_string()
     }
 
-    #[getter]
-    fn hotkey(&self) -> PyResult<String> {
-        Ok(self.inner.hotkey.clone())
+    #[pyo3(text_signature = "($self)")]
+    fn debug_string(&self) -> String {
+        self.inner.debug_string()
     }
 
-    #[getter]
-    fn path(&self) -> PyResult<String> {
-        Ok(self.inner.path.clone())
-    }
-
-    fn __str__(&self) -> PyResult<String> {
-        Ok(format!(
-            "Wallet (Name: '{}', Hotkey: '{}', Path: '{}')",
-            self.inner.name, self.inner.hotkey, self.inner.path
-        ))
-    }
-
-    fn __repr__(&self) -> PyResult<String> {
-        self.__str__()
-    }
-
-    /// Returns the default configuration for the wallet.
-    #[classmethod]
-    fn config(_cls: &PyType) -> PyResult<Config> {
-        Ok(Config {
-            inner: RustConfig::new(None, None, None),
-        })
-    }
-
-    /// Adds arguments to an argparse parser.
-    #[classmethod]
-    #[pyo3(signature = (parser, prefix=None))]
-    fn add_args(
-        _cls: &PyType,
-        parser: &PyAny,
-        prefix: Option<String>,
-        py: Python,
-    ) -> PyResult<&PyAny> {
-        let default_name =
-            std::env::var("BT_WALLET_NAME").unwrap_or_else(|_| BT_WALLET_NAME.to_string());
-        let default_hotkey =
-            std::env::var("BT_WALLET_HOTKEY").unwrap_or_else(|_| BT_WALLET_HOTKEY.to_string());
-        let default_path =
-            std::env::var("BT_WALLET_PATH").unwrap_or_else(|_| BT_WALLET_PATH.to_string());
-
-        let prefix_str = prefix.map_or_else(|| "".to_string(), |p| format!("{}.", p));
-
-        let add_argument = |arg_name: &str, default: &str, help: &str| -> PyResult<()> {
-            parser.call_method1(
-                "add_argument",
-                (
-                    format!("--{}wallet.{}", prefix_str, arg_name),
-                    PyDict::new(py).items(&[
-                        ("required", false.into_py(py)),
-                        ("default", default.into_py(py)),
-                        ("help", help.into_py(py)),
-                    ]),
-                ),
-            )?;
-            Ok(())
-        };
-
-        add_argument(
-            "name",
-            &default_name,
-            "The name of the wallet to unlock for running bittensor.",
-        )?;
-        add_argument(
-            "hotkey",
-            &default_hotkey,
-            "The name of the wallet's hotkey.",
-        )?;
-        add_argument("path", &default_path, "The path to your bittensor wallets.")?;
-
-        Ok(parser)
-    }
-
-    /// Other methods wrapping the Rust `Wallet` methods
+    #[pyo3(text_signature = "($self, coldkey_use_password=true, hotkey_use_password=false, save_coldkey_to_env=false, save_hotkey_to_env=false, coldkey_password=None, hotkey_password=None, overwrite=false, suppress=false)")]
     fn create_if_non_existent(
         &mut self,
-        coldkey_use_password: bool,
-        hotkey_use_password: bool,
-        save_coldkey_to_env: bool,
-        save_hotkey_to_env: bool,
+        coldkey_use_password: Option<bool>,
+        hotkey_use_password: Option<bool>,
+        save_coldkey_to_env: Option<bool>,
+        save_hotkey_to_env: Option<bool>,
         coldkey_password: Option<String>,
         hotkey_password: Option<String>,
-        overwrite: bool,
-        suppress: bool,
-        py: Python,
+        overwrite: Option<bool>,
+        suppress: Option<bool>,
     ) -> PyResult<Self> {
-        self.inner
-            .create_if_non_existent(
-                coldkey_use_password,
-                hotkey_use_password,
-                save_coldkey_to_env,
-                save_hotkey_to_env,
-                coldkey_password,
-                hotkey_password,
-                overwrite,
-                suppress,
-                py,
-            )
-            .map_err(|e| PyErr::new::<PyException, _>(format!("{:?}", e)))?;
-        Ok(self.clone())
+        let result = self.inner.create_if_non_existent(
+            coldkey_use_password.unwrap_or(true),
+            hotkey_use_password.unwrap_or(false),
+            save_coldkey_to_env.unwrap_or(false),
+            save_hotkey_to_env.unwrap_or(false),
+            coldkey_password,
+            hotkey_password,
+            overwrite.unwrap_or(false),
+            suppress.unwrap_or(false),
+        ).map_err(|e| PyErr::new::<PyException, _>(format!("Failed to create wallet: {:?}", e)))?;
+        
+        Ok(Wallet { inner: result })
     }
 
-    fn unlock_coldkey(&mut self, py: Python) -> PyResult<Keypair> {
-        let keypair = self
-            .inner
-            .unlock_coldkey(py)
-            .map_err(|e| PyErr::new::<PyException, _>(format!("{:?}", e)))?;
-        Ok(Keypair { inner: keypair })
-    }
-
-    fn unlock_hotkey(&mut self, py: Python) -> PyResult<Keypair> {
-        let keypair = self
-            .inner
-            .unlock_hotkey(py)
-            .map_err(|e| PyErr::new::<PyException, _>(format!("{:?}", e)))?;
-        Ok(Keypair { inner: keypair })
-    }
-
-    // Add other methods as needed, mapping to `self.inner` methods
-}
-
-/// Python wrapper for the `Config` struct
-#[pyclass(subclass)]
-pub struct Config {
-    inner: RustConfig,
-}
-#[pymethods]
-impl Config {
-    #[new]
-    #[pyo3(signature = (name=None, hotkey=None, path=None))]
-    fn new(name: Option<String>, hotkey: Option<String>, path: Option<String>) -> PyResult<Self> {
-        Ok(Config {
-            inner: RustConfig::new(name, hotkey, path)?,
-        })
-    }
-
-    #[getter]
-    fn name(&self) -> PyResult<String> {
-        Ok(self.inner.name()?)
-    }
-
-    #[getter]
-    fn path(&self) -> PyResult<String> {
-        Ok(self.inner.path()?)
-    }
-
-    #[getter]
-    fn hotkey(&self) -> PyResult<String> {
-        Ok(self.inner.hotkey()?)
-    }
-
-    fn __str__(&self) -> PyResult<String> {
-        self.inner.__str__()
-    }
-
-    fn __repr__(&self) -> PyResult<String> {
-        self.inner.__repr__()
-    }
-
-    // TODO: Add validation for name, path and hotkey
-    // TODO: Add setters for name, path and hotkey
-    // TODO: Add methods to save/load config from file
-    // TODO: Add methods to validate config
-}
-
-/// Python wrapper for the `Keypair` struct
-#[pyclass(subclass)]
-pub struct Keypair {
-    pub inner: RustKeypair,
-}
-
-#[pymethods]
-impl Keypair {
-    #[new]
-    #[pyo3(signature = (ss58_address = None, public_key = None, private_key = None, ss58_format = 42, seed_hex = None, crypto_type = 1))]
-    fn new(
-        ss58_address: Option<String>,
-        public_key: Option<String>, 
-        private_key: Option<String>,
-        ss58_format: u8,
-        seed_hex: Option<Vec<u8>>,
-        crypto_type: u8,
+    #[pyo3(text_signature = "($self, coldkey_use_password=true, hotkey_use_password=false, save_coldkey_to_env=false, save_hotkey_to_env=false, coldkey_password=None, hotkey_password=None, overwrite=false, suppress=false)")]
+    fn recreate(
+        &mut self,
+        coldkey_use_password: Option<bool>,
+        hotkey_use_password: Option<bool>,
+        save_coldkey_to_env: Option<bool>,
+        save_hotkey_to_env: Option<bool>,
+        coldkey_password: Option<String>,
+        hotkey_password: Option<String>,
+        overwrite: Option<bool>,
+        suppress: Option<bool>,
     ) -> PyResult<Self> {
-        Ok(Keypair {
-            inner: RustKeypair::new(ss58_address, public_key, private_key, ss58_format, seed_hex, crypto_type)?,
-        })
+        let result = self.inner.recreate(
+            coldkey_use_password.unwrap_or(true),
+            hotkey_use_password.unwrap_or(false),
+            save_coldkey_to_env.unwrap_or(false),
+            save_hotkey_to_env.unwrap_or(false),
+            coldkey_password,
+            hotkey_password,
+            overwrite.unwrap_or(false),
+            suppress.unwrap_or(false),
+        ).map_err(|e| PyErr::new::<PyException, _>(format!("Failed to recreate wallet: {:?}", e)))?;
+
+        Ok(Wallet { inner: result })
     }
 
-    #[staticmethod]
-    #[pyo3(signature = (n_words = 12))]
-    fn generate_mnemonic(n_words: usize) -> PyResult<String> {
-        RustKeypair::generate_mnemonic(n_words)
+    #[pyo3(text_signature = "($self)")]
+    fn get_coldkey(&self) -> PyResult<PyKeypair> {
+        let keypair = self.inner.get_coldkey()
+            .map_err(|e| PyErr::new::<PyException, _>(format!("Failed to get coldkey: {:?}", e)))?;
+        Ok(PyKeypair { inner: keypair })
     }
 
-    #[staticmethod]
-    #[pyo3(signature = (mnemonic))]
-    fn create_from_mnemonic(mnemonic: &str) -> PyResult<Self> {
-        Ok(Keypair {
-            inner: RustKeypair::create_from_mnemonic(mnemonic)?,
-        })
+    #[pyo3(text_signature = "($self)")]
+    fn get_coldkeypub(&self) -> PyResult<PyKeypair> {
+        let keypair = self.inner.get_coldkeypub()
+            .map_err(|e| PyErr::new::<PyException, _>(format!("Failed to get coldkeypub: {:?}", e)))?;
+        Ok(PyKeypair { inner: keypair })
     }
 
-    #[staticmethod]
-    #[pyo3(signature = (seed_hex))]
-    fn create_from_seed(seed_hex: &Bound<'_, PyAny>) -> PyResult<Self> {
-        Ok(Keypair {
-            inner: RustKeypair::create_from_seed(seed_hex)?,
-        })
+    #[pyo3(text_signature = "($self)")]
+    fn get_hotkey(&self) -> PyResult<PyKeypair> {
+        let keypair = self.inner.get_hotkey()
+            .map_err(|e| PyErr::new::<PyException, _>(format!("Failed to get hotkey: {:?}", e)))?;
+        Ok(PyKeypair { inner: keypair })
     }
 
-    #[staticmethod]
-    #[pyo3(signature = (private_key))]
-    fn create_from_private_key(private_key: &str) -> PyResult<Self> {
-        Ok(Keypair {
-            inner: RustKeypair::create_from_private_key(private_key)?,
-        })
+    // Getters
+    #[pyo3(text_signature = "($self)")]
+    fn get_name(&self) -> String {
+        self.inner.get_name()
     }
 
-    #[staticmethod]
-    #[pyo3(signature = (json_data, passphrase))]
-    fn create_from_encrypted_json(json_data: &str, passphrase: &str) -> PyResult<Self> {
-        Ok(Keypair {
-            inner: RustKeypair::create_from_encrypted_json(json_data, passphrase)?,
-        })
+    #[pyo3(text_signature = "($self)")]
+    fn get_path(&self) -> String {
+        self.inner.get_path()
     }
 
-    #[staticmethod]
-    #[pyo3(signature = (uri))]
-    fn create_from_uri(uri: &str) -> PyResult<Self> {
-        Ok(Keypair {
-            inner: RustKeypair::create_from_uri(uri)?,
-        })
+    #[pyo3(text_signature = "($self)")]
+    fn get_hotkey_str(&self) -> String {
+        self.inner.get_hotkey_str()
     }
 
-    #[pyo3(signature = (data))]
-    fn sign(&self, data: PyObject, py: Python) -> PyResult<PyObject> {
-        self.inner.sign(data, py)
+    #[pyo3(text_signature = "($self, uri)")]
+    fn create_coldkey_from_uri(
+        &self,
+        uri: &str,
+        password: Option<String>,
+        use_password: Option<bool>,
+        overwrite: Option<bool>,
+        seed: Option<String>,
+    ) -> PyResult<()> {
+        self.inner.create_coldkey_from_uri(
+            uri,
+            password,
+            use_password.unwrap_or(true),
+            overwrite.unwrap_or(false),
+            seed,
+        )
+        .map(|_| ())
+        .map_err(|e| PyErr::new::<PyException, _>(format!("Failed to create coldkey from uri: {:?}", e)))
     }
 
-    #[pyo3(signature = (data, signature))]
-    fn verify(&self, data: PyObject, signature: PyObject, py: Python) -> PyResult<bool> {
-        self.inner.verify(data, signature, py)
+    #[pyo3(text_signature = "($self, uri)")]
+    fn create_hotkey_from_uri(&self, uri: &str) -> PyResult<()> {
+        self.inner.create_hotkey_from_uri(uri)
+            .map(|_| ())
+            .map_err(|e| PyErr::new::<PyException, _>(format!("Failed to create hotkey from uri: {:?}", e)))
     }
 
-    #[getter]
-    fn ss58_address(&self) -> PyResult<Option<String>> {
-        self.inner.ss58_address()
+    #[pyo3(text_signature = "($self, password=None)")]
+    fn unlock_coldkey(&self, password: Option<String>) -> PyResult<()> {
+        self.inner.unlock_coldkey(password)
+            .map_err(|e| PyErr::new::<PyException, _>(format!("Failed to unlock coldkey: {:?}", e)))
     }
 
-    #[getter]
-    fn public_key(&self, py: Python) -> PyResult<Option<PyObject>> {
-        self.inner.public_key(py)
+    #[pyo3(text_signature = "($self, password=None)")]
+    fn unlock_coldkeypub(&self, password: Option<String>) -> PyResult<()> {
+        self.inner.unlock_coldkeypub(password)
+            .map_err(|e| PyErr::new::<PyException, _>(format!("Failed to unlock coldkeypub: {:?}", e)))
     }
 
-    #[getter]
-    fn ss58_format(&self) -> PyResult<u8> {
-        self.inner.ss58_format()
+    #[pyo3(text_signature = "($self, password=None)")]
+    fn unlock_hotkey(&self, password: Option<String>) -> PyResult<()> {
+        self.inner.unlock_hotkey(password)
+            .map_err(|e| PyErr::new::<PyException, _>(format!("Failed to unlock hotkey: {:?}", e)))
     }
 
-    #[getter]
-    fn seed_hex(&self, py: Python) -> PyResult<Option<PyObject>> {
-        self.inner.seed_hex(py)
+    #[pyo3(text_signature = "($self, use_password=None, password=None)")]
+    fn new_coldkey(&self, use_password: Option<bool>, password: Option<String>) -> PyResult<()> {
+        self.inner.new_coldkey(use_password, password)
+            .map_err(|e| PyErr::new::<PyException, _>(format!("Failed to create new coldkey: {:?}", e)))
     }
 
-    #[getter]
-    fn crypto_type(&self) -> PyResult<u8> {
-        self.inner.crypto_type()
+    #[pyo3(text_signature = "($self, use_password=None, password=None)")]
+    fn new_hotkey(&self, use_password: Option<bool>, password: Option<String>) -> PyResult<()> {
+        self.inner.new_hotkey(use_password, password)
+            .map_err(|e| PyErr::new::<PyException, _>(format!("Failed to create new hotkey: {:?}", e)))
     }
 
-    #[getter]
-    fn mnemonic(&self) -> PyResult<Option<String>> {
-        self.inner.mnemonic()
+    #[pyo3(text_signature = "($self, password=None)")]
+    fn regenerate_coldkey(&self, password: Option<String>) -> PyResult<()> {
+        self.inner.regenerate_coldkey(password)
+            .map_err(|e| PyErr::new::<PyException, _>(format!("Failed to regenerate coldkey: {:?}", e)))
     }
 
-    fn __str__(&self) -> PyResult<String> {
-        self.inner.__str__()
+    #[pyo3(text_signature = "($self, password=None)")]
+    fn regenerate_coldkeypub(&self, password: Option<String>) -> PyResult<()> {
+        self.inner.regenerate_coldkeypub(password)
+            .map_err(|e| PyErr::new::<PyException, _>(format!("Failed to regenerate coldkeypub: {:?}", e)))
     }
 
-    fn __repr__(&self) -> PyResult<String> {
-        self.inner.__repr__()
-    }
-}
-
-/// Python wrapper for the `Keyfile` struct
-#[pyclass(subclass)]
-pub struct Keyfile {
-    pub inner: RustKeyfile,
-}
-
-#[pymethods]
-impl Keyfile {
-    #[new]
-    fn new(path: String) -> PyResult<Self> {
-        Ok(Keyfile {
-            inner: RustKeyfile::new(PathBuf::from(path)),
-        })
-    }
-
-    #[getter]
-    fn path(&self) -> PyResult<String> {
-        Ok(self.inner.path.to_string_lossy().into_owned())
-    }
-
-    fn exists_on_device(&self) -> PyResult<bool> {
-        self.inner.exists_on_device()
-    }
-
-    fn is_readable(&self) -> PyResult<bool> {
-        self.inner.is_readable()
-    }
-
-    fn is_writable(&self) -> PyResult<bool> {
-        self.inner.is_writable()
-    }
-
-    fn is_encrypted(&self, py: Python) -> PyResult<bool> {
-        self.inner.is_encrypted(py)
-    }
-
-    #[pyo3(signature = (print_result = true, no_prompt = false))]
-    fn check_and_update_encryption(&self, print_result: bool, no_prompt: bool, py: Python) -> PyResult<bool> {
-        self.inner.check_and_update_encryption(print_result, no_prompt, py)
-    }
-
-    #[pyo3(signature = (password = None))]
-    fn encrypt(&self, password: Option<String>, py: Python) -> PyResult<()> {
-        self.inner.encrypt(password, py)
-    }
-
-    #[pyo3(signature = (password = None))]
-    fn decrypt(&self, password: Option<String>, py: Python) -> PyResult<()> {
-        self.inner.decrypt(password, py)
-    }
-
-    fn _read_keyfile_data_from_file(&self, py: Python) -> PyResult<PyObject> {
-        self.inner._read_keyfile_data_from_file(py)
-    }
-
-    #[pyo3(signature = (keyfile_data, overwrite = false))]
-    fn _write_keyfile_data_to_file(&self, keyfile_data: &[u8], overwrite: bool) -> PyResult<()> {
-        self.inner._write_keyfile_data_to_file(keyfile_data, overwrite)
-    }
-
-    #[pyo3(signature = (password = None))]
-    fn save_password_to_env(&self, password: Option<String>, py: Python) -> PyResult<String> {
-        self.inner.save_password_to_env(password, py)
-    }
-
-    fn remove_password_from_env(&self) -> PyResult<bool> {
-        self.inner.remove_password_from_env()
+    #[pyo3(text_signature = "($self, password=None)")]
+    fn regenerate_hotkey(&self, password: Option<String>) -> PyResult<()> {
+        self.inner.regenerate_hotkey(password)
+            .map_err(|e| PyErr::new::<PyException, _>(format!("Failed to regenerate hotkey: {:?}", e)))
     }
 }
 
-/// Display the mnemonic and a warning message to keep the mnemonic safe.
-#[pyfunction]
-#[pyo3(signature = (mnemonic, key_type))]
-fn display_mnemonic_msg(mnemonic: String, key_type: &str) {
-    utils::print(format!(
-        "\nIMPORTANT: Store this mnemonic in a secure (preferably offline) place, as anyone who has possession of this mnemonic can use it to regenerate the key and access your tokens.\n"
-    ));
-
-    utils::print(format!(
-        "\nThe mnemonic to the new {} is: {}\n",
-        key_type, mnemonic
-    ));
-}
-
-#[pymodule]
-pub fn python_bindings(py: Python<'_>, module: &PyModule) -> PyResult<()> {
-    // Register classes
-    module.add_class::<Wallet>()?;
-    module.add_class::<Keypair>()?;
-    module.add_class::<Keyfile>()?;
-    module.add_class::<Config>()?;
-
-    // Register functions
-    module.add_function(wrap_pyfunction!(display_mnemonic_msg, module)?)?;
-
-    // Add other functions or submodules as needed
-    Ok(())
-}

@@ -5,7 +5,8 @@ edition = "2021"
 
 [lib]
 name = "bittensor_wallet"
-crate-type = ["cdylib"]
+path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 sp-core = "34.0.0"
