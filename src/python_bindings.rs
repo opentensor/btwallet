@@ -1,17 +1,19 @@
+use crate::errors::{ConfigurationError, KeyFileError, PasswordError};
+use crate::keyfile::serialized_keypair_to_keyfile_data;
+use crate::keyfile::Keyfile as RustKeyfile;
+use crate::keypair::Keypair as RustKeypair;
+use crate::keyfile;
+use crate::utils::is_valid_ss58_address;
+use crate::utils::{is_valid_bittensor_address_or_public_key, SS58_FORMAT};
+use crate::wallet::Wallet as RustWallet;
 use pyo3::create_exception;
 use pyo3::exceptions::PyException;
 use pyo3::exceptions::PyValueError;
 use pyo3::ffi;
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyDict, PyModule, PyString, PyTuple, PyType};
+use pyo3::wrap_pyfunction;
 use std::path::PathBuf;
-// Import the necessary structs and enums
-// use crate::config::Config as RustConfig;
-use crate::errors::{ConfigurationError, KeyFileError, PasswordError};
-use crate::keyfile::Keyfile as RustKeyfile;
-use crate::keypair::Keypair as RustKeypair;
-use crate::utils::{is_valid_bittensor_address_or_public_key, SS58_FORMAT};
-use crate::wallet::Wallet as RustWallet;
 #[pyclass]
 #[derive(Clone)]
 struct Config {
@@ -176,8 +178,8 @@ impl PyKeypair {
 
     #[staticmethod]
     fn create_from_seed(py: Python, seed: Vec<u8>) -> PyResult<Py<Self>> {
-        let keypair = RustKeypair::create_from_seed(seed)
-            .map_err(|e| PyErr::new::<PyValueError, _>(e))?;
+        let keypair =
+            RustKeypair::create_from_seed(seed).map_err(|e| PyErr::new::<PyValueError, _>(e))?;
         Py::new(py, PyKeypair { inner: keypair })
     }
 
@@ -247,8 +249,6 @@ impl PyKeypair {
     }
 }
 
-
-
 // Error type bindings
 #[pyclass(name = "KeyFileError")]
 #[derive(Debug)]
@@ -310,26 +310,6 @@ impl PyPasswordError {
     }
 }
 
-// #[pyclass(name = "WalletError")]
-// #[derive(Debug)]
-// pub struct PyWalletError {
-//     inner: WalletError,
-// }
-
-// #[pymethods]
-// impl PyWalletError {
-//     #[new]
-//     fn new(msg: String) -> Self {
-//         PyWalletError {
-//             inner: WalletError::InvalidInput(msg),
-//         }
-//     }
-
-//     fn __str__(&self) -> PyResult<String> {
-//         Ok(self.inner.to_string())
-//     }
-// }
-
 create_exception!(errors, WalletError, PyException);
 
 // Define the Python module using PyO3
@@ -338,7 +318,7 @@ fn bittensor_wallet(py: Python<'_>, module: &PyModule) -> PyResult<()> {
     // Add classes to the main module
     module.add_class::<Config>()?;
     module.add_class::<Keyfile>()?;
-    module.add_class::<Keypair>()?;
+    module.add_class::<PyKeypair>()?;
     module.add_class::<Wallet>()?;
 
     // Add submodules to the main module
@@ -360,70 +340,119 @@ fn register_config_module(main_module: &PyModule) -> PyResult<()> {
 
 fn register_errors_module(main_module: &PyModule) -> PyResult<()> {
     let errors_module = PyModule::new(main_module.py(), "errors")?;
-        // Register the WalletError exception
-    errors_module.add("WalletError", main_module.py().get_type::<crate::errors::WalletError>())?;
+    // Register the WalletError exception
+    errors_module.add(
+        "WalletError",
+        main_module
+            .py()
+            .get_type_bound::<crate::errors::WalletError>(),
+    )?;
     errors_module.add_class::<ConfigurationError>()?;
     errors_module.add_class::<KeyFileError>()?;
     errors_module.add_class::<PasswordError>()?;
     main_module.add_submodule(errors_module)
 }
 
-fn register_keyfile_module(main_module: &PyModule) -> PyResult<()> {
-    let keyfile_module = PyModule::new(main_module.py(), "keyfile")?;
-    // Add functions to the keyfile module
+// keyfile module with functions
+fn register_keyfile_module(main_module: &Bound<'_, PyModule>) -> PyResult<()> {
+    let keyfile_module = PyModule::new_bound(main_module.py(), "keyfile")?;
     keyfile_module.add_function(wrap_pyfunction!(
         keyfile::serialized_keypair_to_keyfile_data,
-        keyfile_module
+        &keyfile_module
     )?)?;
-    // ... Add other functions as needed
-
-    keyfile_module.add_class::<Keyfile>()?;
-    main_module.add_submodule(keyfile_module)
+    keyfile_module.add_function(wrap_pyfunction!(
+        keyfile::deserialize_keypair_from_keyfile_data,
+        &keyfile_module
+    )?)?;
+    keyfile_module.add_function(wrap_pyfunction!(
+        keyfile::validate_password,
+        &keyfile_module
+    )?)?;
+    keyfile_module.add_function(wrap_pyfunction!(keyfile::ask_password, &keyfile_module)?)?;
+    keyfile_module.add_function(wrap_pyfunction!(
+        keyfile::keyfile_data_is_encrypted_nacl,
+        &keyfile_module
+    )?)?;
+    keyfile_module.add_function(wrap_pyfunction!(
+        keyfile::keyfile_data_is_encrypted_ansible,
+        &keyfile_module
+    )?)?;
+    keyfile_module.add_function(wrap_pyfunction!(
+        keyfile::keyfile_data_is_encrypted_legacy,
+        &keyfile_module
+    )?)?;
+    keyfile_module.add_function(wrap_pyfunction!(
+        keyfile::keyfile_data_is_encrypted,
+        &keyfile_module
+    )?)?;
+    keyfile_module.add_function(wrap_pyfunction!(
+        keyfile::keyfile_data_encryption_method,
+        &keyfile_module
+    )?)?;
+    keyfile_module.add_function(wrap_pyfunction!(
+        keyfile::legacy_encrypt_keyfile_data,
+        &keyfile_module
+    )?)?;
+    keyfile_module.add_function(wrap_pyfunction!(
+        keyfile::get_password_from_environment,
+        &keyfile_module
+    )?)?;
+    keyfile_module.add_function(pyo3::wrap_pyfunction!(
+        crate::keyfile::encrypt_keyfile_data,
+        &keyfile_module
+    )?)?;
+    keyfile_module.add_function(wrap_pyfunction!(
+        keyfile::decrypt_keyfile_data,
+        &keyfile_module
+    )?)?;
+    keyfile_module.add_class::<keyfile::Keyfile>()?;
+    main_module.add_submodule(&keyfile_module)
 }
 
 fn register_keypair_module(py: Python, main_module: &PyModule) -> PyResult<()> {
-    let keypair_module = PyModule::new(py, "keypair")?;
+    let keypair_module = PyModule::new_bound(py, "keypair")?;
 
     // Import the substrateinterface Keypair class
-    let substrate_module = py.import("substrateinterface")?;
+    let substrate_module = py.import_bound("substrateinterface")?;
     let origin_keypair_class = substrate_module.getattr("Keypair")?;
 
-    // Define the Wallet Keypair class
-    let keypair_type = py.get_type::<PyKeypair>();
+    // Downcast origin_keypair_class to &PyType
+    let origin_keypair_class = origin_keypair_class.downcast::<PyType>()?;
 
-    // Update base and MRO in Wallet Keypair type
-    unsafe {
-        (*keypair_type.as_type_ptr()).tp_base = origin_keypair_class.as_ptr() as *mut _;
+    // Get pykeypair_type as &PyType
+    let pykeypair_type = py.get_type_bound::<PyKeypair>();
 
-        let mro_tuple = PyTuple::new(py, &[keypair_type.as_ref(), &origin_keypair_class]);
-        ffi::Py_INCREF(mro_tuple.as_ptr());
-        (*keypair_type.as_type_ptr()).tp_mro = mro_tuple.as_ptr() as *mut _;
+    // Create the bases tuple with matching types
+    let bases = PyTuple::new_bound(py, &[origin_keypair_class, &pykeypair_type]);
+    let dict = PyDict::new_bound(py);
+    let keypair_class = PyType::new_bound(py, "Keypair", bases, Some(dict))?;
 
-        if ffi::PyType_Ready(keypair_type.as_type_ptr()) != 0 {
-            return Err(PyErr::fetch(py));
-        }
-    }
-
-    keypair_module.add("Keypair", keypair_type)?;
-    main_module.add_submodule(keypair_module)
+    keypair_module.add("Keypair", keypair_class)?;
+    main_module.add_submodule(keypair_module)?;
+    Ok(())
 }
 
 fn register_utils_module(main_module: &PyModule) -> PyResult<()> {
-    let utils_module = PyModule::new(main_module.py(), "utils")?;
-    utils_module.add_function(wrap_pyfunction!(utils::get_ss58_format, utils_module)?)?;
+    let utils_module = PyModule::new_bound(main_module.py(), "utils")?;
+    utils_module.add_function(wrap_pyfunction!(is_valid_ss58_address, utils_module)?)?;
+
     utils_module.add_function(wrap_pyfunction!(
-        utils::is_valid_ss58_address,
+        crate::utils::get_ss58_format,
         utils_module
     )?)?;
     utils_module.add_function(wrap_pyfunction!(
-        utils::is_valid_ed25519_pubkey,
+        crate::utils::is_valid_ss58_address,
+        utils_module
+    )?)?;
+    utils_module.add_function(wrap_pyfunction!(
+        crate::utils::is_valid_ed25519_pubkey,
         utils_module
     )?)?;
     utils_module.add_function(wrap_pyfunction!(
         crate::utils::is_valid_bittensor_address_or_public_key,
         utils_module
     )?)?;
-    utils_module.add("SS58_FORMAT", SS58_FORMAT)?;
+    utils_module.add("SS58_FORMAT", crate::constants::SS58_FORMAT)?;
     main_module.add_submodule(utils_module)
 }
 
@@ -480,7 +509,9 @@ impl Wallet {
         self.inner.debug_string()
     }
 
-    #[pyo3(text_signature = "($self, coldkey_use_password=true, hotkey_use_password=false, save_coldkey_to_env=false, save_hotkey_to_env=false, coldkey_password=None, hotkey_password=None, overwrite=false, suppress=false)")]
+    #[pyo3(
+        text_signature = "($self, coldkey_use_password=true, hotkey_use_password=false, save_coldkey_to_env=false, save_hotkey_to_env=false, coldkey_password=None, hotkey_password=None, overwrite=false, suppress=false)"
+    )]
     fn create_if_non_existent(
         &mut self,
         coldkey_use_password: Option<bool>,
@@ -492,21 +523,28 @@ impl Wallet {
         overwrite: Option<bool>,
         suppress: Option<bool>,
     ) -> PyResult<Self> {
-        let result = self.inner.create_if_non_existent(
-            coldkey_use_password.unwrap_or(true),
-            hotkey_use_password.unwrap_or(false),
-            save_coldkey_to_env.unwrap_or(false),
-            save_hotkey_to_env.unwrap_or(false),
-            coldkey_password,
-            hotkey_password,
-            overwrite.unwrap_or(false),
-            suppress.unwrap_or(false),
-        ).map_err(|e| PyErr::new::<PyException, _>(format!("Failed to create wallet: {:?}", e)))?;
-        
+        let result = self
+            .inner
+            .create_if_non_existent(
+                coldkey_use_password.unwrap_or(true),
+                hotkey_use_password.unwrap_or(false),
+                save_coldkey_to_env.unwrap_or(false),
+                save_hotkey_to_env.unwrap_or(false),
+                coldkey_password,
+                hotkey_password,
+                overwrite.unwrap_or(false),
+                suppress.unwrap_or(false),
+            )
+            .map_err(|e| {
+                PyErr::new::<PyException, _>(format!("Failed to create wallet: {:?}", e))
+            })?;
+
         Ok(Wallet { inner: result })
     }
 
-    #[pyo3(text_signature = "($self, coldkey_use_password=true, hotkey_use_password=false, save_coldkey_to_env=false, save_hotkey_to_env=false, coldkey_password=None, hotkey_password=None, overwrite=false, suppress=false)")]
+    #[pyo3(
+        text_signature = "($self, coldkey_use_password=true, hotkey_use_password=false, save_coldkey_to_env=false, save_hotkey_to_env=false, coldkey_password=None, hotkey_password=None, overwrite=false, suppress=false)"
+    )]
     fn recreate(
         &mut self,
         coldkey_use_password: Option<bool>,
@@ -518,37 +556,47 @@ impl Wallet {
         overwrite: Option<bool>,
         suppress: Option<bool>,
     ) -> PyResult<Self> {
-        let result = self.inner.recreate(
-            coldkey_use_password.unwrap_or(true),
-            hotkey_use_password.unwrap_or(false),
-            save_coldkey_to_env.unwrap_or(false),
-            save_hotkey_to_env.unwrap_or(false),
-            coldkey_password,
-            hotkey_password,
-            overwrite.unwrap_or(false),
-            suppress.unwrap_or(false),
-        ).map_err(|e| PyErr::new::<PyException, _>(format!("Failed to recreate wallet: {:?}", e)))?;
+        let result = self
+            .inner
+            .recreate(
+                coldkey_use_password.unwrap_or(true),
+                hotkey_use_password.unwrap_or(false),
+                save_coldkey_to_env.unwrap_or(false),
+                save_hotkey_to_env.unwrap_or(false),
+                coldkey_password,
+                hotkey_password,
+                overwrite.unwrap_or(false),
+                suppress.unwrap_or(false),
+            )
+            .map_err(|e| {
+                PyErr::new::<PyException, _>(format!("Failed to recreate wallet: {:?}", e))
+            })?;
 
         Ok(Wallet { inner: result })
     }
 
     #[pyo3(text_signature = "($self)")]
     fn get_coldkey(&self) -> PyResult<PyKeypair> {
-        let keypair = self.inner.get_coldkey()
+        let keypair = self
+            .inner
+            .get_coldkey()
             .map_err(|e| PyErr::new::<PyException, _>(format!("Failed to get coldkey: {:?}", e)))?;
         Ok(PyKeypair { inner: keypair })
     }
 
     #[pyo3(text_signature = "($self)")]
     fn get_coldkeypub(&self) -> PyResult<PyKeypair> {
-        let keypair = self.inner.get_coldkeypub()
-            .map_err(|e| PyErr::new::<PyException, _>(format!("Failed to get coldkeypub: {:?}", e)))?;
+        let keypair = self.inner.get_coldkeypub().map_err(|e| {
+            PyErr::new::<PyException, _>(format!("Failed to get coldkeypub: {:?}", e))
+        })?;
         Ok(PyKeypair { inner: keypair })
     }
 
     #[pyo3(text_signature = "($self)")]
     fn get_hotkey(&self) -> PyResult<PyKeypair> {
-        let keypair = self.inner.get_hotkey()
+        let keypair = self
+            .inner
+            .get_hotkey()
             .map_err(|e| PyErr::new::<PyException, _>(format!("Failed to get hotkey: {:?}", e)))?;
         Ok(PyKeypair { inner: keypair })
     }
@@ -569,79 +617,231 @@ impl Wallet {
         self.inner.get_hotkey_str()
     }
 
-    #[pyo3(text_signature = "($self, uri)")]
+    #[pyo3(
+        text_signature = "($self, uri, use_password=None, overwrite=None, suppress=None, save_coldkey_to_env=None, coldkey_password=None)"
+    )]
     fn create_coldkey_from_uri(
-        &self,
-        uri: &str,
-        password: Option<String>,
+        &mut self,
+        uri: String,
         use_password: Option<bool>,
         overwrite: Option<bool>,
-        seed: Option<String>,
+        suppress: Option<bool>,
+        save_coldkey_to_env: Option<bool>,
+        coldkey_password: Option<String>,
     ) -> PyResult<()> {
-        self.inner.create_coldkey_from_uri(
-            uri,
-            password,
-            use_password.unwrap_or(true),
-            overwrite.unwrap_or(false),
-            seed,
-        )
-        .map(|_| ())
-        .map_err(|e| PyErr::new::<PyException, _>(format!("Failed to create coldkey from uri: {:?}", e)))
-    }
-
-    #[pyo3(text_signature = "($self, uri)")]
-    fn create_hotkey_from_uri(&self, uri: &str) -> PyResult<()> {
-        self.inner.create_hotkey_from_uri(uri)
+        self.inner
+            .create_coldkey_from_uri(
+                uri,
+                use_password.unwrap_or(true),
+                overwrite.unwrap_or(false),
+                suppress.unwrap_or(false),
+                save_coldkey_to_env.unwrap_or(false),
+                coldkey_password,
+            )
             .map(|_| ())
-            .map_err(|e| PyErr::new::<PyException, _>(format!("Failed to create hotkey from uri: {:?}", e)))
+            .map_err(|e| {
+                PyErr::new::<PyException, _>(format!("Failed to create coldkey from uri: {:?}", e))
+            })
     }
 
-    #[pyo3(text_signature = "($self, password=None)")]
-    fn unlock_coldkey(&self, password: Option<String>) -> PyResult<()> {
-        self.inner.unlock_coldkey(password)
+    #[pyo3(
+        text_signature = "($self, uri, use_password=None, overwrite=None, suppress=None, save_hotkey_to_env=None, hotkey_password=None)"
+    )]
+    fn create_hotkey_from_uri(
+        &mut self,
+        uri: String,
+        use_password: Option<bool>,
+        overwrite: Option<bool>,
+        suppress: Option<bool>,
+        save_hotkey_to_env: Option<bool>,
+        hotkey_password: Option<String>,
+    ) -> PyResult<()> {
+        self.inner
+            .create_hotkey_from_uri(
+                uri,
+                use_password.unwrap_or(true),
+                overwrite.unwrap_or(false),
+                suppress.unwrap_or(false),
+                save_hotkey_to_env.unwrap_or(false),
+                hotkey_password,
+            )
+            .map(|_| ())
+            .map_err(|e| {
+                PyErr::new::<PyException, _>(format!("Failed to create hotkey from uri: {:?}", e))
+            })
+    }
+
+    #[pyo3(text_signature = "($self)")]
+    fn unlock_coldkey(&mut self) -> PyResult<()> {
+        self.inner
+            .unlock_coldkey()
+            .map(|_| ())
             .map_err(|e| PyErr::new::<PyException, _>(format!("Failed to unlock coldkey: {:?}", e)))
     }
 
-    #[pyo3(text_signature = "($self, password=None)")]
-    fn unlock_coldkeypub(&self, password: Option<String>) -> PyResult<()> {
-        self.inner.unlock_coldkeypub(password)
-            .map_err(|e| PyErr::new::<PyException, _>(format!("Failed to unlock coldkeypub: {:?}", e)))
+    #[pyo3(text_signature = "($self)")]
+    fn unlock_coldkeypub(&mut self) -> PyResult<()> {
+        self.inner.unlock_coldkeypub().map(|_| ()).map_err(|e| {
+            PyErr::new::<PyException, _>(format!("Failed to unlock coldkeypub: {:?}", e))
+        })
     }
 
-    #[pyo3(text_signature = "($self, password=None)")]
-    fn unlock_hotkey(&self, password: Option<String>) -> PyResult<()> {
-        self.inner.unlock_hotkey(password)
+    #[pyo3(text_signature = "($self)")]
+    fn unlock_hotkey(&mut self) -> PyResult<()> {
+        self.inner
+            .unlock_hotkey()
+            .map(|_| ())
             .map_err(|e| PyErr::new::<PyException, _>(format!("Failed to unlock hotkey: {:?}", e)))
     }
 
-    #[pyo3(text_signature = "($self, use_password=None, password=None)")]
-    fn new_coldkey(&self, use_password: Option<bool>, password: Option<String>) -> PyResult<()> {
-        self.inner.new_coldkey(use_password, password)
-            .map_err(|e| PyErr::new::<PyException, _>(format!("Failed to create new coldkey: {:?}", e)))
+    #[pyo3(
+        text_signature = "($self, n_words=12, use_password=None, overwrite=None, suppress=None, save_coldkey_to_env=None, coldkey_password=None)"
+    )]
+    fn new_coldkey(
+        &mut self,
+        n_words: Option<usize>,
+        use_password: Option<bool>,
+        overwrite: Option<bool>,
+        suppress: Option<bool>,
+        save_coldkey_to_env: Option<bool>,
+        coldkey_password: Option<String>,
+    ) -> PyResult<()> {
+        self.inner
+            .new_coldkey(
+                n_words.unwrap_or(12),
+                use_password.unwrap_or(true),
+                overwrite.unwrap_or(false),
+                suppress.unwrap_or(false),
+                save_coldkey_to_env.unwrap_or(false),
+                coldkey_password,
+            )
+            .map(|_| ())
+            .map_err(|e| {
+                PyErr::new::<PyException, _>(format!("Failed to create new coldkey: {:?}", e))
+            })
     }
 
-    #[pyo3(text_signature = "($self, use_password=None, password=None)")]
-    fn new_hotkey(&self, use_password: Option<bool>, password: Option<String>) -> PyResult<()> {
-        self.inner.new_hotkey(use_password, password)
-            .map_err(|e| PyErr::new::<PyException, _>(format!("Failed to create new hotkey: {:?}", e)))
+    #[pyo3(
+        text_signature = "($self, n_words=12, use_password=None, overwrite=None, suppress=None, save_hotkey_to_env=None, hotkey_password=None)"
+    )]
+    fn new_hotkey(
+        &mut self,
+        n_words: Option<usize>,
+        use_password: Option<bool>,
+        overwrite: Option<bool>,
+        suppress: Option<bool>,
+        save_hotkey_to_env: Option<bool>,
+        hotkey_password: Option<String>,
+    ) -> PyResult<()> {
+        self.inner
+            .new_hotkey(
+                n_words.unwrap_or(12),
+                use_password.unwrap_or(true),
+                overwrite.unwrap_or(false),
+                suppress.unwrap_or(false),
+                save_hotkey_to_env.unwrap_or(false),
+                hotkey_password,
+            )
+            .map(|_| ())
+            .map_err(|e| {
+                PyErr::new::<PyException, _>(format!("Failed to create new hotkey: {:?}", e))
+            })
     }
 
-    #[pyo3(text_signature = "($self, password=None)")]
-    fn regenerate_coldkey(&self, password: Option<String>) -> PyResult<()> {
-        self.inner.regenerate_coldkey(password)
-            .map_err(|e| PyErr::new::<PyException, _>(format!("Failed to regenerate coldkey: {:?}", e)))
+    #[pyo3(signature = (
+        mnemonic=None,
+        seed=None,
+        json=None,
+        use_password=None,
+        overwrite=None,
+        suppress=None,
+        save_coldkey_to_env=None,
+        coldkey_password=None
+    ))]
+    fn regenerate_coldkey(
+        &mut self,
+        mnemonic: Option<String>,
+        seed: Option<String>,
+        json: Option<(String, String)>,
+        use_password: Option<bool>,
+        overwrite: Option<bool>,
+        suppress: Option<bool>,
+        save_coldkey_to_env: Option<bool>,
+        coldkey_password: Option<String>,
+    ) -> PyResult<()> {
+        let new_inner_wallet = self
+            .inner
+            .regenerate_coldkey(
+                mnemonic,
+                seed,
+                json,
+                use_password.unwrap_or(false),
+                overwrite.unwrap_or(false),
+                suppress.unwrap_or(false),
+                save_coldkey_to_env.unwrap_or(false),
+                coldkey_password,
+            )
+            .map_err(|e| {
+                PyErr::new::<PyException, _>(format!("Failed to regenerate coldkey: {:?}", e))
+            })?;
+        self.inner = new_inner_wallet;
+        Ok(())
     }
 
-    #[pyo3(text_signature = "($self, password=None)")]
-    fn regenerate_coldkeypub(&self, password: Option<String>) -> PyResult<()> {
-        self.inner.regenerate_coldkeypub(password)
-            .map_err(|e| PyErr::new::<PyException, _>(format!("Failed to regenerate coldkeypub: {:?}", e)))
+    #[pyo3(signature = (ss58_address=None, public_key=None, overwrite=None))]
+    fn regenerate_coldkeypub(
+        &mut self,
+        ss58_address: Option<String>,
+        public_key: Option<String>,
+        overwrite: Option<bool>,
+    ) -> PyResult<()> {
+        let new_inner_wallet = self
+            .inner
+            .regenerate_coldkeypub(ss58_address, public_key, overwrite.unwrap_or(false))
+            .map_err(|e| {
+                PyErr::new::<PyException, _>(format!("Failed to regenerate coldkeypub: {:?}", e))
+            })?;
+        self.inner = new_inner_wallet;
+        Ok(())
     }
 
-    #[pyo3(text_signature = "($self, password=None)")]
-    fn regenerate_hotkey(&self, password: Option<String>) -> PyResult<()> {
-        self.inner.regenerate_hotkey(password)
-            .map_err(|e| PyErr::new::<PyException, _>(format!("Failed to regenerate hotkey: {:?}", e)))
+    #[pyo3(signature = (
+        mnemonic=None,
+        seed=None,
+        json=None,
+        use_password=None,
+        overwrite=None,
+        suppress=None,
+        save_hotkey_to_env=None,
+        hotkey_password=None
+    ))]
+    fn regenerate_hotkey(
+        &mut self,
+        mnemonic: Option<String>,
+        seed: Option<String>,
+        json: Option<(String, String)>,
+        use_password: Option<bool>,
+        overwrite: Option<bool>,
+        suppress: Option<bool>,
+        save_hotkey_to_env: Option<bool>,
+        hotkey_password: Option<String>,
+    ) -> PyResult<()> {
+        let new_inner_wallet = self
+            .inner
+            .regenerate_hotkey(
+                mnemonic,
+                seed,
+                json,
+                use_password.unwrap_or(false),
+                overwrite.unwrap_or(false),
+                suppress.unwrap_or(false),
+                save_hotkey_to_env.unwrap_or(false),
+                hotkey_password,
+            )
+            .map_err(|e| {
+                PyErr::new::<PyException, _>(format!("Failed to regenerate hotkey: {:?}", e))
+            })?;
+        self.inner = new_inner_wallet;
+        Ok(())
     }
 }
-
