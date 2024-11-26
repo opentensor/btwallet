@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::constants::{BT_WALLET_HOTKEY, BT_WALLET_NAME, BT_WALLET_PATH};
 
 #[derive(Clone)]
@@ -22,6 +24,16 @@ pub struct Config {
     pub wallet: WalletConfig,
 }
 
+impl Display for Config {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Config(name: '{}', path: '{}', hotkey: '{}'",
+            self.wallet.name, self.wallet.path, self.wallet.hotkey
+        )
+    }
+}
+
 impl Config {
     pub fn new(
         name: Option<String>,
@@ -31,13 +43,6 @@ impl Config {
         Config {
             wallet: WalletConfig::new(name, hotkey, path),
         }
-    }
-
-    pub fn to_string(&self) -> String {
-        format!(
-            "Config(name: '{}', path: '{}', hotkey: '{}')",
-            self.wallet.name, self.wallet.path, self.wallet.hotkey
-        )
     }
 
     pub fn name(&self) -> String {
