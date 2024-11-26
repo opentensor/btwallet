@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.1.2 /2024-11-27
+
+## What's Changed
+* Removes ansible from requirements. But the second requirements. by @thewhaleking in https://github.com/opentensor/btwallet/pull/74
+
+**Full Changelog**: https://github.com/opentensor/btwallet/compare/v2.1.1...v2.1.2
+
 ## 2.1.1 /2024-11-18
 
 ## What's Changed
