@@ -74,4 +74,5 @@ dev = [
     "factory-boy==3.3.0",
     "maturin==1.7.0",
     "py-bip39-bindings==0.1.11",
+    "ansible_vault~=2.1"
 ]
