@@ -452,14 +452,14 @@ fn register_utils_module(main_module: &PyModule) -> PyResult<()> {
         crate::utils::is_valid_bittensor_address_or_public_key,
         utils_module
     )?)?;
-    utils_module.add("SS58_FORMAT", crate::constants::SS58_FORMAT)?;
+    utils_module.add("SS58_FORMAT", crate::utils::SS58_FORMAT)?;
     main_module.add_submodule(utils_module)
 }
 
 fn register_wallet_module(main_module: &PyModule) -> PyResult<()> {
     let wallet_module = PyModule::new(main_module.py(), "wallet")?;
     wallet_module.add_function(wrap_pyfunction!(
-        wallet::display_mnemonic_msg,
+        crate::wallet::display_mnemonic_msg,
         wallet_module
     )?)?;
     wallet_module.add_class::<Wallet>()?;
