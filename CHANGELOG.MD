@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.1.3 /2024-11-27
+
+## What's Changed
+* Removes ansible completely by @roman-opentensor in https://github.com/opentensor/btwallet/pull/77
+
+**Full Changelog**: https://github.com/opentensor/btwallet/compare/v2.1.2...v2.1.3
+
 ## 2.1.2 /2024-11-27
 
 ## What's Changed
