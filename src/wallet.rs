@@ -1,6 +1,5 @@
 use colored::Colorize;
-use std::borrow::Cow;
-use std::env;
+use std::{env, fmt};
 use std::path::PathBuf;
 
 use crate::config::Config;
@@ -50,6 +49,27 @@ pub struct Wallet {
     _coldkeypub: Option<Keypair>,
     _hotkey: Option<Keypair>,
 }
+
+impl fmt::Display for Wallet {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Wallet (Name: '{:}', Hotkey: '{:}', Path: '{:}')",
+            self.name, self.hotkey, self.path
+        )
+    }
+}
+
+impl fmt::Debug for Wallet {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "name: '{:?}', hotkey: '{:?}', path: '{:?}'",
+            self.name, self.hotkey, self.path
+        )
+    }
+}
+
 impl Wallet {
     /// Initialize the bittensor wallet object containing a hot and coldkey.
     ///
@@ -98,22 +118,6 @@ impl Wallet {
             _coldkeypub: None,
             _hotkey: None,
         }
-    }
-
-    /// Returns string representation of the wallet
-    pub fn to_string(&self) -> String {
-        format!(
-            "Wallet (Name: '{:}', Hotkey: '{:}', Path: '{:}')",
-            self.name, self.hotkey, self.path
-        )
-    }
-
-    /// Returns debug representation of the wallet
-    pub fn debug_string(&self) -> String {
-        format!(
-            "name: '{:}', hotkey: '{:}', path: '{:}'",
-            self.name, self.hotkey, self.path
-        )
     }
 
     /// Get default config

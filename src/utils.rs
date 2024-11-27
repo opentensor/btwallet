@@ -27,14 +27,7 @@ pub fn is_valid_ss58_address(address: &str) -> bool {
         return false;
     }
 
-    match sp_core::sr25519::Public::from_ss58check(address) {
-        Ok(_) => true,
-        Err(_) => {
-            // Possibly there could be a debug log, but not a print
-            // utils::print(format!("Invalid SS58 address format"));
-            false
-        }
-    }
+    sp_core::sr25519::Public::from_ss58check(address).is_ok()
 }
 
 ///    Checks if the given public_key is a valid ed25519 key.
@@ -53,13 +46,7 @@ pub fn is_valid_ed25519_pubkey(public_key: &[u8]) -> bool {
     let keypair_result = Keypair::new(None, pub_key_var, None, SS58_FORMAT, None, 1);
 
     match keypair_result {
-        Ok(keypair) => {
-            if let Some(_) = keypair.ss58_address() {
-                true
-            } else {
-                false
-            }
-        }
+        Ok(keypair) => keypair.ss58_address().is_some(),
         Err(_) => false,
     }
 }
