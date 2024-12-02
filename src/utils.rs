@@ -1,3 +1,4 @@
+use pyo3::pyfunction;
 use sp_core::crypto::{AccountId32, Ss58Codec};
 use std::str;
 
@@ -20,6 +21,7 @@ pub fn get_ss58_format(ss58_address: &str) -> Result<u16, &'static str> {
 ///
 /// Returns:
 ///     True if the address is a valid ss58 address for Bittensor, False otherwise.
+#[pyfunction]
 pub fn is_valid_ss58_address(address: &str) -> bool {
     if address.is_empty() {
         // Possibly there could be a debug log, but not a print
@@ -37,6 +39,7 @@ pub fn is_valid_ss58_address(address: &str) -> bool {
 ///
 ///     Returns:
 ///         True if the public_key is a valid ed25519 key, False otherwise.
+#[pyfunction]
 pub fn is_valid_ed25519_pubkey(public_key: &[u8]) -> bool {
     if public_key.len() != 32 {
         return false;
@@ -58,6 +61,7 @@ pub fn is_valid_ed25519_pubkey(public_key: &[u8]) -> bool {
 ///
 ///     Returns:
 ///         True if the address is a valid destination address, False otherwise.
+#[pyfunction]
 pub fn is_valid_bittensor_address_or_public_key(address: &str) -> bool {
     if address.starts_with("0x") {
         // Convert hex string to bytes
@@ -86,14 +90,14 @@ pub fn print(s: String) {
 ///     response: Option<String>
 pub fn prompt(prompt: String) -> Option<String> {
     use std::io::{self, Write};
-    
+
     print!("{}", prompt);
     io::stdout().flush().ok()?;
-    
+
     let mut input = String::new();
     match io::stdin().read_line(&mut input) {
         Ok(_) => Some(input.trim().to_string()),
-        Err(_) => None
+        Err(_) => None,
     }
 }
 
@@ -105,15 +109,15 @@ pub fn prompt(prompt: String) -> Option<String> {
 /// Returns:
 ///     response: Option<String>
 pub fn prompt_password(prompt: String) -> Option<String> {
-    use std::io::{self, Write};
     use rpassword::read_password;
+    use std::io::{self, Write};
 
     print!("{}", prompt);
     io::stdout().flush().ok()?;
 
     match read_password() {
         Ok(password) => Some(password.trim().to_string()),
-        Err(_) => None
+        Err(_) => None,
     }
 }
 

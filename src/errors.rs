@@ -41,7 +41,7 @@ pub enum KeyFileError {
 #[derive(Error, Debug)]
 pub enum ConfigurationError {
     #[error("ConfigurationError: {0}")]
-    Message(String), 
+    Message(String),
 }
 
 #[derive(Error, Debug)]

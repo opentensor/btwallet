@@ -1,19 +1,16 @@
 use crate::errors::{ConfigurationError, KeyFileError, PasswordError};
-use crate::keyfile::serialized_keypair_to_keyfile_data;
+use crate::keyfile;
 use crate::keyfile::Keyfile as RustKeyfile;
 use crate::keypair::Keypair as RustKeypair;
-use crate::keyfile;
 use crate::utils::is_valid_ss58_address;
-use crate::utils::{is_valid_bittensor_address_or_public_key, SS58_FORMAT};
 use crate::wallet::Wallet as RustWallet;
 use pyo3::create_exception;
 use pyo3::exceptions::PyException;
 use pyo3::exceptions::PyValueError;
-use pyo3::ffi;
 use pyo3::prelude::*;
-use pyo3::types::{PyAny, PyDict, PyModule, PyString, PyTuple, PyType};
+use pyo3::types::{PyBytes, PyDict, PyModule, PyType};
 use pyo3::wrap_pyfunction;
-use std::path::PathBuf;
+
 #[pyclass]
 #[derive(Clone)]
 struct Config {
@@ -50,18 +47,18 @@ impl Config {
     }
 }
 
-#[pyclass]
+#[pyclass(name = "Keyfile")]
 #[derive(Clone)]
-struct Keyfile {
+struct PyKeyfile {
     inner: RustKeyfile,
 }
 
 #[pymethods]
-impl Keyfile {
+impl PyKeyfile {
     #[new]
     #[pyo3(signature = (path=None, name=None, should_save_to_env=true))]
     fn new(path: Option<String>, name: Option<String>, should_save_to_env: bool) -> Self {
-        Keyfile {
+        PyKeyfile {
             inner: RustKeyfile::new(path.unwrap_or_default(), name, should_save_to_env)
                 .expect("Failed to create keyfile"),
         }
@@ -134,6 +131,7 @@ impl Keyfile {
             .map_err(|e| PyErr::new::<PyValueError, _>(e.to_string()))
     }
 }
+
 #[pyclass(name = "Keypair")]
 #[derive(Clone)]
 pub struct PyKeypair {
@@ -314,54 +312,71 @@ create_exception!(errors, WalletError, PyException);
 
 // Define the Python module using PyO3
 #[pymodule]
-fn bittensor_wallet(py: Python<'_>, module: &PyModule) -> PyResult<()> {
+fn bittensor_wallet(py: Python<'_>, module: Bound<'_, PyModule>) -> PyResult<()> {
     // Add classes to the main module
     module.add_class::<Config>()?;
-    module.add_class::<Keyfile>()?;
+    module.add_class::<PyKeyfile>()?;
     module.add_class::<PyKeypair>()?;
     module.add_class::<Wallet>()?;
 
     // Add submodules to the main module
-    register_config_module(module)?;
-    register_errors_module(module)?;
-    register_keyfile_module(module)?;
-    register_keypair_module(py, module)?;
-    register_utils_module(module)?;
+    register_config_module(module.clone())?;
+    register_errors_module(module.clone())?;
+    register_keyfile_module(module.clone())?;
+    register_keypair_module(py, module.clone())?;
+    register_utils_module(module.clone())?;
     register_wallet_module(module)?;
     Ok(())
 }
 
 // Define the submodule registration functions
-fn register_config_module(main_module: &PyModule) -> PyResult<()> {
-    let config_module = PyModule::new(main_module.py(), "config")?;
+fn register_config_module(main_module: Bound<'_, PyModule>) -> PyResult<()> {
+    let config_module = PyModule::new_bound(main_module.py(), "config")?;
     config_module.add_class::<Config>()?;
-    main_module.add_submodule(config_module)
+    main_module.add_submodule(&config_module)
 }
 
-fn register_errors_module(main_module: &PyModule) -> PyResult<()> {
-    let errors_module = PyModule::new(main_module.py(), "errors")?;
+fn register_errors_module(main_module: Bound<'_, PyModule>) -> PyResult<()> {
+    let errors_module = PyModule::new_bound(main_module.py(), "errors")?;
     // Register the WalletError exception
     errors_module.add(
         "WalletError",
-        main_module
-            .py()
-            .get_type_bound::<crate::errors::WalletError>(),
+        main_module.py().get_type_bound::<WalletError>(),
     )?;
-    errors_module.add_class::<ConfigurationError>()?;
-    errors_module.add_class::<KeyFileError>()?;
-    errors_module.add_class::<PasswordError>()?;
-    main_module.add_submodule(errors_module)
+    errors_module.add_class::<PyConfigurationError>()?;
+    errors_module.add_class::<PyKeyFileError>()?;
+    errors_module.add_class::<PyPasswordError>()?;
+    main_module.add_submodule(&errors_module)
+}
+
+#[pyfunction]
+#[pyo3(signature = (keypair))]
+fn py_serialized_keypair_to_keyfile_data(py: Python, keypair: &PyKeypair) -> PyResult<PyObject> {
+    keyfile::serialized_keypair_to_keyfile_data(&keypair.inner)
+        .map(|bytes| PyBytes::new_bound(py, &bytes).into_py(py))
+        .map_err(|inner| PyErr::new::<PyKeyFileError, _>(PyKeyFileError { inner }))
+}
+
+#[pyfunction]
+#[pyo3(signature = (keyfile_data))]
+fn py_deserialize_keypair_from_keyfile_data(
+    py: Python,
+    keyfile_data: &[u8],
+) -> PyResult<PyKeypair> {
+    keyfile::deserialize_keypair_from_keyfile_data(keyfile_data)
+        .map(|inner| PyKeypair { inner })
+        .map_err(|inner| PyErr::new::<PyKeyFileError, _>(PyKeyFileError { inner }))
 }
 
 // keyfile module with functions
-fn register_keyfile_module(main_module: &Bound<'_, PyModule>) -> PyResult<()> {
+fn register_keyfile_module(main_module: Bound<'_, PyModule>) -> PyResult<()> {
     let keyfile_module = PyModule::new_bound(main_module.py(), "keyfile")?;
     keyfile_module.add_function(wrap_pyfunction!(
-        keyfile::serialized_keypair_to_keyfile_data,
+        py_serialized_keypair_to_keyfile_data,
         &keyfile_module
     )?)?;
     keyfile_module.add_function(wrap_pyfunction!(
-        keyfile::deserialize_keypair_from_keyfile_data,
+        py_deserialize_keypair_from_keyfile_data,
         &keyfile_module
     )?)?;
     keyfile_module.add_function(wrap_pyfunction!(
@@ -405,11 +420,11 @@ fn register_keyfile_module(main_module: &Bound<'_, PyModule>) -> PyResult<()> {
         keyfile::decrypt_keyfile_data,
         &keyfile_module
     )?)?;
-    keyfile_module.add_class::<keyfile::Keyfile>()?;
+    keyfile_module.add_class::<PyKeyfile>()?;
     main_module.add_submodule(&keyfile_module)
 }
 
-fn register_keypair_module(py: Python, main_module: &PyModule) -> PyResult<()> {
+fn register_keypair_module(py: Python, main_module: Bound<'_, PyModule>) -> PyResult<()> {
     let keypair_module = PyModule::new_bound(py, "keypair")?;
 
     // Import the substrateinterface Keypair class
@@ -423,47 +438,53 @@ fn register_keypair_module(py: Python, main_module: &PyModule) -> PyResult<()> {
     let pykeypair_type = py.get_type_bound::<PyKeypair>();
 
     // Create the bases tuple with matching types
-    let bases = PyTuple::new_bound(py, &[origin_keypair_class, &pykeypair_type]);
+    let bases = (origin_keypair_class, &pykeypair_type);
     let dict = PyDict::new_bound(py);
-    let keypair_class = PyType::new_bound(py, "Keypair", bases, Some(dict))?;
+    let keypair_class = py
+        .import_bound("builtins")?
+        .getattr("type")?
+        .call1(("Keypair", bases, dict))?
+        .get_type();
 
     keypair_module.add("Keypair", keypair_class)?;
-    main_module.add_submodule(keypair_module)?;
+    main_module.add_submodule(&keypair_module)?;
     Ok(())
 }
 
-fn register_utils_module(main_module: &PyModule) -> PyResult<()> {
-    let utils_module = PyModule::new_bound(main_module.py(), "utils")?;
-    utils_module.add_function(wrap_pyfunction!(is_valid_ss58_address, utils_module)?)?;
+#[pyfunction]
+fn py_get_ss58_format(ss58_address: &str) -> PyResult<u16> {
+    crate::utils::get_ss58_format(ss58_address).map_err(|e| PyErr::new::<PyValueError, _>(e))
+}
 
-    utils_module.add_function(wrap_pyfunction!(
-        crate::utils::get_ss58_format,
-        utils_module
-    )?)?;
+fn register_utils_module(main_module: Bound<'_, PyModule>) -> PyResult<()> {
+    let utils_module = PyModule::new_bound(main_module.py(), "utils")?;
+    utils_module.add_function(wrap_pyfunction!(is_valid_ss58_address, &utils_module)?)?;
+
+    utils_module.add_function(wrap_pyfunction!(py_get_ss58_format, &utils_module)?)?;
     utils_module.add_function(wrap_pyfunction!(
         crate::utils::is_valid_ss58_address,
-        utils_module
+        &utils_module
     )?)?;
     utils_module.add_function(wrap_pyfunction!(
         crate::utils::is_valid_ed25519_pubkey,
-        utils_module
+        &utils_module
     )?)?;
     utils_module.add_function(wrap_pyfunction!(
         crate::utils::is_valid_bittensor_address_or_public_key,
-        utils_module
+        &utils_module
     )?)?;
     utils_module.add("SS58_FORMAT", crate::utils::SS58_FORMAT)?;
-    main_module.add_submodule(utils_module)
+    main_module.add_submodule(&utils_module)
 }
 
-fn register_wallet_module(main_module: &PyModule) -> PyResult<()> {
-    let wallet_module = PyModule::new(main_module.py(), "wallet")?;
+fn register_wallet_module(main_module: Bound<'_, PyModule>) -> PyResult<()> {
+    let wallet_module = PyModule::new_bound(main_module.py(), "wallet")?;
     wallet_module.add_function(wrap_pyfunction!(
         crate::wallet::display_mnemonic_msg,
         wallet_module
     )?)?;
     wallet_module.add_class::<Wallet>()?;
-    main_module.add_submodule(wallet_module)
+    main_module.add_submodule(&wallet_module)
 }
 
 // Implement the Python wrappers for the Rust structs
@@ -506,7 +527,7 @@ impl Wallet {
 
     #[pyo3(text_signature = "($self)")]
     fn debug_string(&self) -> String {
-        self.inner.debug_string()
+        format!("{:?}", self.inner)
     }
 
     #[pyo3(

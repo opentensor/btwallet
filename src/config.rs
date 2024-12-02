@@ -35,11 +35,7 @@ impl Display for Config {
 }
 
 impl Config {
-    pub fn new(
-        name: Option<String>,
-        hotkey: Option<String>,
-        path: Option<String>,
-    ) -> Config {
+    pub fn new(name: Option<String>, hotkey: Option<String>, path: Option<String>) -> Config {
         Config {
             wallet: WalletConfig::new(name, hotkey, path),
         }

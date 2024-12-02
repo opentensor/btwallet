@@ -8,8 +8,6 @@ use sodiumoxide::crypto::secretbox::{Key, Nonce};
 use sp_core::crypto::Ss58Codec;
 use sp_core::{sr25519, ByteArray, Pair};
 
-use crate::errors::ConfigurationError;
-
 const PKCS8_HEADER: &[u8] = &[48, 83, 2, 1, 1, 48, 5, 6, 3, 43, 101, 112, 4, 34, 4, 32];
 const PKCS8_DIVIDER: &[u8] = &[161, 35, 3, 33, 0];
 const SEC_LENGTH: usize = 64;
@@ -81,10 +79,8 @@ impl Keypair {
 
         // if public_key is passed
         if let Some(public_key_str) = &public_key_res {
-            let public_key_vec =
-                hex::decode(public_key_str.trim_start_matches("0x")).map_err(|e| {
-                    format!("Invalid `public_key` string: {}", e)
-                })?;
+            let public_key_vec = hex::decode(public_key_str.trim_start_matches("0x"))
+                .map_err(|e| format!("Invalid `public_key` string: {}", e))?;
 
             let public_key_array: [u8; 32] = public_key_vec
                 .try_into()
@@ -97,9 +93,8 @@ impl Keypair {
 
         // If ss58_address is passed, decode the public key
         if let Some(ss58_address_str) = ss58_address.clone() {
-            let public_key = sr25519::Public::from_ss58check(&ss58_address_str).map_err(|e| {
-                format!("Invalid SS58 address: {}", e)
-            })?;
+            let public_key = sr25519::Public::from_ss58check(&ss58_address_str)
+                .map_err(|e| format!("Invalid SS58 address: {}", e))?;
 
             public_key_res = Some(hex::encode(public_key.to_raw()));
         }
@@ -123,14 +118,13 @@ impl Keypair {
     }
 
     pub fn generate_mnemonic(n_words: usize) -> Result<String, String> {
-        let mnemonic = Mnemonic::generate(n_words)
-            .map_err(|e| e.to_string())?;
+        let mnemonic = Mnemonic::generate(n_words).map_err(|e| e.to_string())?;
         Ok(mnemonic.to_string())
     }
 
     pub fn create_from_mnemonic(mnemonic: &str) -> Result<Self, String> {
-        let (pair, seed_vec) = sr25519::Pair::from_phrase(mnemonic, None)
-            .map_err(|e| e.to_string())?;
+        let (pair, seed_vec) =
+            sr25519::Pair::from_phrase(mnemonic, None).map_err(|e| e.to_string())?;
 
         let kp = Keypair {
             mnemonic: Some(mnemonic.to_string()),
@@ -155,13 +149,11 @@ impl Keypair {
     }
 
     pub fn create_from_private_key(private_key: &str) -> Result<Self, String> {
-        let private_key_vec = hex::decode(private_key.trim_start_matches("0x")).map_err(|e| {
-            format!("Invalid `private_key` string: {}", e)
-        })?;
+        let private_key_vec = hex::decode(private_key.trim_start_matches("0x"))
+            .map_err(|e| format!("Invalid `private_key` string: {}", e))?;
 
-        let pair = sr25519::Pair::from_seed_slice(&private_key_vec).map_err(|e| {
-            format!("Failed to create pair from private key: {}", e)
-        })?;
+        let pair = sr25519::Pair::from_seed_slice(&private_key_vec)
+            .map_err(|e| format!("Failed to create pair from private key: {}", e))?;
 
         let kp = Keypair {
             pair: Some(pair),
@@ -170,7 +162,10 @@ impl Keypair {
         Ok(kp)
     }
 
-    pub fn create_from_encrypted_json(json_data: &str, passphrase: &str) -> Result<Keypair, String> {
+    pub fn create_from_encrypted_json(
+        json_data: &str,
+        passphrase: &str,
+    ) -> Result<Keypair, String> {
         /// rust version of python .rjust
         fn pad_right(mut data: Vec<u8>, total_len: usize, pad_byte: u8) -> Vec<u8> {
             if data.len() < total_len {
@@ -233,8 +228,7 @@ impl Keypair {
             let r = u32::from_le_bytes(encrypted[40..44].try_into().unwrap());
             let log_n: u8 = n.ilog2() as u8;
 
-            let params = ScryptParams::new(log_n, r, p, 32)
-                .map_err(|e| e.to_string())?;
+            let params = ScryptParams::new(log_n, r, p, 32).map_err(|e| e.to_string())?;
             let mut derived_key = vec![0u8; 32];
             scrypt(passphrase.as_bytes(), salt, &params, &mut derived_key)
                 .map_err(|e| e.to_string())?;
@@ -252,10 +246,9 @@ impl Keypair {
             .map_err(|e| e.to_string())?;
         let message = &encrypted[24..];
 
-        let key = Key::from_slice(&password)
-            .ok_or("Invalid key length")?;
-        let decrypted_data =
-            secretbox::open(message, &nonce, &key).map_err(|_| "Failed to decrypt data".to_string())?;
+        let key = Key::from_slice(&password).ok_or("Invalid key length")?;
+        let decrypted_data = secretbox::open(message, &nonce, &key)
+            .map_err(|_| "Failed to decrypt data".to_string())?;
         let (private_key, public_key) =
             decode_pkcs8(&decrypted_data).map_err(|_| "Failed to decode PKCS8 data".to_string())?;
 
@@ -274,8 +267,7 @@ impl Keypair {
     }
 
     pub fn create_from_uri(uri: &str) -> Result<Self, String> {
-        let pair = Pair::from_string(uri, None)
-            .map_err(|e| e.to_string())?;
+        let pair = Pair::from_string(uri, None).map_err(|e| e.to_string())?;
 
         let kp = Keypair {
             pair: Some(pair),
@@ -286,9 +278,10 @@ impl Keypair {
 
     pub fn sign(&self, data: Vec<u8>) -> Result<Vec<u8>, String> {
         // Check if private key exists
-        let pair = self.pair.as_ref().ok_or_else(|| {
-            "No private key set to create signatures".to_string()
-        })?;
+        let pair = self
+            .pair
+            .as_ref()
+            .ok_or_else(|| "No private key set to create signatures".to_string())?;
 
         // Generate a signature depending on the type of cryptographic key
         let signature = match self.crypto_type {
@@ -307,23 +300,23 @@ impl Keypair {
     pub fn verify(&self, data: Vec<u8>, signature: Vec<u8>) -> Result<bool, String> {
         // Check if public key exists
         let public_key = if let Some(public_key_str) = &self.public_key {
-            hex::decode(public_key_str.trim_start_matches("0x")).map_err(|e| {
-                format!("Invalid `public_key` string: {:?}", e)
-            })?
+            hex::decode(public_key_str.trim_start_matches("0x"))
+                .map_err(|e| format!("Invalid `public_key` string: {:?}", e))?
         } else if let Some(pair) = &self.pair {
             pair.public().to_vec()
         } else {
             return Err("No public key or pair available.".to_string());
         };
 
-        let public = sr25519::Public::from_raw(<[u8; 32]>::try_from(public_key).map_err(|e| {
-            format!("Invalid public key length: {:?}", e)
-        })?);
+        let public = sr25519::Public::from_raw(
+            <[u8; 32]>::try_from(public_key)
+                .map_err(|e| format!("Invalid public key length: {:?}", e))?,
+        );
 
         // Convert signature bytes to the type expected by the verify function
         let signature = sr25519::Signature::from_slice(&signature)
             .map_err(|_| "Invalid signature".to_string())?;
-        
+
         // Verify signature depending on the type of crypto key
         let verified = match self.crypto_type {
             1 => {
@@ -360,9 +353,7 @@ impl Keypair {
                 let ss58_address = pair.public().to_ss58check();
                 Some(ss58_address)
             }
-            None => {
-                self.ss58_address.clone()
-            }
+            None => self.ss58_address.clone(),
         }
     }
 
@@ -371,9 +362,8 @@ impl Keypair {
             let public_key_vec = pair.public().to_vec();
             Ok(Some(public_key_vec))
         } else if let Some(public_key) = &self.public_key {
-            let public_key_vec = hex::decode(public_key.trim_start_matches("0x")).map_err(|e| {
-                format!("Invalid `public_key` string: {}", e)
-            })?;
+            let public_key_vec = hex::decode(public_key.trim_start_matches("0x"))
+                .map_err(|e| format!("Invalid `public_key` string: {}", e))?;
             Ok(Some(public_key_vec))
         } else {
             Ok(None)

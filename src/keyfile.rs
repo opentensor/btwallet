@@ -11,6 +11,7 @@ use fernet::Fernet;
 
 use passwords::analyzer;
 use passwords::scorer;
+use pyo3::pyfunction;
 use serde_json::json;
 
 use crate::errors::{KeyFileError, PasswordError};
@@ -162,47 +163,45 @@ pub fn ask_password(validation_required: bool) -> Result<String, KeyFileError> {
 }
 
 /// Returns `true` if the keyfile data is NaCl encrypted.
-pub fn keyfile_data_is_encrypted_nacl(keyfile_data: &[u8]) -> Result<bool, KeyFileError> {
-    if keyfile_data.starts_with(b"$NACL") {
-        return Ok(true);
-    }
-    Ok(false)
+#[pyfunction]
+pub fn keyfile_data_is_encrypted_nacl(keyfile_data: &[u8]) -> bool {
+    keyfile_data.starts_with(b"$NACL")
 }
 
 /// Returns true if the keyfile data is ansible encrypted.
-pub fn keyfile_data_is_encrypted_ansible(keyfile_data: &[u8]) -> Result<bool, KeyFileError> {
-    if keyfile_data.starts_with(b"$ANSIBLE_VAULT") {
-        return Ok(true);
-    }
-    Ok(false)
+#[pyfunction]
+pub fn keyfile_data_is_encrypted_ansible(keyfile_data: &[u8]) -> bool {
+    keyfile_data.starts_with(b"$ANSIBLE_VAULT")
 }
 
 /// Returns true if the keyfile data is legacy encrypted.
-pub fn keyfile_data_is_encrypted_legacy(keyfile_data: &[u8]) -> Result<bool, KeyFileError> {
-    if keyfile_data.starts_with(b"gAAAAA") {
-        return Ok(true);
-    }
-    Ok(false)
+#[pyfunction]
+pub fn keyfile_data_is_encrypted_legacy(keyfile_data: &[u8]) -> bool {
+    keyfile_data.starts_with(b"gAAAAA")
 }
 
 /// Returns `true` if the keyfile data is encrypted.
-pub fn keyfile_data_is_encrypted(keyfile_data: &[u8]) -> Result<bool, KeyFileError> {
-    let nacl = keyfile_data_is_encrypted_nacl(keyfile_data)?;
-    let ansible = keyfile_data_is_encrypted_ansible(keyfile_data)?;
-    let legacy = keyfile_data_is_encrypted_legacy(keyfile_data)?;
-    Ok(nacl || ansible || legacy)
+#[pyfunction]
+pub fn keyfile_data_is_encrypted(keyfile_data: &[u8]) -> bool {
+    let nacl = keyfile_data_is_encrypted_nacl(keyfile_data);
+    let ansible = keyfile_data_is_encrypted_ansible(keyfile_data);
+    let legacy = keyfile_data_is_encrypted_legacy(keyfile_data);
+    nacl || ansible || legacy
 }
 
 /// Returns type of encryption method as a string.
-pub fn keyfile_data_encryption_method(keyfile_data: &[u8]) -> Result<String, KeyFileError> {
-    let encryption_method = match true {
-        _ if keyfile_data_is_encrypted_nacl(keyfile_data)? => "NaCl",
-        _ if keyfile_data_is_encrypted_ansible(keyfile_data)? => "Ansible Vault",
-        _ if keyfile_data_is_encrypted_legacy(keyfile_data)? => "legacy",
-        _ => "unknown",
-    };
-
-    Ok(encryption_method.to_string())
+#[pyfunction]
+pub fn keyfile_data_encryption_method(keyfile_data: &[u8]) -> String {
+    if keyfile_data_is_encrypted_nacl(keyfile_data) {
+        "NaCl"
+    } else if keyfile_data_is_encrypted_ansible(keyfile_data) {
+        "Ansible Vault"
+    } else if keyfile_data_is_encrypted_legacy(keyfile_data) {
+        "legacy"
+    } else {
+        "unknown"
+    }
+    .to_string()
 }
 
 /// legacy_encrypt_keyfile_data.
@@ -329,7 +328,7 @@ pub fn decrypt_keyfile_data(
 
     utils::print("Decrypting...\n".to_string());
     // NaCl decryption
-    if keyfile_data_is_encrypted_nacl(keyfile_data)? {
+    if keyfile_data_is_encrypted_nacl(keyfile_data) {
         let key = derive_key(password.as_bytes());
         let decrypted_data = nacl_decrypt(keyfile_data, &key).map_err(|_| {
             KeyFileError::DecryptionError("Wrong password for decryption.".to_string())
@@ -338,7 +337,7 @@ pub fn decrypt_keyfile_data(
     }
 
     // Ansible Vault decryption
-    if keyfile_data_is_encrypted_ansible(keyfile_data)? {
+    if keyfile_data_is_encrypted_ansible(keyfile_data) {
         let decrypted_data = decrypt_vault(keyfile_data, password.as_str()).map_err(|_| {
             KeyFileError::DecryptionError("Wrong password for decryption.".to_string())
         })?;
@@ -346,7 +345,7 @@ pub fn decrypt_keyfile_data(
     }
 
     // Legacy decryption
-    if keyfile_data_is_encrypted_legacy(keyfile_data)? {
+    if keyfile_data_is_encrypted_legacy(keyfile_data) {
         let decrypted_data = legacy_decrypt(&password, keyfile_data).map_err(|_| {
             KeyFileError::DecryptionError("Wrong password for decryption.".to_string())
         })?;
@@ -404,7 +403,7 @@ impl std::fmt::Display for Keyfile {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.__str__() {
             Ok(s) => write!(f, "{}", s),
-            Err(e) => write!(f, "Error displaying keyfile: {}", e)
+            Err(e) => write!(f, "Error displaying keyfile: {}", e),
         }
     }
 }
@@ -450,7 +449,7 @@ impl Keyfile {
         let keyfile_data = self._read_keyfile_data_from_file()?;
 
         // check if encrypted
-        let decrypted_keyfile_data = if keyfile_data_is_encrypted(&keyfile_data)? {
+        let decrypted_keyfile_data = if keyfile_data_is_encrypted(&keyfile_data) {
             decrypt_keyfile_data(&keyfile_data, password, Some(self.env_var_name()?))?
         } else {
             keyfile_data
@@ -591,7 +590,7 @@ impl Keyfile {
         let keyfile_data = self._read_keyfile_data_from_file()?;
 
         // check if encrypted
-        let is_encrypted = keyfile_data_is_encrypted(&keyfile_data)?;
+        let is_encrypted = keyfile_data_is_encrypted(&keyfile_data);
 
         Ok(is_encrypted)
     }
@@ -640,8 +639,8 @@ impl Keyfile {
             let keyfile_data = self._read_keyfile_data_from_file()?;
 
             // check if file is decrypted
-            if keyfile_data_is_encrypted(&keyfile_data)?
-                && !keyfile_data_is_encrypted_nacl(&keyfile_data)?
+            if keyfile_data_is_encrypted(&keyfile_data)
+                && !keyfile_data_is_encrypted_nacl(&keyfile_data)
             {
                 utils::print("You may update the keyfile to improve security...\n".to_string());
 
@@ -700,12 +699,12 @@ impl Keyfile {
             // check and get result
             let keyfile_data = self._read_keyfile_data_from_file()?;
 
-            return if !keyfile_data_is_encrypted(&keyfile_data)? {
+            return if !keyfile_data_is_encrypted(&keyfile_data) {
                 if print_result {
                     utils::print("Keyfile is not encrypted.\n".to_string());
                 }
                 Ok(false)
-            } else if keyfile_data_is_encrypted_nacl(&keyfile_data)? {
+            } else if keyfile_data_is_encrypted_nacl(&keyfile_data) {
                 if print_result {
                     utils::print("Keyfile is updated.\n".to_string());
                 }
@@ -747,7 +746,7 @@ impl Keyfile {
         // read the data
         let keyfile_data = self._read_keyfile_data_from_file()?;
 
-        let final_data = if !keyfile_data_is_encrypted(&keyfile_data)? {
+        let final_data = if !keyfile_data_is_encrypted(&keyfile_data) {
             let as_keypair = deserialize_keypair_from_keyfile_data(&keyfile_data)?;
             let serialized_data = serialized_keypair_to_keyfile_data(&as_keypair)?;
 
@@ -798,7 +797,7 @@ impl Keyfile {
         // read data
         let keyfile_data = self._read_keyfile_data_from_file()?;
 
-        let decrypted_data = if keyfile_data_is_encrypted(&keyfile_data)? {
+        let decrypted_data = if keyfile_data_is_encrypted(&keyfile_data) {
             decrypt_keyfile_data(&keyfile_data, password, Some(self.env_var_name()?))?
         } else {
             keyfile_data

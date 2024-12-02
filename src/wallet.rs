@@ -1,6 +1,7 @@
 use colored::Colorize;
-use std::{env, fmt};
+use pyo3::pyfunction;
 use std::path::PathBuf;
+use std::{env, fmt};
 
 use crate::config::Config;
 use crate::constants::{BT_WALLET_HOTKEY, BT_WALLET_NAME, BT_WALLET_PATH};
@@ -10,6 +11,7 @@ use crate::keypair::Keypair;
 use crate::utils::{self, is_valid_bittensor_address_or_public_key};
 
 /// Display the mnemonic and a warning message to keep the mnemonic safe.
+#[pyfunction]
 pub fn display_mnemonic_msg(mnemonic: String, key_type: &str) {
     utils::print(format!("{}", "\nIMPORTANT: Store this mnemonic in a secure (preferable offline place), as anyone who has possession of this mnemonic can use it to regenerate the key and access your tokens.\n".red()));
 
@@ -132,8 +134,8 @@ impl Wallet {
 
     // TODO: What are the prefixes for ?
     pub fn add_args(parser: clap::Command, prefix: Option<&str>) -> clap::Command {
-        let default_name = env::var("BT_WALLET_NAME")
-            .unwrap_or_else(|_| BT_WALLET_NAME.to_string());
+        let default_name =
+            env::var("BT_WALLET_NAME").unwrap_or_else(|_| BT_WALLET_NAME.to_string());
         let default_name_static: &'static str = Box::leak(default_name.into_boxed_str());
 
         let parser = parser.arg(
@@ -143,19 +145,19 @@ impl Wallet {
                 .help("The name of the wallet to unlock for running Bittensor"),
         );
 
-        let default_hotkey = env::var("BT_WALLET_HOTKEY")
-            .unwrap_or_else(|_| BT_WALLET_HOTKEY.to_string());
+        let default_hotkey =
+            env::var("BT_WALLET_HOTKEY").unwrap_or_else(|_| BT_WALLET_HOTKEY.to_string());
         let default_hotkey_static: &'static str = Box::leak(default_hotkey.into_boxed_str());
 
         let parser = parser.arg(
             clap::Arg::new("wallet.hotkey")
-                .long("wallet.hotkey") 
+                .long("wallet.hotkey")
                 .default_value(default_hotkey_static)
                 .help("The name of the wallet's hotkey"),
         );
 
-        let default_path = env::var("BT_WALLET_PATH")
-            .unwrap_or_else(|_| BT_WALLET_PATH.to_string());
+        let default_path =
+            env::var("BT_WALLET_PATH").unwrap_or_else(|_| BT_WALLET_PATH.to_string());
         let default_path_static: &'static str = Box::leak(default_path.into_boxed_str());
 
         let parser = parser.arg(
