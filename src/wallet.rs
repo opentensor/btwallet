@@ -133,7 +133,7 @@ impl Wallet {
     }
 
     // TODO: What are the prefixes for ?
-    pub fn add_args(parser: clap::Command, prefix: Option<&str>) -> clap::Command {
+    pub fn add_args(parser: clap::Command, _prefix: Option<&str>) -> clap::Command {
         let default_name =
             env::var("BT_WALLET_NAME").unwrap_or_else(|_| BT_WALLET_NAME.to_string());
         let default_name_static: &'static str = Box::leak(default_name.into_boxed_str());

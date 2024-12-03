@@ -14,7 +14,7 @@ use passwords::scorer;
 use pyo3::pyfunction;
 use serde_json::json;
 
-use crate::errors::{KeyFileError, PasswordError};
+use crate::errors::KeyFileError;
 use crate::keypair::Keypair;
 use crate::utils;
 

@@ -358,13 +358,55 @@ fn py_serialized_keypair_to_keyfile_data(py: Python, keypair: &PyKeypair) -> PyR
 }
 
 #[pyfunction]
-#[pyo3(signature = (keyfile_data))]
-fn py_deserialize_keypair_from_keyfile_data(
-    py: Python,
-    keyfile_data: &[u8],
-) -> PyResult<PyKeypair> {
+fn py_deserialize_keypair_from_keyfile_data(keyfile_data: &[u8]) -> PyResult<PyKeypair> {
     keyfile::deserialize_keypair_from_keyfile_data(keyfile_data)
         .map(|inner| PyKeypair { inner })
+        .map_err(|inner| PyErr::new::<PyKeyFileError, _>(PyKeyFileError { inner }))
+}
+
+#[pyfunction]
+fn py_validate_password(password: &str) -> PyResult<bool> {
+    keyfile::validate_password(password)
+        .map_err(|inner| PyErr::new::<PyKeyFileError, _>(PyKeyFileError { inner }))
+}
+
+#[pyfunction]
+fn py_ask_password(validation_required: bool) -> PyResult<String> {
+    keyfile::ask_password(validation_required)
+        .map_err(|inner| PyErr::new::<PyKeyFileError, _>(PyKeyFileError { inner }))
+}
+
+#[pyfunction]
+#[pyo3(signature = (keyfile_data, password=None))]
+fn py_legacy_encrypt_keyfile_data(
+    keyfile_data: &[u8],
+    password: Option<String>,
+) -> PyResult<Vec<u8>> {
+    keyfile::legacy_encrypt_keyfile_data(keyfile_data, password)
+        .map_err(|inner| PyErr::new::<PyKeyFileError, _>(PyKeyFileError { inner }))
+}
+
+#[pyfunction]
+fn py_get_password_from_environment(env_var_name: String) -> PyResult<Option<String>> {
+    keyfile::get_password_from_environment(env_var_name)
+        .map_err(|inner| PyErr::new::<PyKeyFileError, _>(PyKeyFileError { inner }))
+}
+
+#[pyfunction]
+#[pyo3(signature = (keyfile_data, password=None))]
+fn py_encrypt_keyfile_data(keyfile_data: &[u8], password: Option<String>) -> PyResult<Vec<u8>> {
+    keyfile::encrypt_keyfile_data(keyfile_data, password)
+        .map_err(|inner| PyErr::new::<PyKeyFileError, _>(PyKeyFileError { inner }))
+}
+
+#[pyfunction]
+#[pyo3(signature = (keyfile_data, password=None, password_env_var=None))]
+fn py_decrypt_keyfile_data(
+    keyfile_data: &[u8],
+    password: Option<String>,
+    password_env_var: Option<String>,
+) -> PyResult<Vec<u8>> {
+    keyfile::decrypt_keyfile_data(keyfile_data, password, password_env_var)
         .map_err(|inner| PyErr::new::<PyKeyFileError, _>(PyKeyFileError { inner }))
 }
 
@@ -379,11 +421,8 @@ fn register_keyfile_module(main_module: Bound<'_, PyModule>) -> PyResult<()> {
         py_deserialize_keypair_from_keyfile_data,
         &keyfile_module
     )?)?;
-    keyfile_module.add_function(wrap_pyfunction!(
-        keyfile::validate_password,
-        &keyfile_module
-    )?)?;
-    keyfile_module.add_function(wrap_pyfunction!(keyfile::ask_password, &keyfile_module)?)?;
+    keyfile_module.add_function(wrap_pyfunction!(py_validate_password, &keyfile_module)?)?;
+    keyfile_module.add_function(wrap_pyfunction!(py_ask_password, &keyfile_module)?)?;
     keyfile_module.add_function(wrap_pyfunction!(
         keyfile::keyfile_data_is_encrypted_nacl,
         &keyfile_module
@@ -405,21 +444,15 @@ fn register_keyfile_module(main_module: Bound<'_, PyModule>) -> PyResult<()> {
         &keyfile_module
     )?)?;
     keyfile_module.add_function(wrap_pyfunction!(
-        keyfile::legacy_encrypt_keyfile_data,
+        py_legacy_encrypt_keyfile_data,
         &keyfile_module
     )?)?;
     keyfile_module.add_function(wrap_pyfunction!(
-        keyfile::get_password_from_environment,
+        py_get_password_from_environment,
         &keyfile_module
     )?)?;
-    keyfile_module.add_function(pyo3::wrap_pyfunction!(
-        crate::keyfile::encrypt_keyfile_data,
-        &keyfile_module
-    )?)?;
-    keyfile_module.add_function(wrap_pyfunction!(
-        keyfile::decrypt_keyfile_data,
-        &keyfile_module
-    )?)?;
+    keyfile_module.add_function(wrap_pyfunction!(py_encrypt_keyfile_data, &keyfile_module)?)?;
+    keyfile_module.add_function(wrap_pyfunction!(py_decrypt_keyfile_data, &keyfile_module)?)?;
     keyfile_module.add_class::<PyKeyfile>()?;
     main_module.add_submodule(&keyfile_module)
 }
@@ -481,7 +514,7 @@ fn register_wallet_module(main_module: Bound<'_, PyModule>) -> PyResult<()> {
     let wallet_module = PyModule::new_bound(main_module.py(), "wallet")?;
     wallet_module.add_function(wrap_pyfunction!(
         crate::wallet::display_mnemonic_msg,
-        wallet_module
+        &wallet_module
     )?)?;
     wallet_module.add_class::<Wallet>()?;
     main_module.add_submodule(&wallet_module)
@@ -503,11 +536,11 @@ impl Wallet {
         hotkey: Option<String>,
         path: Option<String>,
         config: Option<PyObject>,
-        py: Python,
+        _py: Python,
     ) -> PyResult<Self> {
         // Handle config conversion
         let rust_config = match config {
-            Some(cfg) => {
+            Some(_cfg) => {
                 // Convert PyObject to RustConfig if necessary
                 // TODO: Implement config conversion
                 None
@@ -531,7 +564,7 @@ impl Wallet {
     }
 
     #[pyo3(
-        text_signature = "($self, coldkey_use_password=true, hotkey_use_password=false, save_coldkey_to_env=false, save_hotkey_to_env=false, coldkey_password=None, hotkey_password=None, overwrite=false, suppress=false)"
+        signature = (coldkey_use_password=Some(true), hotkey_use_password=Some(false), save_coldkey_to_env=Some(false), save_hotkey_to_env=Some(false), coldkey_password=None, hotkey_password=None, overwrite=Some(false), suppress=Some(false))
     )]
     fn create_if_non_existent(
         &mut self,
@@ -564,7 +597,7 @@ impl Wallet {
     }
 
     #[pyo3(
-        text_signature = "($self, coldkey_use_password=true, hotkey_use_password=false, save_coldkey_to_env=false, save_hotkey_to_env=false, coldkey_password=None, hotkey_password=None, overwrite=false, suppress=false)"
+        signature = (coldkey_use_password=Some(true), hotkey_use_password=Some(false), save_coldkey_to_env=Some(false), save_hotkey_to_env=Some(false), coldkey_password=None, hotkey_password=None, overwrite=Some(false), suppress=Some(false))
     )]
     fn recreate(
         &mut self,
@@ -639,7 +672,7 @@ impl Wallet {
     }
 
     #[pyo3(
-        text_signature = "($self, uri, use_password=None, overwrite=None, suppress=None, save_coldkey_to_env=None, coldkey_password=None)"
+        signature = (uri, use_password=None, overwrite=None, suppress=None, save_coldkey_to_env=None, coldkey_password=None)
     )]
     fn create_coldkey_from_uri(
         &mut self,
@@ -666,7 +699,7 @@ impl Wallet {
     }
 
     #[pyo3(
-        text_signature = "($self, uri, use_password=None, overwrite=None, suppress=None, save_hotkey_to_env=None, hotkey_password=None)"
+        signature = (uri, use_password=None, overwrite=None, suppress=None, save_hotkey_to_env=None, hotkey_password=None)
     )]
     fn create_hotkey_from_uri(
         &mut self,
@@ -716,7 +749,7 @@ impl Wallet {
     }
 
     #[pyo3(
-        text_signature = "($self, n_words=12, use_password=None, overwrite=None, suppress=None, save_coldkey_to_env=None, coldkey_password=None)"
+        signature = (n_words=Some(12), use_password=None, overwrite=None, suppress=None, save_coldkey_to_env=None, coldkey_password=None)
     )]
     fn new_coldkey(
         &mut self,
@@ -743,7 +776,7 @@ impl Wallet {
     }
 
     #[pyo3(
-        text_signature = "($self, n_words=12, use_password=None, overwrite=None, suppress=None, save_hotkey_to_env=None, hotkey_password=None)"
+        signature = (n_words=Some(12), use_password=None, overwrite=None, suppress=None, save_hotkey_to_env=None, hotkey_password=None)
     )]
     fn new_hotkey(
         &mut self,
