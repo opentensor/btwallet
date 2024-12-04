@@ -75,10 +75,29 @@ pub fn is_valid_bittensor_address_or_public_key(address: &str) -> bool {
     }
 }
 
+#[cfg(not(feature = "python-bindings"))]
 pub fn print(s: String) {
     use std::io::{self, Write};
     print!("{}", s);
     io::stdout().flush().unwrap();
+}
+
+#[cfg(feature = "python-bindings")]
+pub fn print(s: String) {
+    pyo3::Python::with_gil(|py| {
+        let locals = PyDict::new_bound(py);
+        locals.set_item("s", s).unwrap();
+        py.run_bound(
+            r#"
+import sys
+print(s, end='')
+sys.stdout.flush()
+"#,
+            None,
+            Some(&locals),
+        )
+        .unwrap();
+    });
 }
 
 /// Prompts the user and returns the response, if any.

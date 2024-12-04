@@ -36,3 +36,4 @@ thiserror = "2.0.3"
 [features]
 extension-module = ["pyo3/extension-module"]
 default = ["extension-module"]
+python-bindings = []
