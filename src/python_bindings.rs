@@ -1,15 +1,17 @@
+use core::str;
+use std::borrow::Cow;
+
 use crate::errors::{ConfigurationError, KeyFileError, PasswordError};
 use crate::keyfile;
 use crate::keyfile::Keyfile as RustKeyfile;
 use crate::keypair::Keypair as RustKeypair;
 use crate::utils::is_valid_ss58_address;
 use crate::wallet::Wallet as RustWallet;
-use pyo3::create_exception;
-use pyo3::exceptions::PyException;
-use pyo3::exceptions::PyValueError;
+use pyo3::exceptions::{PyException, PyValueError};
 use pyo3::prelude::*;
-use pyo3::types::{PyBytes, PyDict, PyModule, PyType};
+use pyo3::types::{PyBytes, PyModule, PyString, PyTuple, PyType};
 use pyo3::wrap_pyfunction;
+use pyo3::{create_exception, ffi};
 
 #[pyclass]
 #[derive(Clone)]
@@ -214,32 +216,44 @@ impl PyKeypair {
             .map_err(|e| PyErr::new::<PyValueError, _>(e))
     }
 
+    #[getter]
     fn ss58_address(&self) -> Option<String> {
         self.inner.ss58_address()
     }
 
+    #[getter]
     fn public_key(&self) -> PyResult<Option<Vec<u8>>> {
         self.inner
             .public_key()
             .map_err(|e| PyErr::new::<PyValueError, _>(e))
     }
 
+    #[getter]
     fn ss58_format(&self) -> u8 {
         self.inner.ss58_format()
     }
 
+    #[getter]
     fn seed_hex(&self) -> Option<Vec<u8>> {
         self.inner.seed_hex()
     }
 
+    #[getter]
     fn crypto_type(&self) -> u8 {
         self.inner.crypto_type()
     }
 
+    #[setter]
+    fn set_crypto_type(&mut self, crypto_type: u8) {
+        self.inner.set_crypto_type(crypto_type)
+    }
+
+    #[getter]
     fn mnemonic(&self) -> Option<String> {
         self.inner.mnemonic()
     }
 
+    #[getter]
     fn private_key(&self) -> PyResult<Option<Vec<u8>>> {
         self.inner
             .private_key()
@@ -394,8 +408,9 @@ fn py_get_password_from_environment(env_var_name: String) -> PyResult<Option<Str
 
 #[pyfunction(name = "encrypt_keyfile_data")]
 #[pyo3(signature = (keyfile_data, password=None))]
-fn py_encrypt_keyfile_data(keyfile_data: &[u8], password: Option<String>) -> PyResult<Vec<u8>> {
+fn py_encrypt_keyfile_data(keyfile_data: &[u8], password: Option<String>) -> PyResult<Cow<[u8]>> {
     keyfile::encrypt_keyfile_data(keyfile_data, password)
+        .map(Cow::from)
         .map_err(|inner| PyErr::new::<PyKeyFileError, _>(PyKeyFileError { inner }))
 }
 
@@ -405,8 +420,9 @@ fn py_decrypt_keyfile_data(
     keyfile_data: &[u8],
     password: Option<String>,
     password_env_var: Option<String>,
-) -> PyResult<Vec<u8>> {
+) -> PyResult<Cow<[u8]>> {
     keyfile::decrypt_keyfile_data(keyfile_data, password, password_env_var)
+        .map(Cow::from)
         .map_err(|inner| PyErr::new::<PyKeyFileError, _>(PyKeyFileError { inner }))
 }
 
@@ -470,15 +486,20 @@ fn register_keypair_module(py: Python, main_module: Bound<'_, PyModule>) -> PyRe
     // Get pykeypair_type as &PyType
     let pykeypair_type = py.get_type_bound::<PyKeypair>();
 
-    // Create the bases tuple with matching types
-    let bases = (origin_keypair_class, &pykeypair_type);
-    let dict = PyDict::new_bound(py);
-    let keypair_class = py
-        .import_bound("builtins")?
-        .getattr("type")?
-        .call1(("Keypair", bases, dict))?;
+    // Update base and mro in Wallet Keypair type
+    unsafe {
+        (*pykeypair_type.as_type_ptr()).tp_base = origin_keypair_class.as_ptr() as *mut _;
 
-    keypair_module.add("Keypair", keypair_class)?;
+        let mro_tuple = PyTuple::new_bound(py, &[pykeypair_type.as_ref(), &origin_keypair_class]);
+        ffi::Py_INCREF(mro_tuple.as_ptr());
+        (*pykeypair_type.as_type_ptr()).tp_mro = mro_tuple.as_ptr() as *mut _;
+
+        if ffi::PyType_Ready(pykeypair_type.as_type_ptr()) != 0 {
+            return Err(PyErr::fetch(py));
+        }
+    }
+
+    keypair_module.add("Keypair", pykeypair_type)?;
     main_module.add_submodule(&keypair_module)?;
     Ok(())
 }
@@ -486,6 +507,47 @@ fn register_keypair_module(py: Python, main_module: Bound<'_, PyModule>) -> PyRe
 #[pyfunction(name = "get_ss58_format")]
 fn py_get_ss58_format(ss58_address: &str) -> PyResult<u16> {
     crate::utils::get_ss58_format(ss58_address).map_err(|e| PyErr::new::<PyValueError, _>(e))
+}
+
+#[pyfunction(name = "is_valid_ed25519_pubkey")]
+fn py_is_valid_ed25519_pubkey(public_key: &Bound<'_, PyAny>) -> PyResult<bool> {
+    Python::with_gil(|_py| {
+        if public_key.is_instance_of::<PyString>() {
+            Ok(crate::utils::is_string_valid_ed25519_pubkey(
+                public_key.extract()?,
+            ))
+        } else if public_key.is_instance_of::<PyBytes>() {
+            Ok(crate::utils::are_bytes_valid_ed25519_pubkey(
+                public_key.extract()?,
+            ))
+        } else {
+            Err(PyErr::new::<PyValueError, _>(
+                "'public_key' must be a string or bytes",
+            ))
+        }
+    })
+}
+
+#[pyfunction(name = "is_valid_bittensor_address_or_public_key")]
+fn py_is_valid_bittensor_address_or_public_key(address: &Bound<'_, PyAny>) -> bool {
+    Python::with_gil(|_py| {
+        if address.is_instance_of::<PyString>() {
+            let Ok(address_str) = address.extract() else {
+                return false;
+            };
+            crate::utils::is_valid_bittensor_address_or_public_key(address_str)
+        } else if address.is_instance_of::<PyBytes>() {
+            let Ok(address_bytes) = address.extract() else {
+                return false;
+            };
+            let Ok(address_str) = str::from_utf8(address_bytes) else {
+                return false;
+            };
+            crate::utils::is_valid_bittensor_address_or_public_key(address_str)
+        } else {
+            false
+        }
+    })
 }
 
 fn register_utils_module(main_module: Bound<'_, PyModule>) -> PyResult<()> {
@@ -497,12 +559,9 @@ fn register_utils_module(main_module: Bound<'_, PyModule>) -> PyResult<()> {
         crate::utils::is_valid_ss58_address,
         &utils_module
     )?)?;
+    utils_module.add_function(wrap_pyfunction!(py_is_valid_ed25519_pubkey, &utils_module)?)?;
     utils_module.add_function(wrap_pyfunction!(
-        crate::utils::is_valid_ed25519_pubkey,
-        &utils_module
-    )?)?;
-    utils_module.add_function(wrap_pyfunction!(
-        crate::utils::is_valid_bittensor_address_or_public_key,
+        py_is_valid_bittensor_address_or_public_key,
         &utils_module
     )?)?;
     utils_module.add("SS58_FORMAT", crate::utils::SS58_FORMAT)?;
@@ -551,7 +610,12 @@ impl Wallet {
         Ok(Wallet { inner: rust_wallet })
     }
 
+    fn __str__(&self) -> PyResult<String> {
+        Ok(self.inner.to_string())
+    }
+
     // Wallet methods
+
     #[pyo3(text_signature = "($self)")]
     fn to_string(&self) -> String {
         self.inner.to_string()
@@ -628,45 +692,71 @@ impl Wallet {
         Ok(Wallet { inner: result })
     }
 
-    #[pyo3(text_signature = "($self)")]
-    fn get_coldkey(&self) -> PyResult<PyKeypair> {
+    #[pyo3(signature = (password=None))]
+    fn get_coldkey(&self, password: Option<String>) -> PyResult<PyKeypair> {
         let keypair = self
             .inner
-            .get_coldkey()
+            .get_coldkey(password)
             .map_err(|e| PyErr::new::<PyException, _>(format!("Failed to get coldkey: {:?}", e)))?;
         Ok(PyKeypair { inner: keypair })
     }
 
-    #[pyo3(text_signature = "($self)")]
-    fn get_coldkeypub(&self) -> PyResult<PyKeypair> {
-        let keypair = self.inner.get_coldkeypub().map_err(|e| {
+    #[pyo3(signature = (password=None))]
+    fn get_coldkeypub(&self, password: Option<String>) -> PyResult<PyKeypair> {
+        let keypair = self.inner.get_coldkeypub(password).map_err(|e| {
             PyErr::new::<PyException, _>(format!("Failed to get coldkeypub: {:?}", e))
         })?;
         Ok(PyKeypair { inner: keypair })
     }
 
-    #[pyo3(text_signature = "($self)")]
-    fn get_hotkey(&self) -> PyResult<PyKeypair> {
+    #[pyo3(signature = (password=None))]
+    fn get_hotkey(&self, password: Option<String>) -> PyResult<PyKeypair> {
         let keypair = self
             .inner
-            .get_hotkey()
+            .get_hotkey(password)
             .map_err(|e| PyErr::new::<PyException, _>(format!("Failed to get hotkey: {:?}", e)))?;
         Ok(PyKeypair { inner: keypair })
     }
 
     // Getters
-    #[pyo3(text_signature = "($self)")]
-    fn get_name(&self) -> String {
+    #[getter(coldkey)]
+    fn coldkey_py_property(&self) -> PyResult<PyKeypair> {
+        let keypair = self
+            .inner
+            .coldkey_property()
+            .map_err(|e| PyErr::new::<PyException, _>(format!("Failed to get coldkey: {:?}", e)))?;
+        Ok(PyKeypair { inner: keypair })
+    }
+
+    #[getter(coldkeypub)]
+    fn coldkeypub_py_property(&self) -> PyResult<PyKeypair> {
+        let keypair = self.inner.coldkeypub_property().map_err(|e| {
+            PyErr::new::<PyException, _>(format!("Failed to get coldkeypub: {:?}", e))
+        })?;
+        Ok(PyKeypair { inner: keypair })
+    }
+
+    #[getter(hotkey)]
+    fn hotkey_py_property(&self) -> PyResult<PyKeypair> {
+        let keypair = self
+            .inner
+            .hotkey_property()
+            .map_err(|e| PyErr::new::<PyException, _>(format!("Failed to get hotkey: {:?}", e)))?;
+        Ok(PyKeypair { inner: keypair })
+    }
+
+    #[getter]
+    fn name(&self) -> String {
         self.inner.get_name()
     }
 
-    #[pyo3(text_signature = "($self)")]
-    fn get_path(&self) -> String {
+    #[getter]
+    fn path(&self) -> String {
         self.inner.get_path()
     }
 
-    #[pyo3(text_signature = "($self)")]
-    fn get_hotkey_str(&self) -> String {
+    #[getter]
+    fn hotkey_str(&self) -> String {
         self.inner.get_hotkey_str()
     }
 
@@ -725,29 +815,33 @@ impl Wallet {
     }
 
     #[pyo3(text_signature = "($self)")]
-    fn unlock_coldkey(&mut self) -> PyResult<()> {
+    fn unlock_coldkey(&mut self) -> PyResult<PyKeypair> {
         self.inner
             .unlock_coldkey()
-            .map(|_| ())
+            .map(|inner| PyKeypair { inner })
             .map_err(|e| PyErr::new::<PyException, _>(format!("Failed to unlock coldkey: {:?}", e)))
     }
 
     #[pyo3(text_signature = "($self)")]
-    fn unlock_coldkeypub(&mut self) -> PyResult<()> {
-        self.inner.unlock_coldkeypub().map(|_| ()).map_err(|e| {
-            PyErr::new::<PyException, _>(format!("Failed to unlock coldkeypub: {:?}", e))
-        })
+    fn unlock_coldkeypub(&mut self) -> PyResult<PyKeypair> {
+        self.inner
+            .unlock_coldkeypub()
+            .map(|inner| PyKeypair { inner })
+            .map_err(|e| {
+                PyErr::new::<PyException, _>(format!("Failed to unlock coldkeypub: {:?}", e))
+            })
     }
 
     #[pyo3(text_signature = "($self)")]
-    fn unlock_hotkey(&mut self) -> PyResult<()> {
+    fn unlock_hotkey(&mut self) -> PyResult<PyKeypair> {
         self.inner
             .unlock_hotkey()
-            .map(|_| ())
+            .map(|inner| PyKeypair { inner })
             .map_err(|e| PyErr::new::<PyException, _>(format!("Failed to unlock hotkey: {:?}", e)))
     }
 
     #[pyo3(
+        name = "create_new_coldkey",
         signature = (n_words=Some(12), use_password=None, overwrite=None, suppress=None, save_coldkey_to_env=None, coldkey_password=None)
     )]
     fn new_coldkey(
@@ -758,7 +852,7 @@ impl Wallet {
         suppress: Option<bool>,
         save_coldkey_to_env: Option<bool>,
         coldkey_password: Option<String>,
-    ) -> PyResult<()> {
+    ) -> PyResult<Self> {
         self.inner
             .new_coldkey(
                 n_words.unwrap_or(12),
@@ -768,13 +862,14 @@ impl Wallet {
                 save_coldkey_to_env.unwrap_or(false),
                 coldkey_password,
             )
-            .map(|_| ())
+            .map(|inner| Wallet { inner })
             .map_err(|e| {
                 PyErr::new::<PyException, _>(format!("Failed to create new coldkey: {:?}", e))
             })
     }
 
     #[pyo3(
+        name = "create_new_hotkey",
         signature = (n_words=Some(12), use_password=None, overwrite=None, suppress=None, save_hotkey_to_env=None, hotkey_password=None)
     )]
     fn new_hotkey(
@@ -785,7 +880,7 @@ impl Wallet {
         suppress: Option<bool>,
         save_hotkey_to_env: Option<bool>,
         hotkey_password: Option<String>,
-    ) -> PyResult<()> {
+    ) -> PyResult<Self> {
         self.inner
             .new_hotkey(
                 n_words.unwrap_or(12),
@@ -795,7 +890,7 @@ impl Wallet {
                 save_hotkey_to_env.unwrap_or(false),
                 hotkey_password,
             )
-            .map(|_| ())
+            .map(|inner| Wallet { inner })
             .map_err(|e| {
                 PyErr::new::<PyException, _>(format!("Failed to create new hotkey: {:?}", e))
             })
@@ -835,7 +930,7 @@ impl Wallet {
                 coldkey_password,
             )
             .map_err(|e| {
-                PyErr::new::<PyException, _>(format!("Failed to regenerate coldkey: {:?}", e))
+                PyErr::new::<WalletError, _>(format!("Failed to regenerate coldkey: {:?}", e))
             })?;
         self.inner = new_inner_wallet;
         Ok(())
@@ -852,7 +947,7 @@ impl Wallet {
             .inner
             .regenerate_coldkeypub(ss58_address, public_key, overwrite.unwrap_or(false))
             .map_err(|e| {
-                PyErr::new::<PyException, _>(format!("Failed to regenerate coldkeypub: {:?}", e))
+                PyErr::new::<WalletError, _>(format!("Failed to regenerate coldkeypub: {:?}", e))
             })?;
         self.inner = new_inner_wallet;
         Ok(())

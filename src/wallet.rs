@@ -352,7 +352,7 @@ impl Wallet {
     }
 
     /// Returns the coldkey from wallet.path/wallet.name/coldkey or raises an error.
-    pub fn get_coldkey(&self) -> Result<Keypair, KeyFileError> {
+    pub fn coldkey_property(&self) -> Result<Keypair, KeyFileError> {
         if let Some(coldkey) = &self._coldkey {
             Ok(coldkey.clone())
         } else {
@@ -362,13 +362,13 @@ impl Wallet {
     }
 
     /// Returns the coldkeypub from wallet.path/wallet.name/coldkeypub.txt or raises an error.
-    pub fn get_coldkeypub(&self) -> Result<Keypair, KeyFileError> {
+    pub fn coldkeypub_property(&self) -> Result<Keypair, KeyFileError> {
         let coldkeypub_file = self.coldkeypub_file()?;
         coldkeypub_file.get_keypair(None)
     }
 
     /// Returns the hotkey from wallet.path/wallet.name/hotkeys/wallet.hotkey or raises an error.
-    pub fn get_hotkey(&self) -> Result<Keypair, KeyFileError> {
+    pub fn hotkey_property(&self) -> Result<Keypair, KeyFileError> {
         if let Some(hotkey) = &self._hotkey {
             Ok(hotkey.clone())
         } else {
@@ -456,21 +456,20 @@ impl Wallet {
             .set_keypair(keypair, encrypt, overwrite, hotkey_password)
     }
 
-    // TODO: Are these duplicates or py03 bindings ?
-    // /// Gets the coldkey from the wallet.
-    // pub fn get_coldkey(&self, password: Option<String>) -> Result<Keypair, KeyFileError> {
-    //     self.coldkey_file()?.get_keypair(password)
-    // }
+    /// Gets the coldkey from the wallet.
+    pub fn get_coldkey(&self, password: Option<String>) -> Result<Keypair, KeyFileError> {
+        self.coldkey_file()?.get_keypair(password)
+    }
 
-    // /// Gets the coldkeypub from the wallet.
-    // pub fn get_coldkeypub(&self, password: Option<String>) -> Result<Keypair, KeyFileError> {
-    //     self.coldkeypub_file()?.get_keypair(password)
-    // }
+    /// Gets the coldkeypub from the wallet.
+    pub fn get_coldkeypub(&self, password: Option<String>) -> Result<Keypair, KeyFileError> {
+        self.coldkeypub_file()?.get_keypair(password)
+    }
 
-    // /// Gets the hotkey from the wallet.
-    // pub fn get_hotkey(&self, password: Option<String>) -> Result<Keypair, KeyFileError> {
-    //     self.hotkey_file()?.get_keypair(password)
-    // }
+    /// Gets the hotkey from the wallet.
+    pub fn get_hotkey(&self, password: Option<String>) -> Result<Keypair, KeyFileError> {
+        self.hotkey_file()?.get_keypair(password)
+    }
 
     /// Creates coldkey from uri string, optionally encrypts it with the user-provided password.
     pub fn create_coldkey_from_uri(

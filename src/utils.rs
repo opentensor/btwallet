@@ -35,12 +35,32 @@ pub fn is_valid_ss58_address(address: &str) -> bool {
 ///    Checks if the given public_key is a valid ed25519 key.
 ///
 ///     Args:
-///         public_key: The public_key to check as string or bytes.
+///         public_key: The public_key to check as string.
 ///
 ///     Returns:
 ///         True if the public_key is a valid ed25519 key, False otherwise.
-#[pyfunction]
-pub fn is_valid_ed25519_pubkey(public_key: &[u8]) -> bool {
+pub fn is_string_valid_ed25519_pubkey(public_key: &str) -> bool {
+    if public_key.len() != 64 && public_key.len() != 66 {
+        return false;
+    }
+
+    let pub_key_var = Some(public_key.to_string());
+    let keypair_result = Keypair::new(None, pub_key_var, None, SS58_FORMAT, None, 1);
+
+    match keypair_result {
+        Ok(keypair) => keypair.ss58_address().is_some(),
+        Err(_) => false,
+    }
+}
+
+///    Checks if the given public_key is a valid ed25519 key.
+///
+///     Args:
+///         public_key: The public_key to check as bytes.
+///
+///     Returns:
+///         True if the public_key is a valid ed25519 key, False otherwise.
+pub fn are_bytes_valid_ed25519_pubkey(public_key: &[u8]) -> bool {
     if public_key.len() != 32 {
         return false;
     }
@@ -66,9 +86,9 @@ pub fn is_valid_bittensor_address_or_public_key(address: &str) -> bool {
     if address.starts_with("0x") {
         // Convert hex string to bytes
         if let Ok(bytes) = hex::decode(&address[2..]) {
-            is_valid_ed25519_pubkey(&bytes)
+            are_bytes_valid_ed25519_pubkey(&bytes)
         } else {
-            false
+            is_valid_ss58_address(address)
         }
     } else {
         is_valid_ss58_address(address)

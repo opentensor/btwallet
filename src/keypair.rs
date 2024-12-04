@@ -382,6 +382,10 @@ impl Keypair {
         self.crypto_type
     }
 
+    pub fn set_crypto_type(&mut self, crypto_type: u8) {
+        self.crypto_type = crypto_type;
+    }
+
     pub fn mnemonic(&self) -> Option<String> {
         self.mnemonic.clone()
     }
