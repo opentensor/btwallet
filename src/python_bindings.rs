@@ -476,8 +476,7 @@ fn register_keypair_module(py: Python, main_module: Bound<'_, PyModule>) -> PyRe
     let keypair_class = py
         .import_bound("builtins")?
         .getattr("type")?
-        .call1(("Keypair", bases, dict))?
-        .get_type();
+        .call1(("Keypair", bases, dict))?;
 
     keypair_module.add("Keypair", keypair_class)?;
     main_module.add_submodule(&keypair_module)?;
