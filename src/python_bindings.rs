@@ -132,7 +132,7 @@ impl PyKeyfile {
     }
 }
 
-#[pyclass(name = "Keypair")]
+#[pyclass(name = "Keypair", subclass)]
 #[derive(Clone)]
 pub struct PyKeypair {
     inner: RustKeypair,
@@ -349,7 +349,7 @@ fn register_errors_module(main_module: Bound<'_, PyModule>) -> PyResult<()> {
     main_module.add_submodule(&errors_module)
 }
 
-#[pyfunction]
+#[pyfunction(name = "serialized_keypair_to_keyfile_data")]
 #[pyo3(signature = (keypair))]
 fn py_serialized_keypair_to_keyfile_data(py: Python, keypair: &PyKeypair) -> PyResult<PyObject> {
     keyfile::serialized_keypair_to_keyfile_data(&keypair.inner)
@@ -357,26 +357,26 @@ fn py_serialized_keypair_to_keyfile_data(py: Python, keypair: &PyKeypair) -> PyR
         .map_err(|inner| PyErr::new::<PyKeyFileError, _>(PyKeyFileError { inner }))
 }
 
-#[pyfunction]
+#[pyfunction(name = "deserialize_keypair_from_keyfile_data")]
 fn py_deserialize_keypair_from_keyfile_data(keyfile_data: &[u8]) -> PyResult<PyKeypair> {
     keyfile::deserialize_keypair_from_keyfile_data(keyfile_data)
         .map(|inner| PyKeypair { inner })
         .map_err(|inner| PyErr::new::<PyKeyFileError, _>(PyKeyFileError { inner }))
 }
 
-#[pyfunction]
+#[pyfunction(name = "validate_password")]
 fn py_validate_password(password: &str) -> PyResult<bool> {
     keyfile::validate_password(password)
         .map_err(|inner| PyErr::new::<PyKeyFileError, _>(PyKeyFileError { inner }))
 }
 
-#[pyfunction]
+#[pyfunction(name = "ask_password")]
 fn py_ask_password(validation_required: bool) -> PyResult<String> {
     keyfile::ask_password(validation_required)
         .map_err(|inner| PyErr::new::<PyKeyFileError, _>(PyKeyFileError { inner }))
 }
 
-#[pyfunction]
+#[pyfunction(name = "legacy_encrypt_keyfile_data")]
 #[pyo3(signature = (keyfile_data, password=None))]
 fn py_legacy_encrypt_keyfile_data(
     keyfile_data: &[u8],
@@ -386,20 +386,20 @@ fn py_legacy_encrypt_keyfile_data(
         .map_err(|inner| PyErr::new::<PyKeyFileError, _>(PyKeyFileError { inner }))
 }
 
-#[pyfunction]
+#[pyfunction(name = "get_password_from_environment")]
 fn py_get_password_from_environment(env_var_name: String) -> PyResult<Option<String>> {
     keyfile::get_password_from_environment(env_var_name)
         .map_err(|inner| PyErr::new::<PyKeyFileError, _>(PyKeyFileError { inner }))
 }
 
-#[pyfunction]
+#[pyfunction(name = "encrypt_keyfile_data")]
 #[pyo3(signature = (keyfile_data, password=None))]
 fn py_encrypt_keyfile_data(keyfile_data: &[u8], password: Option<String>) -> PyResult<Vec<u8>> {
     keyfile::encrypt_keyfile_data(keyfile_data, password)
         .map_err(|inner| PyErr::new::<PyKeyFileError, _>(PyKeyFileError { inner }))
 }
 
-#[pyfunction]
+#[pyfunction(name = "decrypt_keyfile_data")]
 #[pyo3(signature = (keyfile_data, password=None, password_env_var=None))]
 fn py_decrypt_keyfile_data(
     keyfile_data: &[u8],
@@ -484,7 +484,7 @@ fn register_keypair_module(py: Python, main_module: Bound<'_, PyModule>) -> PyRe
     Ok(())
 }
 
-#[pyfunction]
+#[pyfunction(name = "get_ss58_format")]
 fn py_get_ss58_format(ss58_address: &str) -> PyResult<u16> {
     crate::utils::get_ss58_format(ss58_address).map_err(|e| PyErr::new::<PyValueError, _>(e))
 }
