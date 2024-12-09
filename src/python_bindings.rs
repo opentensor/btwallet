@@ -903,6 +903,30 @@ impl Wallet {
     }
 
     #[getter]
+    fn coldkey_file(&self) -> PyResult<PyKeyfile> {
+        self.inner
+            .coldkey_file()
+            .map(|inner| PyKeyfile { inner })
+            .map_err(|e| PyErr::new::<PyKeyFileError, _>(e))
+    }
+
+    #[getter]
+    fn coldkeypub_file(&self) -> PyResult<PyKeyfile> {
+        self.inner
+            .coldkeypub_file()
+            .map(|inner| PyKeyfile { inner })
+            .map_err(|e| PyErr::new::<PyKeyFileError, _>(e))
+    }
+
+    #[getter]
+    fn hotkey_file(&self) -> PyResult<PyKeyfile> {
+        self.inner
+            .hotkey_file()
+            .map(|inner| PyKeyfile { inner })
+            .map_err(|e| PyErr::new::<PyKeyFileError, _>(e))
+    }
+
+    #[getter]
     fn name(&self) -> String {
         self.inner.get_name()
     }
