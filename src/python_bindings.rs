@@ -814,14 +814,14 @@ impl Wallet {
         let keypair = self
             .inner
             .get_coldkey(password)
-            .map_err(|e| PyErr::new::<PyException, _>(format!("Failed to get coldkey: {:?}", e)))?;
+            .map_err(|e| PyErr::new::<PyKeyFileError, _>(e))?;
         Ok(PyKeypair { inner: keypair })
     }
 
     #[pyo3(signature = (password=None))]
     fn get_coldkeypub(&self, password: Option<String>) -> PyResult<PyKeypair> {
         let keypair = self.inner.get_coldkeypub(password).map_err(|e| {
-            PyErr::new::<PyException, _>(format!("Failed to get coldkeypub: {:?}", e))
+            PyErr::new::<PyKeyFileError, _>(e)
         })?;
         Ok(PyKeypair { inner: keypair })
     }
@@ -831,8 +831,48 @@ impl Wallet {
         let keypair = self
             .inner
             .get_hotkey(password)
-            .map_err(|e| PyErr::new::<PyException, _>(format!("Failed to get hotkey: {:?}", e)))?;
+            .map_err(|e| PyErr::new::<PyKeyFileError, _>(e))?;
         Ok(PyKeypair { inner: keypair })
+    }
+
+    #[pyo3(signature = (keypair, encrypt=true, overwrite=false, save_coldkey_to_env=false, coldkey_password=None))]
+    fn set_coldkey(
+        &mut self,
+        keypair: PyKeypair,
+        encrypt: bool,
+        overwrite: bool,
+        save_coldkey_to_env: bool,
+        coldkey_password: Option<String>,
+    ) -> PyResult<()> {
+        self.inner
+            .set_coldkey(keypair.inner, encrypt, overwrite, save_coldkey_to_env, coldkey_password)
+            .map_err(|e| PyErr::new::<PyKeyFileError, _>(e))
+    }
+
+    #[pyo3(signature = (keypair, encrypt=false, overwrite=false))]
+    fn set_coldkeypub(
+        &mut self,
+        keypair: PyKeypair,
+        encrypt: bool,
+        overwrite: bool,
+    ) -> PyResult<()> {
+        self.inner
+            .set_coldkeypub(keypair.inner, encrypt, overwrite)
+            .map_err(|e| PyErr::new::<PyKeyFileError, _>(e))
+    }
+
+    #[pyo3(signature = (keypair, encrypt=false, overwrite=false, save_hotkey_to_env=false, hotkey_password=None))]
+    fn set_hotkey(
+        &mut self,
+        keypair: PyKeypair,
+        encrypt: bool,
+        overwrite: bool,
+        save_hotkey_to_env: bool,
+        hotkey_password: Option<String>,
+    ) -> PyResult<()> {
+        self.inner
+            .set_hotkey(keypair.inner, encrypt, overwrite, save_hotkey_to_env, hotkey_password)
+            .map_err(|e| PyErr::new::<PyKeyFileError, _>(e))
     }
 
     // Getters
