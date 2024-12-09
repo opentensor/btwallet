@@ -371,7 +371,9 @@ impl PyKeyFileError {
 
 impl IntoPy<PyObject> for KeyFileError {
     fn into_py(self, py: Python<'_>) -> PyObject {
-        Py::new(py, PyKeyFileError { inner: self }).unwrap().into_any()
+        Py::new(py, PyKeyFileError { inner: self })
+            .unwrap()
+            .into_any()
     }
 }
 
@@ -437,7 +439,9 @@ impl PyWalletError {
 
 impl IntoPy<PyObject> for WalletError {
     fn into_py(self, py: Python<'_>) -> PyObject {
-        Py::new(py, PyWalletError { inner: self }).unwrap().into_any()
+        Py::new(py, PyWalletError { inner: self })
+            .unwrap()
+            .into_any()
     }
 }
 
@@ -494,14 +498,12 @@ fn py_deserialize_keypair_from_keyfile_data(keyfile_data: &[u8]) -> PyResult<PyK
 
 #[pyfunction(name = "validate_password")]
 fn py_validate_password(password: &str) -> PyResult<bool> {
-    keyfile::validate_password(password)
-        .map_err(|e| PyErr::new::<PyKeyFileError, _>(e))
+    keyfile::validate_password(password).map_err(|e| PyErr::new::<PyKeyFileError, _>(e))
 }
 
 #[pyfunction(name = "ask_password")]
 fn py_ask_password(validation_required: bool) -> PyResult<String> {
-    keyfile::ask_password(validation_required)
-        .map_err(|e| PyErr::new::<PyKeyFileError, _>(e))
+    keyfile::ask_password(validation_required).map_err(|e| PyErr::new::<PyKeyFileError, _>(e))
 }
 
 #[pyfunction(name = "legacy_encrypt_keyfile_data")]
@@ -820,9 +822,10 @@ impl Wallet {
 
     #[pyo3(signature = (password=None))]
     fn get_coldkeypub(&self, password: Option<String>) -> PyResult<PyKeypair> {
-        let keypair = self.inner.get_coldkeypub(password).map_err(|e| {
-            PyErr::new::<PyKeyFileError, _>(e)
-        })?;
+        let keypair = self
+            .inner
+            .get_coldkeypub(password)
+            .map_err(|e| PyErr::new::<PyKeyFileError, _>(e))?;
         Ok(PyKeypair { inner: keypair })
     }
 
@@ -845,7 +848,13 @@ impl Wallet {
         coldkey_password: Option<String>,
     ) -> PyResult<()> {
         self.inner
-            .set_coldkey(keypair.inner, encrypt, overwrite, save_coldkey_to_env, coldkey_password)
+            .set_coldkey(
+                keypair.inner,
+                encrypt,
+                overwrite,
+                save_coldkey_to_env,
+                coldkey_password,
+            )
             .map_err(|e| PyErr::new::<PyKeyFileError, _>(e))
     }
 
@@ -871,7 +880,13 @@ impl Wallet {
         hotkey_password: Option<String>,
     ) -> PyResult<()> {
         self.inner
-            .set_hotkey(keypair.inner, encrypt, overwrite, save_hotkey_to_env, hotkey_password)
+            .set_hotkey(
+                keypair.inner,
+                encrypt,
+                overwrite,
+                save_hotkey_to_env,
+                hotkey_password,
+            )
             .map_err(|e| PyErr::new::<PyKeyFileError, _>(e))
     }
 
