@@ -167,6 +167,6 @@ mod tests {
     #[test]
     fn test_get_ss58_format_success() {
         let test_address = "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty";
-        assert_eq!(is_valid_ss58_address(test_address), true);
+        assert!(is_valid_ss58_address(test_address));
     }
 }
