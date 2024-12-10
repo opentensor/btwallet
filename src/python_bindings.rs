@@ -712,20 +712,9 @@ impl Wallet {
         name: Option<String>,
         hotkey: Option<String>,
         path: Option<String>,
-        config: Option<PyObject>,
-        _py: Python,
+        config: Option<Config>,
     ) -> PyResult<Self> {
-        // Handle config conversion
-        let rust_config = match config {
-            Some(_cfg) => {
-                // Convert PyObject to RustConfig if necessary
-                // TODO: Implement config conversion
-                None
-            }
-            None => None,
-        };
-
-        let rust_wallet = RustWallet::new(name, hotkey, path, rust_config);
+        let rust_wallet = RustWallet::new(name, hotkey, path, config.map(|conf| conf.inner));
         Ok(Wallet { inner: rust_wallet })
     }
 

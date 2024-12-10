@@ -26,19 +26,6 @@ pub fn display_mnemonic_msg(mnemonic: String, key_type: &str) {
     ));
 }
 
-// Function to safely retrieve attribute as Option<String> from a configuration object
-fn get_attribute_string(
-    config: &Config,
-    attr_name: &str,
-) -> Result<Option<String>, Box<dyn std::error::Error>> {
-    match attr_name {
-        "name" => Ok(Some(config.name().clone())),
-        "hotkey" => Ok(Some(config.hotkey().clone())),
-        "path" => Ok(Some(config.path().clone())),
-        _ => Ok(None),
-    }
-}
-
 #[derive(Clone)]
 pub struct Wallet {
     pub name: String,
@@ -86,28 +73,17 @@ impl Wallet {
         path: Option<String>,
         config: Option<Config>,
     ) -> Self {
-        // Get config values if provided
-        let conf_name = config
-            .as_ref()
-            .and_then(|c| get_attribute_string(c, "name").ok().flatten());
-        let conf_hotkey = config
-            .as_ref()
-            .and_then(|c| get_attribute_string(c, "hotkey").ok().flatten());
-        let conf_path = config
-            .as_ref()
-            .and_then(|c| get_attribute_string(c, "path").ok().flatten());
-
         let final_name = name
-            .or(conf_name)
-            .unwrap_or_else(|| BT_WALLET_NAME.to_string());
+            .or(config.as_ref().map(|conf| conf.name()))
+            .unwrap_or(BT_WALLET_NAME.to_string());
 
         let final_hotkey = hotkey
-            .or(conf_hotkey)
-            .unwrap_or_else(|| BT_WALLET_HOTKEY.to_string());
+            .or(config.as_ref().map(|conf| conf.hotkey()))
+            .unwrap_or(BT_WALLET_HOTKEY.to_string());
 
         let final_path = path
-            .or(conf_path)
-            .unwrap_or_else(|| BT_WALLET_PATH.to_string());
+            .or(config.as_ref().map(|conf| conf.path()))
+            .unwrap_or(BT_WALLET_PATH.to_string());
 
         let expanded_path = PathBuf::from(shellexpand::tilde(&final_path).to_string());
 
