@@ -6,7 +6,7 @@ use crate::keyfile;
 use crate::keyfile::Keyfile as RustKeyfile;
 use crate::keypair::Keypair as RustKeypair;
 use crate::wallet::Wallet as RustWallet;
-use pyo3::exceptions::{PyException, PyTypeError, PyValueError};
+use pyo3::exceptions::{PyException, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyModule, PyString, PyTuple, PyType};
 use pyo3::{ffi, wrap_pyfunction};
@@ -292,7 +292,7 @@ impl PyKeypair {
         } else if let Ok(bytes) = signature.extract::<Vec<u8>>(py) {
             bytes
         } else {
-            return Err(PyErr::new::<PyTypeError, _>(
+            return Err(PyErr::new::<PyValueError, _>(
                 "Unsupported signature format. Expected str or bytes.",
             ));
         };
@@ -771,8 +771,11 @@ impl Wallet {
                 overwrite.unwrap_or(false),
                 suppress.unwrap_or(false),
             )
-            .map_err(|e| {
-                PyErr::new::<PyException, _>(format!("Failed to create wallet: {:?}", e))
+            .map_err(|e| match e {
+                WalletError::InvalidInput(_) | WalletError::KeyGeneration(_) => {
+                    PyErr::new::<PyValueError, _>(e.to_string())
+                }
+                _ => PyErr::new::<PyKeyFileError, _>(format!("Failed to create wallet: {:?}", e)),
             })?;
 
         Ok(Wallet { inner: result })
@@ -804,8 +807,11 @@ impl Wallet {
                 overwrite.unwrap_or(false),
                 suppress.unwrap_or(false),
             )
-            .map_err(|e| {
-                PyErr::new::<PyException, _>(format!("Failed to recreate wallet: {:?}", e))
+            .map_err(|e| match e {
+                WalletError::InvalidInput(_) | WalletError::KeyGeneration(_) => {
+                    PyErr::new::<PyValueError, _>(e.to_string())
+                }
+                _ => PyErr::new::<PyKeyFileError, _>(format!("Failed to recreate wallet: {:?}", e)),
             })?;
 
         Ok(Wallet { inner: result })
@@ -893,27 +899,25 @@ impl Wallet {
     // Getters
     #[getter(coldkey)]
     fn coldkey_py_property(&self) -> PyResult<PyKeypair> {
-        let keypair = self
-            .inner
-            .coldkey_property()
-            .map_err(|e| PyErr::new::<PyException, _>(format!("Failed to get coldkey: {:?}", e)))?;
+        let keypair = self.inner.coldkey_property().map_err(|e| {
+            PyErr::new::<PyKeyFileError, _>(format!("Failed to get coldkey: {:?}", e))
+        })?;
         Ok(PyKeypair { inner: keypair })
     }
 
     #[getter(coldkeypub)]
     fn coldkeypub_py_property(&self) -> PyResult<PyKeypair> {
         let keypair = self.inner.coldkeypub_property().map_err(|e| {
-            PyErr::new::<PyException, _>(format!("Failed to get coldkeypub: {:?}", e))
+            PyErr::new::<PyKeyFileError, _>(format!("Failed to get coldkeypub: {:?}", e))
         })?;
         Ok(PyKeypair { inner: keypair })
     }
 
     #[getter(hotkey)]
     fn hotkey_py_property(&self) -> PyResult<PyKeypair> {
-        let keypair = self
-            .inner
-            .hotkey_property()
-            .map_err(|e| PyErr::new::<PyException, _>(format!("Failed to get hotkey: {:?}", e)))?;
+        let keypair = self.inner.hotkey_property().map_err(|e| {
+            PyErr::new::<PyKeyFileError, _>(format!("Failed to get hotkey: {:?}", e))
+        })?;
         Ok(PyKeypair { inner: keypair })
     }
 
@@ -979,7 +983,10 @@ impl Wallet {
             )
             .map(|_| ())
             .map_err(|e| {
-                PyErr::new::<PyException, _>(format!("Failed to create coldkey from uri: {:?}", e))
+                PyErr::new::<PyKeyFileError, _>(format!(
+                    "Failed to create coldkey from uri: {:?}",
+                    e
+                ))
             })
     }
 
@@ -1006,7 +1013,10 @@ impl Wallet {
             )
             .map(|_| ())
             .map_err(|e| {
-                PyErr::new::<PyException, _>(format!("Failed to create hotkey from uri: {:?}", e))
+                PyErr::new::<PyKeyFileError, _>(format!(
+                    "Failed to create hotkey from uri: {:?}",
+                    e
+                ))
             })
     }
 
@@ -1015,7 +1025,13 @@ impl Wallet {
         self.inner
             .unlock_coldkey()
             .map(|inner| PyKeypair { inner })
-            .map_err(|e| PyErr::new::<PyException, _>(format!("Failed to unlock coldkey: {:?}", e)))
+            .map_err(|e| match e {
+                KeyFileError::DecryptionError(_) => PyErr::new::<PyPasswordError, _>(format!(
+                    "Decryption failed: {}",
+                    e.to_string()
+                )),
+                _ => PyErr::new::<PyKeyFileError, _>(format!("Keyfile error: {:?}", e)),
+            })
     }
 
     #[pyo3(text_signature = "($self)")]
@@ -1023,8 +1039,12 @@ impl Wallet {
         self.inner
             .unlock_coldkeypub()
             .map(|inner| PyKeypair { inner })
-            .map_err(|e| {
-                PyErr::new::<PyException, _>(format!("Failed to unlock coldkeypub: {:?}", e))
+            .map_err(|e| match e {
+                KeyFileError::DecryptionError(_) => PyErr::new::<PyPasswordError, _>(format!(
+                    "Decryption failed: {}",
+                    e.to_string()
+                )),
+                _ => PyErr::new::<PyKeyFileError, _>(format!("Failed to unlock coldkey: {:?}", e)),
             })
     }
 
@@ -1033,7 +1053,13 @@ impl Wallet {
         self.inner
             .unlock_hotkey()
             .map(|inner| PyKeypair { inner })
-            .map_err(|e| PyErr::new::<PyException, _>(format!("Failed to unlock hotkey: {:?}", e)))
+            .map_err(|e| match e {
+                KeyFileError::DecryptionError(_) => PyErr::new::<PyPasswordError, _>(format!(
+                    "Decryption failed: {}",
+                    e.to_string()
+                )),
+                _ => PyErr::new::<PyKeyFileError, _>(format!("Failed to unlock hotkey: {:?}", e)),
+            })
     }
 
     #[pyo3(
@@ -1060,7 +1086,7 @@ impl Wallet {
             )
             .map(|inner| Wallet { inner })
             .map_err(|e| {
-                PyErr::new::<PyException, _>(format!("Failed to create new coldkey: {:?}", e))
+                PyErr::new::<PyKeyFileError, _>(format!("Failed to create new coldkey: {:?}", e))
             })
     }
 
@@ -1088,7 +1114,7 @@ impl Wallet {
             )
             .map(|inner| Wallet { inner })
             .map_err(|e| {
-                PyErr::new::<PyException, _>(format!("Failed to create new hotkey: {:?}", e))
+                PyErr::new::<PyKeyFileError, _>(format!("Failed to create new hotkey: {:?}", e))
             })
     }
 
@@ -1125,7 +1151,12 @@ impl Wallet {
                 save_coldkey_to_env.unwrap_or(false),
                 coldkey_password,
             )
-            .map_err(|e| PyErr::new::<PyWalletError, _>(e))?;
+            .map_err(|e| match e {
+                WalletError::InvalidInput(_) | WalletError::KeyGeneration(_) => {
+                    PyErr::new::<PyValueError, _>(e.to_string())
+                }
+                _ => PyErr::new::<PyKeyFileError, _>(e.to_string()),
+            })?;
         self.inner = new_inner_wallet;
         Ok(())
     }
@@ -1140,7 +1171,7 @@ impl Wallet {
         let new_inner_wallet = self
             .inner
             .regenerate_coldkeypub(ss58_address, public_key, overwrite.unwrap_or(false))
-            .map_err(|e| PyErr::new::<PyWalletError, _>(e))?;
+            .map_err(|e| PyErr::new::<PyKeyFileError, _>(e))?;
         self.inner = new_inner_wallet;
         Ok(())
     }
@@ -1179,7 +1210,7 @@ impl Wallet {
                 hotkey_password,
             )
             .map_err(|e| {
-                PyErr::new::<PyException, _>(format!("Failed to regenerate hotkey: {:?}", e))
+                PyErr::new::<PyKeyFileError, _>(format!("Failed to regenerate hotkey: {:?}", e))
             })?;
         self.inner = new_inner_wallet;
         Ok(())
