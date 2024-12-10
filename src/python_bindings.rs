@@ -1,6 +1,6 @@
-use std::{borrow::Cow, str, env};
+use std::{borrow::Cow, env, str};
 
-use crate::constants::{BT_WALLET_NAME, BT_WALLET_HOTKEY, BT_WALLET_PATH};
+use crate::constants::{BT_WALLET_HOTKEY, BT_WALLET_NAME, BT_WALLET_PATH};
 use crate::errors::{ConfigurationError, KeyFileError, PasswordError, WalletError};
 use crate::keyfile;
 use crate::keyfile::Keyfile as RustKeyfile;
@@ -746,11 +746,11 @@ impl Wallet {
             env::var("BT_WALLET_NAME").unwrap_or_else(|_| BT_WALLET_NAME.to_string());
         let default_hotkey =
             env::var("BT_WALLET_HOTKEY").unwrap_or_else(|_| BT_WALLET_HOTKEY.to_string());
-        let default_path = env::var("BT_WALLET_PATH")
-            .unwrap_or_else(|_| BT_WALLET_PATH.to_string());
+        let default_path =
+            env::var("BT_WALLET_PATH").unwrap_or_else(|_| BT_WALLET_PATH.to_string());
 
         let prefix_str = if let Some(value) = prefix {
-            format!("\"{}\"", value)
+            format!("\"{value}\"")
         } else {
             "None".to_string()
         };
