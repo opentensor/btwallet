@@ -1,6 +1,6 @@
-use core::str;
-use std::borrow::Cow;
+use std::{borrow::Cow, str, env};
 
+use crate::constants::{BT_WALLET_NAME, BT_WALLET_HOTKEY, BT_WALLET_PATH};
 use crate::errors::{ConfigurationError, KeyFileError, PasswordError, WalletError};
 use crate::keyfile;
 use crate::keyfile::Keyfile as RustKeyfile;
@@ -8,7 +8,7 @@ use crate::keypair::Keypair as RustKeypair;
 use crate::wallet::Wallet as RustWallet;
 use pyo3::exceptions::{PyException, PyValueError};
 use pyo3::prelude::*;
-use pyo3::types::{PyBytes, PyModule, PyString, PyTuple, PyType};
+use pyo3::types::{IntoPyDict, PyBytes, PyModule, PyString, PyTuple, PyType};
 use pyo3::{ffi, wrap_pyfunction};
 
 #[pyclass]
@@ -731,6 +731,65 @@ impl Wallet {
 
     fn __str__(&self) -> PyResult<String> {
         Ok(self.inner.to_string())
+    }
+
+    /// Accept specific arguments from parser.
+    #[classmethod]
+    #[pyo3(signature = (parser, prefix = None))]
+    pub fn add_args(
+        _: &Bound<'_, PyType>,
+        parser: &Bound<'_, PyAny>,
+        prefix: Option<String>,
+        py: Python,
+    ) -> PyResult<PyObject> {
+        let default_name =
+            env::var("BT_WALLET_NAME").unwrap_or_else(|_| BT_WALLET_NAME.to_string());
+        let default_hotkey =
+            env::var("BT_WALLET_HOTKEY").unwrap_or_else(|_| BT_WALLET_HOTKEY.to_string());
+        let default_path = env::var("BT_WALLET_PATH")
+            .unwrap_or_else(|_| BT_WALLET_PATH.to_string());
+
+        let prefix_str = if let Some(value) = prefix {
+            format!("\"{}\"", value)
+        } else {
+            "None".to_string()
+        };
+
+        let code = format!(
+            r#"
+prefix = {prefix_str}
+prefix_str = "" if prefix is None else prefix + "."
+
+try:
+    parser.add_argument(
+        "--" + prefix_str + "wallet.name",
+        required=False,
+        default="{default_name}",
+        help="The name of the wallet to unlock for running bittensor "
+        "(name mock is reserved for mocking this wallet)",
+    )
+    parser.add_argument(
+        "--" + prefix_str + "wallet.hotkey",
+        required=False,
+        default="{default_hotkey}",
+        help="The name of the wallet's hotkey.",
+    )
+    parser.add_argument(
+        "--" + prefix_str + "wallet.path",
+        required=False,
+        default="{default_path}",
+        help="The path to your bittensor wallets",
+    )
+except argparse.ArgumentError:
+    pass"#,
+        );
+
+        py.run_bound(
+            &code,
+            Some(&[("parser", parser)].into_py_dict_bound(py)),
+            None,
+        )?;
+        Ok(parser.to_object(py))
     }
 
     // Wallet methods
