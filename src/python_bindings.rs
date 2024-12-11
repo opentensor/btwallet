@@ -56,7 +56,7 @@ struct PyKeyfile {
 #[pymethods]
 impl PyKeyfile {
     #[new]
-    #[pyo3(signature = (path=None, name=None, should_save_to_env=true))]
+    #[pyo3(signature = (path=None, name=None, should_save_to_env=false))]
     fn new(path: Option<String>, name: Option<String>, should_save_to_env: bool) -> Self {
         PyKeyfile {
             inner: RustKeyfile::new(path.unwrap_or_default(), name, should_save_to_env)
