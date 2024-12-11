@@ -697,6 +697,30 @@ fn register_wallet_module(main_module: Bound<'_, PyModule>) -> PyResult<()> {
     main_module.add_submodule(&wallet_module)
 }
 
+fn get_attribute_string(
+    py: Python,
+    obj: &Bound<PyAny>,
+    attr_name: &str,
+) -> PyResult<Option<String>> {
+    match obj.getattr(attr_name) {
+        Ok(attr) => {
+            if attr.is_none() {
+                Ok(None)
+            } else {
+                let value: String = attr.extract()?;
+                Ok(Some(value))
+            }
+        }
+        Err(e) => {
+            if e.is_instance_of::<pyo3::exceptions::PyAttributeError>(py) {
+                Ok(None)
+            } else {
+                Err(e)
+            }
+        }
+    }
+}
+
 // Implement the Python wrappers for the Rust structs
 // For example, the Wallet class:
 #[pyclass(subclass)]
@@ -712,9 +736,33 @@ impl Wallet {
         name: Option<String>,
         hotkey: Option<String>,
         path: Option<String>,
-        config: Option<Config>,
+        config: Option<PyObject>,
+        py: Python,
     ) -> PyResult<Self> {
-        let rust_wallet = RustWallet::new(name, hotkey, path, config.map(|conf| conf.inner));
+        // parse python config object if passed
+        let (conf_name, conf_hotkey, conf_path) = if let Some(config_obj) = config {
+            let config_ref = config_obj.bind(py);
+
+            // parse python config.wallet object if exist in config object
+            match config_ref.getattr("wallet") {
+                Ok(wallet_obj) if !wallet_obj.is_none() => {
+                    let wallet_ref = wallet_obj.as_ref();
+
+                    // assign values instead of default ones
+                    (
+                        get_attribute_string(py, wallet_ref, "name")?,
+                        get_attribute_string(py, wallet_ref, "hotkey")?,
+                        get_attribute_string(py, wallet_ref, "path")?,
+                    )
+                }
+                _ => (None, None, None),
+            }
+        } else {
+            (None, None, None)
+        };
+
+        let config = crate::config::Config::new(conf_name, conf_hotkey, conf_path);
+        let rust_wallet = RustWallet::new(name, hotkey, path, Some(config));
         Ok(Wallet { inner: rust_wallet })
     }
 
