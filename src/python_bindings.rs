@@ -755,7 +755,12 @@ impl Wallet {
                         get_attribute_string(py, wallet_ref, "path")?,
                     )
                 }
-                _ => (None, None, None),
+                // check if config.wallet itself was passed as config
+                _ => (
+                    get_attribute_string(py, config_ref, "name")?,
+                    get_attribute_string(py, config_ref, "hotkey")?,
+                    get_attribute_string(py, config_ref, "path")?,
+                ),
             }
         } else {
             (None, None, None)
