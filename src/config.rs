@@ -1,5 +1,6 @@
+use std::fmt::Display;
+
 use crate::constants::{BT_WALLET_HOTKEY, BT_WALLET_NAME, BT_WALLET_PATH};
-use pyo3::prelude::*;
 
 #[derive(Clone)]
 pub struct WalletConfig {
@@ -19,50 +20,36 @@ impl WalletConfig {
 }
 
 #[derive(Clone)]
-#[pyclass(subclass)]
 pub struct Config {
     pub wallet: WalletConfig,
 }
 
-#[pymethods]
-impl Config {
-    #[new]
-    #[pyo3(signature = (name = None, hotkey = None, path = None))]
-    pub fn new(
-        name: Option<String>,
-        hotkey: Option<String>,
-        path: Option<String>,
-    ) -> PyResult<Config> {
-        Ok(Config {
-            wallet: WalletConfig::new(name, hotkey, path),
-        })
-    }
-    fn __str__(&self) -> PyResult<String> {
-        Ok(format!(
-            "Config(name: '{}', path: '{}', hotkey: '{}')",
+impl Display for Config {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Config(name: '{}', path: '{}', hotkey: '{}'",
             self.wallet.name, self.wallet.path, self.wallet.hotkey
-        ))
+        )
+    }
+}
+
+impl Config {
+    pub fn new(name: Option<String>, hotkey: Option<String>, path: Option<String>) -> Config {
+        Config {
+            wallet: WalletConfig::new(name, hotkey, path),
+        }
     }
 
-    fn __repr__(&self) -> PyResult<String> {
-        self.__str__()
+    pub fn name(&self) -> String {
+        self.wallet.name.clone()
     }
 
-    /// Returns wallet name
-    #[getter]
-    pub fn name(&self) -> PyResult<String> {
-        Ok(self.wallet.name.clone())
+    pub fn path(&self) -> String {
+        self.wallet.path.clone()
     }
 
-    /// Returns wallet name
-    #[getter]
-    pub fn path(&self) -> PyResult<String> {
-        Ok(self.wallet.path.clone())
-    }
-
-    /// Returns wallet name
-    #[getter]
-    pub fn hotkey(&self) -> PyResult<String> {
-        Ok(self.wallet.hotkey.clone())
+    pub fn hotkey(&self) -> String {
+        self.wallet.hotkey.clone()
     }
 }
