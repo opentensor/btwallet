@@ -11,7 +11,7 @@ use pyo3::prelude::*;
 use pyo3::types::{IntoPyDict, PyBytes, PyModule, PyString, PyTuple, PyType};
 use pyo3::{ffi, wrap_pyfunction};
 
-#[pyclass]
+#[pyclass(subclass)]
 #[derive(Clone)]
 struct Config {
     inner: crate::config::Config,
@@ -47,7 +47,7 @@ impl Config {
     }
 }
 
-#[pyclass(name = "Keyfile")]
+#[pyclass(name = "Keyfile", subclass)]
 #[derive(Clone)]
 struct PyKeyfile {
     inner: RustKeyfile,
@@ -153,7 +153,7 @@ impl PyKeyfile {
     }
 }
 
-#[pyclass(name = "Keypair")]
+#[pyclass(name = "Keypair", subclass)]
 #[derive(Clone)]
 pub struct PyKeypair {
     inner: RustKeypair,
