@@ -2,14 +2,14 @@ use std::{borrow::Cow, env, str};
 
 use crate::constants::{BT_WALLET_HOTKEY, BT_WALLET_NAME, BT_WALLET_PATH};
 use crate::errors::{ConfigurationError, KeyFileError, PasswordError, WalletError};
-use crate::keyfile;
+use crate::{keyfile};
 use crate::keyfile::Keyfile as RustKeyfile;
 use crate::keypair::Keypair as RustKeypair;
 use crate::wallet::Wallet as RustWallet;
 use pyo3::exceptions::{PyException, PyValueError};
 use pyo3::prelude::*;
-use pyo3::types::{IntoPyDict, PyBytes, PyModule, PyString, PyTuple, PyType};
-use pyo3::{ffi, wrap_pyfunction};
+use pyo3::types::{IntoPyDict, PyBytes, PyModule, PyString, PyType};
+use pyo3::{wrap_pyfunction};
 
 #[pyclass]
 #[derive(Clone)]
@@ -447,7 +447,7 @@ impl IntoPy<PyObject> for WalletError {
 
 // Define the Python module using PyO3
 #[pymodule]
-fn bittensor_wallet(py: Python<'_>, module: Bound<'_, PyModule>) -> PyResult<()> {
+fn bittensor_wallet(module: Bound<'_, PyModule>) -> PyResult<()> {
     // Add classes to the main module
     module.add_class::<Config>()?;
     module.add_class::<PyKeyfile>()?;
@@ -458,7 +458,7 @@ fn bittensor_wallet(py: Python<'_>, module: Bound<'_, PyModule>) -> PyResult<()>
     register_config_module(module.clone())?;
     register_errors_module(module.clone())?;
     register_keyfile_module(module.clone())?;
-    register_keypair_module(py, module.clone())?;
+    register_keypair_module(module.clone())?;
     register_utils_module(module.clone())?;
     register_wallet_module(module)?;
     Ok(())
@@ -589,35 +589,10 @@ fn register_keyfile_module(main_module: Bound<'_, PyModule>) -> PyResult<()> {
     main_module.add_submodule(&keyfile_module)
 }
 
-fn register_keypair_module(py: Python, main_module: Bound<'_, PyModule>) -> PyResult<()> {
-    let keypair_module = PyModule::new_bound(py, "keypair")?;
-
-    // Import the substrateinterface Keypair class
-    let substrate_module = py.import_bound("substrateinterface")?;
-    let origin_keypair_class = substrate_module.getattr("Keypair")?;
-
-    // Downcast origin_keypair_class to &PyType
-    let origin_keypair_class = origin_keypair_class.downcast::<PyType>()?;
-
-    // Get pykeypair_type as &PyType
-    let pykeypair_type = py.get_type_bound::<PyKeypair>();
-
-    // Update base and mro in Wallet Keypair type
-    unsafe {
-        (*pykeypair_type.as_type_ptr()).tp_base = origin_keypair_class.as_ptr() as *mut _;
-
-        let mro_tuple = PyTuple::new_bound(py, &[pykeypair_type.as_ref(), &origin_keypair_class]);
-        ffi::Py_INCREF(mro_tuple.as_ptr());
-        (*pykeypair_type.as_type_ptr()).tp_mro = mro_tuple.as_ptr() as *mut _;
-
-        if ffi::PyType_Ready(pykeypair_type.as_type_ptr()) != 0 {
-            return Err(PyErr::fetch(py));
-        }
-    }
-
-    keypair_module.add("Keypair", pykeypair_type)?;
-    main_module.add_submodule(&keypair_module)?;
-    Ok(())
+fn register_keypair_module(main_module: Bound<'_, PyModule>) -> PyResult<()> {
+    let keypair_module = PyModule::new_bound(main_module.py(), "keypair")?;
+    keypair_module.add_class::<PyKeypair>()?;
+    main_module.add_submodule(&keypair_module)
 }
 
 #[pyfunction(name = "get_ss58_format")]
