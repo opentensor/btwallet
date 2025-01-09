@@ -590,7 +590,7 @@ fn register_keyfile_module(main_module: Bound<'_, PyModule>) -> PyResult<()> {
 }
 
 fn register_keypair_module(main_module: Bound<'_, PyModule>) -> PyResult<()> {
-    let keypair_module = PyModule::new_bound(main_module.py(), "config")?;
+    let keypair_module = PyModule::new_bound(main_module.py(), "keypair")?;
     keypair_module.add_class::<PyKeypair>()?;
     main_module.add_submodule(&keypair_module)
 }
