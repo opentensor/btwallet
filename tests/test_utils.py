@@ -73,9 +73,9 @@ def test_is_valid_ss58_address(address, expected_result):
         # Valid 64-character string public key
         ("a" * 64, True),
         # Valid 66-character string public key (with 0x prefix)
-        ("a" * 66, False),
+        ("0x" + "a" * 64, True),
         # Valid 32-byte public key
-        (b"a" * 32, False),
+        (b"a" * 32, True),
         # Invalid: 63-character string public key
         ("a" * 63, False),
     ],

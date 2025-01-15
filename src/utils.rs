@@ -1,7 +1,4 @@
-use pyo3::exceptions::PyValueError;
-use pyo3::prelude::*;
-use pyo3::types::{IntoPyDict, PyBytes, PyDict, PyString};
-
+use pyo3::pyfunction;
 use sp_core::crypto::{AccountId32, Ss58Codec};
 use std::str;
 
@@ -10,11 +7,10 @@ use crate::keypair::Keypair;
 pub(crate) const SS58_FORMAT: u8 = 42;
 
 /// Returns the SS58 format of the given address string.
-#[pyfunction]
-pub fn get_ss58_format(ss58_address: &str) -> PyResult<u16> {
+pub fn get_ss58_format(ss58_address: &str) -> Result<u16, &'static str> {
     match <AccountId32 as Ss58Codec>::from_ss58check_with_version(ss58_address) {
         Ok((_, format)) => Ok(u16::from(format)),
-        Err(_) => Err(PyErr::new::<PyValueError, _>("Invalid SS58 address.")),
+        Err(_) => Err("Invalid SS58 address."),
     }
 }
 
@@ -26,64 +22,56 @@ pub fn get_ss58_format(ss58_address: &str) -> PyResult<u16> {
 /// Returns:
 ///     True if the address is a valid ss58 address for Bittensor, False otherwise.
 #[pyfunction]
-pub fn is_valid_ss58_address(address: &str) -> PyResult<bool> {
+pub fn is_valid_ss58_address(address: &str) -> bool {
     if address.is_empty() {
         // Possibly there could be a debug log, but not a print
         // utils::print(format!("The given address is empty"));
-        return Ok(false);
+        return false;
     }
 
-    match sp_core::sr25519::Public::from_ss58check(address) {
-        Ok(_) => Ok(true),
-        Err(_) => {
-            // Possibly there could be a debug log, but not a print
-            // utils::print(format!("Invalid SS58 address format"));
-            Ok(false)
-        }
+    sp_core::sr25519::Public::from_ss58check(address).is_ok()
+}
+
+///    Checks if the given public_key is a valid ed25519 key.
+///
+///     Args:
+///         public_key: The public_key to check as string.
+///
+///     Returns:
+///         True if the public_key is a valid ed25519 key, False otherwise.
+pub fn is_string_valid_ed25519_pubkey(public_key: &str) -> bool {
+    if public_key.len() != 64 && public_key.len() != 66 {
+        return false;
+    }
+
+    let pub_key_var = Some(public_key.to_string());
+    let keypair_result = Keypair::new(None, pub_key_var, None, SS58_FORMAT, None, 1);
+
+    match keypair_result {
+        Ok(keypair) => keypair.ss58_address().is_some(),
+        Err(_) => false,
     }
 }
 
 ///    Checks if the given public_key is a valid ed25519 key.
 ///
 ///     Args:
-///         public_key(Union[str, bytes]): The public_key to check.
+///         public_key: The public_key to check as bytes.
 ///
 ///     Returns:
 ///         True if the public_key is a valid ed25519 key, False otherwise.
-#[pyfunction]
-pub fn is_valid_ed25519_pubkey(public_key: &Bound<'_, PyAny>) -> PyResult<bool> {
-    Python::with_gil(|_py| {
-        if public_key.is_instance_of::<PyString>() {
-            let pub_key_string: &str = public_key.extract()?;
-            if pub_key_string.len() != 64 && pub_key_string.len() != 66 {
-                // Possibly need to log the error for debug (a public_key should be 64 or 66 characters)
-                return Ok(false);
-            }
-        } else if public_key.is_instance_of::<PyBytes>() {
-            let pub_key_bytes: &[u8] = public_key.extract()?;
-            if pub_key_bytes.len() != 32 {
-                // Possibly need to log the error for debug (a public_key should be 32 bytes)
-                return Ok(false);
-            }
-        } else {
-            // Possibly need to log the error for debug (public_key must be a string or bytes)
-            return Ok(false);
-        }
+pub fn are_bytes_valid_ed25519_pubkey(public_key: &[u8]) -> bool {
+    if public_key.len() != 32 {
+        return false;
+    }
 
-        let pub_key_var = Some(public_key.to_string());
+    let pub_key_var = Some(hex::encode(public_key));
+    let keypair_result = Keypair::new(None, pub_key_var, None, SS58_FORMAT, None, 1);
 
-        let keypair_result = Keypair::new(None, pub_key_var, None, SS58_FORMAT, None, 1);
-
-        match keypair_result {
-            Ok(keypair) => {
-                if keypair.ss58_address()?.is_some() {
-                    return Ok(true);
-                }
-                Ok(false)
-            }
-            Err(_) => Ok(false),
-        }
-    })
+    match keypair_result {
+        Ok(keypair) => keypair.ss58_address().is_some(),
+        Err(_) => false,
+    }
 }
 
 ///    Checks if the given address is a valid destination address.
@@ -94,25 +82,29 @@ pub fn is_valid_ed25519_pubkey(public_key: &Bound<'_, PyAny>) -> PyResult<bool> 
 ///     Returns:
 ///         True if the address is a valid destination address, False otherwise.
 #[pyfunction]
-pub fn is_valid_bittensor_address_or_public_key(address: &Bound<'_, PyAny>) -> PyResult<bool> {
-    Python::with_gil(|_py| {
-        if address.is_instance_of::<PyString>() {
-            let address_str = &address.to_string();
-            if address_str.starts_with("0x") {
-                is_valid_ed25519_pubkey(address)
-            } else {
-                is_valid_ss58_address(address_str)
-            }
-        } else if address.is_instance_of::<PyBytes>() {
-            is_valid_ed25519_pubkey(address)
+pub fn is_valid_bittensor_address_or_public_key(address: &str) -> bool {
+    if address.starts_with("0x") {
+        // Convert hex string to bytes
+        if let Ok(bytes) = hex::decode(&address[2..]) {
+            are_bytes_valid_ed25519_pubkey(&bytes)
         } else {
-            Ok(false)
+            is_valid_ss58_address(address)
         }
-    })
+    } else {
+        is_valid_ss58_address(address)
+    }
 }
 
+#[cfg(not(feature = "python-bindings"))]
 pub fn print(s: String) {
-    Python::with_gil(|py| {
+    use std::io::{self, Write};
+    print!("{}", s);
+    io::stdout().flush().unwrap();
+}
+
+#[cfg(feature = "python-bindings")]
+pub fn print(s: String) {
+    pyo3::Python::with_gil(|py| {
         let locals = PyDict::new_bound(py);
         locals.set_item("s", s).unwrap();
         py.run_bound(
@@ -134,20 +126,18 @@ sys.stdout.flush()
 ///     prompt: String
 ///
 /// Returns:
-///     response: Option<&str>
+///     response: Option<String>
 pub fn prompt(prompt: String) -> Option<String> {
-    let result: Result<String, ()> = Python::with_gil(|py| {
-        let result = py
-            .eval_bound(&format!("input(\"{}\")", prompt), None, None)
-            .map_err(|e| {
-                e.print_and_set_sys_last_vars(py);
-            })?;
-        result.extract::<String>().map_err(|e| {
-            e.print_and_set_sys_last_vars(py);
-        })
-    });
+    use std::io::{self, Write};
 
-    result.ok()
+    print!("{}", prompt);
+    io::stdout().flush().ok()?;
+
+    let mut input = String::new();
+    match io::stdin().read_line(&mut input) {
+        Ok(_) => Some(input.trim().to_string()),
+        Err(_) => None,
+    }
 }
 
 /// Prompts the user with a password entry and returns the response, if any.
@@ -158,30 +148,16 @@ pub fn prompt(prompt: String) -> Option<String> {
 /// Returns:
 ///     response: Option<String>
 pub fn prompt_password(prompt: String) -> Option<String> {
-    let result: Result<String, ()> = Python::with_gil(|py| {
-        let locals = [(
-            "getpass",
-            py.import_bound("getpass").map_err(|e| {
-                e.print_and_set_sys_last_vars(py);
-            })?,
-        )]
-        .into_py_dict_bound(py);
-        let result = py
-            .eval_bound(
-                &format!("getpass.getpass(\"{}\")", prompt),
-                None,
-                Some(&locals),
-            )
-            .map_err(|e| {
-                e.print_and_set_sys_last_vars(py);
-            })?;
-        result.extract::<String>().map_err(|e| {
-            e.print_and_set_sys_last_vars(py);
-        })
-    });
+    use rpassword::read_password;
+    use std::io::{self, Write};
 
-    let password = result.unwrap();
-    Some(password.trim().to_string())
+    print!("{}", prompt);
+    io::stdout().flush().ok()?;
+
+    match read_password() {
+        Ok(password) => Some(password.trim().to_string()),
+        Err(_) => None,
+    }
 }
 
 #[cfg(test)]
@@ -191,9 +167,6 @@ mod tests {
     #[test]
     fn test_get_ss58_format_success() {
         let test_address = "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty";
-        match is_valid_ss58_address(test_address) {
-            Ok(result) => assert_eq!(result, true),
-            Err(err) => panic!("Test failed with error: {:?}", err),
-        }
+        assert!(is_valid_ss58_address(test_address));
     }
 }

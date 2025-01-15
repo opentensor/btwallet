@@ -1,6 +1,5 @@
-from substrateinterface import Keypair
+from bittensor_wallet import Keypair, Wallet
 import pytest
-from bittensor_wallet import Wallet
 import time
 
 
@@ -18,7 +17,7 @@ def mock_wallet():
 
 
 def test_keypair_type(mock_wallet):
-    """Makes sure that the wallet fields coldkey, hotkey, coldkeypub are compatible with substrateinterface.Keypair."""
+    """Makes sure that the wallet fields coldkey, hotkey, coldkeypub are compatible with bittensor_wallet.Keypair."""
     # Preps
     wallet = mock_wallet
 
