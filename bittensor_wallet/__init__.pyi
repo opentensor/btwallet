@@ -22,6 +22,8 @@ class Keypair:
     #[getter]
     private_key: Final[Optional[bytes]]
 
+    def __init__(self, ss58_address: Optional[str] = None, public_key: Optional[str] = None, private_key: Optional[str] = None, ss58_format: int = 42, seed_hex: Optional[bytes] = None, crypto_type: int = 1) -> None:
+        pass
 
     #[new]
     #[pyo3(signature = (ss58_address=None, public_key=None, private_key=None, ss58_format=42, seed_hex=None, crypto_type=1))]
