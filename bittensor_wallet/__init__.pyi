@@ -77,13 +77,13 @@ class Keypair:
         pass
 
     # [pyo3(signature = (data))]
-    def sign(self, data: str | bytes | list[int] | "scalec_codec.ScaleBytes") -> bytes:
+    def sign(self, data: str | bytes | list[int] | "ScaleBytes") -> bytes:  # noqa: F821
         pass
 
     # [pyo3(signature = (data, signature))]
     def verify(
         self,
-        data: str | bytes | list[int] | "scalec_codec.ScaleBytes",
+        data: str | bytes | list[int] | "ScaleBytes",  # noqa: F821
         signature: str | bytes | list[int],
     ) -> bool:
         pass
