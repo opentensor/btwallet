@@ -1,16 +1,28 @@
 from bittensor_wallet.bittensor_wallet import (
-    # classes
-    Config as Config,
-    Keyfile as Keyfile,
-    Keypair as Keypair,
-    Wallet as Wallet,
-    # modules
-    config as config,
-    errors as errors,
-    keyfile as keyfile,
-    keypair as keypair,
-    utils as utils,
-    wallet as wallet,
+    Config,
+    Keyfile,
+    Keypair,
+    Wallet,
+    config,
+    errors,
+    keyfile,
+    keypair,
+    utils,
+    wallet,
 )
 
 __version__ = "3.0.0"
+
+# classes
+Config = Config
+Keyfile = Keyfile
+Keypair = Keypair
+Wallet = Wallet
+
+# modules
+config = config
+errors = errors
+keyfile = keyfile
+keypair = keypair
+utils = utils
+wallet = wallet
