@@ -1,5 +1,12 @@
 # Changelog
 
+## 3.0.2 /2025-02-06
+
+## What's Changed
+* Remove pyi file temporarily by @roman-opentensor in https://github.com/opentensor/btwallet/pull/92
+
+**Full Changelog**: https://github.com/opentensor/btwallet/compare/v3.0.1...v3.0.2
+
 ## 3.0.1 /2025-02-05
 
 ## What's Changed
