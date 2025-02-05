@@ -11,6 +11,8 @@ from bittensor_wallet.bittensor_wallet import (
     wallet,
 )
 
+__version__ = "3.0.0"
+
 # classes
 Config = Config
 Keyfile = Keyfile
@@ -24,5 +26,3 @@ keyfile = keyfile
 keypair = keypair
 utils = utils
 wallet = wallet
-
-__version__ = "2.1.3"

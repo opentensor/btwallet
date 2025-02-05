@@ -1,5 +1,18 @@
 # Changelog
 
+## 3.0.0 /2024-12-18
+
+## What's Changed
+* Feat/wallet lib by @distributedstatemachine, @keithtensor, @ibraheem-opentensor in https://github.com/opentensor/btwallet/pull/73
+* Remove `py-substrate-interface` from deps by @roman-opentensor in https://github.com/opentensor/btwallet/pull/83
+* Add `subclass` into `pyclass` macro for classes by @roman-opentensor in https://github.com/opentensor/btwallet/pull/82
+
+## New Contributors
+* @distributedstatemachine made their first contribution in https://github.com/opentensor/btwallet/pull/73
+* @keithtensor made their first contribution in https://github.com/opentensor/btwallet/pull/73
+
+**Full Changelog**: https://github.com/opentensor/btwallet/compare/v2.1.3...v3.0.0
+
 ## 2.1.3 /2024-11-27
 
 ## What's Changed
