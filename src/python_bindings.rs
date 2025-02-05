@@ -2,14 +2,14 @@ use std::{borrow::Cow, env, str};
 
 use crate::constants::{BT_WALLET_HOTKEY, BT_WALLET_NAME, BT_WALLET_PATH};
 use crate::errors::{ConfigurationError, KeyFileError, PasswordError, WalletError};
-use crate::{keyfile};
+use crate::keyfile;
 use crate::keyfile::Keyfile as RustKeyfile;
 use crate::keypair::Keypair as RustKeypair;
 use crate::wallet::Wallet as RustWallet;
 use pyo3::exceptions::{PyException, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::{IntoPyDict, PyBytes, PyModule, PyString, PyType};
-use pyo3::{wrap_pyfunction};
+use pyo3::wrap_pyfunction;
 
 #[pyclass(subclass)]
 #[derive(Clone)]
@@ -129,6 +129,12 @@ impl PyKeyfile {
         self.inner
             .remove_password_from_env()
             .map_err(|e| PyErr::new::<PyValueError, _>(e.to_string()))
+    }
+
+    /// Returns the keypair from path, decrypts data if the file is encrypted.
+    #[getter(keypair)]
+    pub fn keypair_py(&self) -> PyResult<PyKeypair> {
+        self.get_keypair(None)
     }
 
     #[pyo3(signature = (password=None))]

@@ -1,5 +1,15 @@
 # Changelog
 
+## 3.0.1 /2025-02-05
+
+## What's Changed
+* Redundant aliases by @thewhaleking in https://github.com/opentensor/btwallet/pull/84
+* Add some python type hints for keypair by @camfairchild in https://github.com/opentensor/btwallet/pull/87
+* Add Keyfile.keypair property back for btwallet v.3 the same as it was in btwallet v.2 by @roman-opentensor in https://github.com/opentensor/btwallet/pull/89
+* Backmerge main to staging for 300 by @ibraheem-opentensor in https://github.com/opentensor/btwallet/pull/90
+
+**Full Changelog**: https://github.com/opentensor/btwallet/compare/v3.0.0...v3.0.1
+
 ## 3.0.0 /2024-12-18
 
 ## What's Changed
