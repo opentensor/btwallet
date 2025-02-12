@@ -345,13 +345,6 @@ impl PyKeypair {
     fn mnemonic(&self) -> Option<String> {
         self.inner.mnemonic()
     }
-
-    #[getter]
-    fn private_key(&self) -> PyResult<Option<Vec<u8>>> {
-        self.inner
-            .private_key()
-            .map_err(|e| PyErr::new::<PyValueError, _>(e))
-    }
 }
 
 // Error type bindings
