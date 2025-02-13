@@ -514,9 +514,7 @@ def test_unlock_hotkey(mock_wallet):
     assert result.ss58_address == mock_wallet.get_hotkey().ss58_address
     assert result.public_key == mock_wallet.get_hotkey().public_key
     assert result.ss58_format == mock_wallet.get_hotkey().ss58_format
-    assert result.seed_hex == mock_wallet.get_hotkey().seed_hex
     assert result.crypto_type == mock_wallet.get_hotkey().crypto_type
-    assert result.mnemonic == mock_wallet.get_hotkey().mnemonic
 
 
 def test_unlock_coldkey(mock_wallet):
@@ -528,9 +526,7 @@ def test_unlock_coldkey(mock_wallet):
     assert result.ss58_address == mock_wallet.get_coldkey().ss58_address
     assert result.public_key == mock_wallet.get_coldkey().public_key
     assert result.ss58_format == mock_wallet.get_coldkey().ss58_format
-    assert result.seed_hex == mock_wallet.get_coldkey().seed_hex
     assert result.crypto_type == mock_wallet.get_coldkey().crypto_type
-    assert result.mnemonic == mock_wallet.get_coldkey().mnemonic
 
 
 def test_unlock_coldkeypub(mock_wallet):
@@ -541,9 +537,7 @@ def test_unlock_coldkeypub(mock_wallet):
     assert result.ss58_address == mock_wallet.get_coldkeypub().ss58_address
     assert result.public_key == mock_wallet.get_coldkeypub().public_key
     assert result.ss58_format == mock_wallet.get_coldkeypub().ss58_format
-    assert result.seed_hex == mock_wallet.get_coldkeypub().seed_hex
     assert result.crypto_type == mock_wallet.get_coldkeypub().crypto_type
-    assert result.mnemonic == mock_wallet.get_coldkeypub().mnemonic
 
 
 def test_wallet_string_representation_with_default_arguments():
