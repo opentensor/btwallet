@@ -1245,7 +1245,7 @@ except argparse.ArgumentError:
         mnemonic=None,
         seed=None,
         json=None,
-        use_password=true,
+        use_password=false,
         overwrite=false,
         suppress=false,
         save_hotkey_to_env=false,
