@@ -327,14 +327,6 @@ impl PyKeypair {
     }
 
     #[getter]
-    fn seed_hex(&self, py: Python) -> PyResult<PyObject> {
-        match self.inner.seed_hex() {
-            Some(seed) => Ok(PyBytes::new_bound(py, &seed).into_py(py)),
-            None => Ok(py.None()),
-        }
-    }
-
-    #[getter]
     fn crypto_type(&self) -> u8 {
         self.inner.crypto_type()
     }
@@ -342,11 +334,6 @@ impl PyKeypair {
     #[setter]
     fn set_crypto_type(&mut self, crypto_type: u8) {
         self.inner.set_crypto_type(crypto_type)
-    }
-
-    #[getter]
-    fn mnemonic(&self) -> Option<String> {
-        self.inner.mnemonic()
     }
 }
 
