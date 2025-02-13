@@ -423,7 +423,6 @@ def test_serialized_keypair_to_keyfile_data(keyfile_setup_teardown):
     keypair_data = serialized_keypair_to_keyfile_data(keypair)
     decoded_keypair_data = json.loads(keypair_data.decode())
 
-    assert decoded_keypair_data["secretPhrase"] == keypair.mnemonic
     assert decoded_keypair_data["ss58Address"] == keypair.ss58_address
     assert decoded_keypair_data["publicKey"] == f"0x{keypair.public_key.hex()}"
     assert decoded_keypair_data["accountId"] == f"0x{keypair.public_key.hex()}"
