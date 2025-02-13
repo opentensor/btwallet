@@ -1,5 +1,12 @@
 # Changelog
 
+## 3.0.3 /2025-02-13
+
+## What's Changed
+* Fix KeyPair.regenerate_* methods using seed @roman-opentensor in https://github.com/opentensor/btwallet/pull/96
+
+**Full Changelog**: https://github.com/opentensor/btwallet/compare/v3.0.2...v3.0.3
+
 ## 3.0.2 /2025-02-06
 
 ## What's Changed
