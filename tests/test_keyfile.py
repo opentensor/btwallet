@@ -473,9 +473,6 @@ def test_get_coldkey_password_from_environment(
     assert tmp_path.is_dir()
 
     wallet_name = "test_wallet"
-    tmp_path_str = str(tmp_path)
-
-    # env_name = f"BT_PW_{tmp_path_str.replace(".", "_").replace(os.path.sep, "_")}_{wallet_name}_COLDKEY".upper()
 
     wallet = Wallet(name=wallet_name, path=str(tmp_path))
     wallet.create(
