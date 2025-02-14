@@ -28,6 +28,7 @@ from bittensor_wallet.errors import ConfigurationError, KeyFileError
 from bittensor_wallet.keyfile import Keyfile
 from bittensor_wallet.keyfile import get_coldkey_password_from_environment
 from bittensor_wallet.keypair import Keypair
+from bittensor_wallet import Wallet
 
 
 def test_generate_mnemonic():
@@ -62,8 +63,8 @@ def test_only_provide_ss58_address():
     keypair = Keypair(ss58_address="16ADqpMa4yzfmWs3nuTSMhfZ2ckeGtvqhPWCNqECEGDcGgU2")
 
     assert (
-        f"0x{keypair.public_key.hex()}"
-        == "0xe4359ad3e2716c539a1d663ebd0a51bdc5c98a12e663bb4c4402db47828c9446"
+            f"0x{keypair.public_key.hex()}"
+            == "0xe4359ad3e2716c539a1d663ebd0a51bdc5c98a12e663bb4c4402db47828c9446"
     )
 
 
@@ -197,8 +198,8 @@ def test_create_keypair_from_private_key():
         private_key="0x1f1995bdf3a17b60626a26cfe6f564b337d46056b7a1281b64c649d592ccda0a9cffd34d9fb01cae1fba61aeed184c817442a2186d5172416729a4b54dd4b84e",
     )
     assert (
-        f"0x{keypair.public_key.hex()}"
-        == "0xe4359ad3e2716c539a1d663ebd0a51bdc5c98a12e663bb4c4402db47828c9446"
+            f"0x{keypair.public_key.hex()}"
+            == "0xe4359ad3e2716c539a1d663ebd0a51bdc5c98a12e663bb4c4402db47828c9446"
     )
 
 
@@ -326,12 +327,12 @@ def test_create(keyfile_setup_teardown):
     str(keyfile)
 
     assert (
-        keyfile.get_keypair(password="thisisafakepassword").ss58_address
-        == alice.ss58_address
+            keyfile.get_keypair(password="thisisafakepassword").ss58_address
+            == alice.ss58_address
     )
     assert (
-        keyfile.get_keypair(password="thisisafakepassword").public_key
-        == alice.public_key
+            keyfile.get_keypair(password="thisisafakepassword").public_key
+            == alice.public_key
     )
 
     bob = Keypair.create_from_uri("/Bob")
@@ -339,11 +340,11 @@ def test_create(keyfile_setup_teardown):
         bob, encrypt=True, overwrite=True, password="thisisafakepassword"
     )
     assert (
-        keyfile.get_keypair(password="thisisafakepassword").ss58_address
-        == bob.ss58_address
+            keyfile.get_keypair(password="thisisafakepassword").ss58_address
+            == bob.ss58_address
     )
     assert (
-        keyfile.get_keypair(password="thisisafakepassword").public_key == bob.public_key
+            keyfile.get_keypair(password="thisisafakepassword").public_key == bob.public_key
     )
 
     repr(keyfile)
@@ -457,18 +458,36 @@ def test_deserialize_keypair_from_keyfile_data(keyfile_setup_teardown):
 
 
 @pytest.mark.parametrize(
-    "env_name,encrypted,decrypted",
+    "encrypted,decrypted",
     [
-        ("BT_PW_COLD_WALLET", "61,$>18", "testin{"),
-        ("BT_PW_COLD_WALLET", " =+$21,:!t``", "bittenoum0?7"),
+        ("c2ZsZGJpaG1q", "123456789"),
+        ("ID0rJDIxLDoh", "bittensor"),
+        ("NjEsJD4xOA==", "testing"),
     ],
 )
 def test_get_coldkey_password_from_environment(
-    monkeypatch, env_name, encrypted, decrypted
+        tmp_path, encrypted, decrypted
 ):
     # Preps
-    monkeypatch.setenv(env_name, encrypted)
+    assert tmp_path.exists()
+    assert tmp_path.is_dir()
+
+    wallet_name = "test_wallet"
+
+    wallet = Wallet(name=wallet_name, path=str(tmp_path))
+    wallet.create(
+        coldkey_use_password=True,
+        hotkey_use_password=False,
+        save_coldkey_to_env=True,
+        save_hotkey_to_env=False,
+        coldkey_password=decrypted,
+        overwrite=True,
+        suppress=True
+    )
+
+    # Call
+    wallet.coldkey_file.save_password_to_env(decrypted)
 
     # Calls + Assertions
-    assert get_coldkey_password_from_environment(env_name) == decrypted
+    assert get_coldkey_password_from_environment(wallet.coldkey_file.env_var_name()) == decrypted
     assert get_coldkey_password_from_environment("non_existent_env_variable") is None
