@@ -719,7 +719,7 @@ impl Wallet {
             keypair
         } else if let Some(seed) = seed {
             // seed
-            Keypair::create_from_seed(seed.as_bytes().to_vec())
+            Keypair::create_from_seed(hex::decode(seed).unwrap())
                 .map_err(|e| KeyFileError::Generic(e.to_string()))?
         } else if let Some((json_data, passphrase)) = json {
             // json_data + passphrase
@@ -764,7 +764,7 @@ impl Wallet {
             keypair
         } else if let Some(seed) = seed {
             // seed
-            Keypair::create_from_seed(seed.as_bytes().to_vec())
+            Keypair::create_from_seed(hex::decode(seed).unwrap())
                 .map_err(|e| KeyFileError::Generic(e.to_string()))?
         } else if let Some((json_data, passphrase)) = json {
             // json_data + passphrase

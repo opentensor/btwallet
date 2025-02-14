@@ -327,11 +327,6 @@ impl PyKeypair {
     }
 
     #[getter]
-    fn seed_hex(&self) -> Option<Vec<u8>> {
-        self.inner.seed_hex()
-    }
-
-    #[getter]
     fn crypto_type(&self) -> u8 {
         self.inner.crypto_type()
     }
@@ -339,11 +334,6 @@ impl PyKeypair {
     #[setter]
     fn set_crypto_type(&mut self, crypto_type: u8) {
         self.inner.set_crypto_type(crypto_type)
-    }
-
-    #[getter]
-    fn mnemonic(&self) -> Option<String> {
-        self.inner.mnemonic()
     }
 }
 
@@ -1197,10 +1187,10 @@ except argparse.ArgumentError:
         mnemonic=None,
         seed=None,
         json=None,
-        use_password=None,
-        overwrite=None,
-        suppress=None,
-        save_coldkey_to_env=None,
+        use_password=true,
+        overwrite=false,
+        suppress=false,
+        save_coldkey_to_env=false,
         coldkey_password=None
     ))]
     fn regenerate_coldkey(
@@ -1220,7 +1210,7 @@ except argparse.ArgumentError:
                 mnemonic,
                 seed,
                 json,
-                use_password.unwrap_or(false),
+                use_password.unwrap_or(true),
                 overwrite.unwrap_or(false),
                 suppress.unwrap_or(false),
                 save_coldkey_to_env.unwrap_or(false),
@@ -1255,10 +1245,10 @@ except argparse.ArgumentError:
         mnemonic=None,
         seed=None,
         json=None,
-        use_password=None,
-        overwrite=None,
-        suppress=None,
-        save_hotkey_to_env=None,
+        use_password=false,
+        overwrite=false,
+        suppress=false,
+        save_hotkey_to_env=false,
         hotkey_password=None
     ))]
     fn regenerate_hotkey(
