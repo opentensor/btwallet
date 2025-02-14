@@ -34,6 +34,10 @@ pub enum KeyFileError {
     EnvVarError(String),
     #[error("Password error: {0}")]
     PasswordError(String),
+    #[error("Base64 decoding error: {0}")]
+    Base64DecodeError(String),
+    #[error("Base64 encoding error: {0}")]
+    Base64EncodeError(String),
     #[error("Generic error: {0}")]
     Generic(String),
 }
