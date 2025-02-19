@@ -157,6 +157,12 @@ impl PyKeyfile {
             .set_keypair(keypair.inner, encrypt, overwrite, password)
             .map_err(|e| PyErr::new::<PyKeyFileError, _>(e))
     }
+
+    fn env_var_name(&self) -> PyResult<String> {
+        self.inner
+            .env_var_name()
+            .map_err(|e| PyErr::new::<PyKeyFileError, _>(e.to_string()))
+    }
 }
 
 #[pyclass(name = "Keypair", subclass)]
