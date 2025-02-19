@@ -9,6 +9,7 @@ use std::str::from_utf8;
 use ansible_vault::{decrypt_vault, encrypt_vault};
 use fernet::Fernet;
 
+use base64::{engine::general_purpose, Engine as _};
 use passwords::analyzer;
 use passwords::scorer;
 use pyo3::pyfunction;
@@ -227,8 +228,11 @@ pub fn legacy_encrypt_keyfile_data(
 /// Retrieves the cold key password from the environment variables.
 pub fn get_password_from_environment(env_var_name: String) -> Result<Option<String>, KeyFileError> {
     match env::var(&env_var_name) {
-        Ok(encrypted_password) => {
-            let decrypted_password = decrypt_password(encrypted_password, env_var_name);
+        Ok(encrypted_password_base64) => {
+            let encrypted_password = general_purpose::STANDARD
+                .decode(&encrypted_password_base64)
+                .map_err(|_| KeyFileError::Base64DecodeError("Invalid Base64".to_string()))?;
+            let decrypted_password = decrypt_password(&encrypted_password, &env_var_name);
             Ok(Some(decrypted_password))
         }
         Err(_) => Ok(None),
@@ -373,23 +377,25 @@ fn expand_tilde(path: &str) -> String {
 }
 
 // Encryption password
-fn encrypt_password(key: String, value: String) -> String {
-    let mut encrypted = String::new();
-    for (i, c) in value.chars().enumerate() {
-        let encrypted_char = (c as u8) ^ (key.chars().nth(i % key.len()).unwrap() as u8);
-        encrypted.push(encrypted_char as char);
-    }
-    encrypted
+fn encrypt_password(key: &str, value: &str) -> Vec<u8> {
+    let key_bytes = key.as_bytes();
+    value
+        .as_bytes()
+        .iter()
+        .enumerate()
+        .map(|(i, &c)| c ^ key_bytes[i % key_bytes.len()])
+        .collect()
 }
 
 // Decrypting password
-fn decrypt_password(data: String, key: String) -> String {
-    let mut decrypted = String::new();
-    for (i, c) in data.chars().enumerate() {
-        let decrypted_char = (c as u8) ^ (key.chars().nth(i % key.len()).unwrap() as u8);
-        decrypted.push(decrypted_char as char);
-    }
-    decrypted
+fn decrypt_password(data: &[u8], key: &str) -> String {
+    let key_bytes = key.as_bytes();
+    let decrypted_bytes: Vec<u8> = data
+        .iter()
+        .enumerate()
+        .map(|(i, &c)| c ^ key_bytes[i % key_bytes.len()])
+        .collect();
+    String::from_utf8(decrypted_bytes).unwrap_or_else(|_| String::new())
 }
 
 #[derive(Clone)]
@@ -901,28 +907,13 @@ impl Keyfile {
             },
         };
         // saving password
-        match self.env_var_name() {
-            Ok(env_var_name) => {
-                // encrypt password
-                let encrypted_password = encrypt_password(self.env_var_name()?, password);
-                // store encrypted password
-                env::set_var(&env_var_name, &encrypted_password);
-
-                let message = format!(
-                    "The password has been saved to environment variable '{}'.\n",
-                    env_var_name
-                );
-                utils::print(message);
-                Ok(encrypted_password)
-            }
-            Err(e) => {
-                utils::print(format!(
-                    "Error saving environment variable name: {:?}.\n",
-                    e
-                ));
-                Ok("".to_string())
-            }
-        }
+        let env_var_name = self.env_var_name()?;
+        // encrypt password
+        let encrypted_password = encrypt_password(&env_var_name, &password);
+        let encrypted_password_base64 = general_purpose::STANDARD.encode(&encrypted_password);
+        // store encrypted password
+        env::set_var(&env_var_name, &encrypted_password_base64);
+        Ok(encrypted_password_base64)
     }
 
     /// Removes the password associated with the Keyfile from the local environment.
