@@ -1,5 +1,13 @@
 # Changelog
 
+## 3.0.4 /2025-02-19
+
+## What's Changed
+* Fix `pyo3_runtime.PanicException` when encrypted password has `NUL byte` by @roman-opentensor in https://github.com/opentensor/btwallet/pull/99
+* Backmerge main to staging 303 by @ibraheem-opentensor in https://github.com/opentensor/btwallet/pull/102
+
+**Full Changelog**: https://github.com/opentensor/btwallet/compare/v3.0.3...v3.0.4
+
 ## 3.0.3 /2025-02-13
 
 ## What's Changed
