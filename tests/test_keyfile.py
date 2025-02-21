@@ -5,7 +5,7 @@ import time
 from unittest import mock
 
 import pytest
-from bip39.bip39 import bip39_validate
+from bip39 import bip39_validate
 
 from bittensor_wallet.errors import ConfigurationError, KeyFileError
 from bittensor_wallet.keyfile import Keyfile
