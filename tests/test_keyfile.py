@@ -1,20 +1,3 @@
-# The MIT License (MIT)
-# Copyright © 2024 Opentensor Foundation
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
-# documentation files (the “Software”), to deal in the Software without restriction, including without limitation
-# the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
-# and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in all copies or substantial portions of
-# the Software.
-#
-# THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
-# THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
-# THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-# OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
-# DEALINGS IN THE SOFTWARE.
-
 import json
 import os
 import shutil
@@ -22,7 +5,7 @@ import time
 from unittest import mock
 
 import pytest
-from bip39 import bip39_validate
+from bip39.bip39 import bip39_validate
 
 from bittensor_wallet.errors import ConfigurationError, KeyFileError
 from bittensor_wallet.keyfile import Keyfile
@@ -63,8 +46,8 @@ def test_only_provide_ss58_address():
     keypair = Keypair(ss58_address="16ADqpMa4yzfmWs3nuTSMhfZ2ckeGtvqhPWCNqECEGDcGgU2")
 
     assert (
-            f"0x{keypair.public_key.hex()}"
-            == "0xe4359ad3e2716c539a1d663ebd0a51bdc5c98a12e663bb4c4402db47828c9446"
+        f"0x{keypair.public_key.hex()}"
+        == "0xe4359ad3e2716c539a1d663ebd0a51bdc5c98a12e663bb4c4402db47828c9446"
     )
 
 
@@ -127,18 +110,6 @@ def test_sign_and_verify_hex_data():
     assert keypair.verify("0x1234", signature) is True
 
 
-# TODO: need to implement this ScaleBytes processing as option (src/keypair.rs:368)
-# def test_sign_and_verify_scale_bytes():
-#     """
-#     Test the signing and verification of ScaleBytes data using a keypair.
-#     """
-#     mnemonic = Keypair.generate_mnemonic()
-#     keypair = Keypair.create_from_mnemonic(mnemonic)
-#     data = ScaleBytes("0x1234")
-#     signature = keypair.sign(data)
-#     assert keypair.verify(data, signature) is True
-
-
 def test_sign_missing_private_key():
     """
     Test signing a message with a keypair that is missing the private key.
@@ -198,8 +169,8 @@ def test_create_keypair_from_private_key():
         private_key="0x1f1995bdf3a17b60626a26cfe6f564b337d46056b7a1281b64c649d592ccda0a9cffd34d9fb01cae1fba61aeed184c817442a2186d5172416729a4b54dd4b84e",
     )
     assert (
-            f"0x{keypair.public_key.hex()}"
-            == "0xe4359ad3e2716c539a1d663ebd0a51bdc5c98a12e663bb4c4402db47828c9446"
+        f"0x{keypair.public_key.hex()}"
+        == "0xe4359ad3e2716c539a1d663ebd0a51bdc5c98a12e663bb4c4402db47828c9446"
     )
 
 
@@ -327,12 +298,12 @@ def test_create(keyfile_setup_teardown):
     str(keyfile)
 
     assert (
-            keyfile.get_keypair(password="thisisafakepassword").ss58_address
-            == alice.ss58_address
+        keyfile.get_keypair(password="thisisafakepassword").ss58_address
+        == alice.ss58_address
     )
     assert (
-            keyfile.get_keypair(password="thisisafakepassword").public_key
-            == alice.public_key
+        keyfile.get_keypair(password="thisisafakepassword").public_key
+        == alice.public_key
     )
 
     bob = Keypair.create_from_uri("/Bob")
@@ -340,47 +311,14 @@ def test_create(keyfile_setup_teardown):
         bob, encrypt=True, overwrite=True, password="thisisafakepassword"
     )
     assert (
-            keyfile.get_keypair(password="thisisafakepassword").ss58_address
-            == bob.ss58_address
+        keyfile.get_keypair(password="thisisafakepassword").ss58_address
+        == bob.ss58_address
     )
     assert (
-            keyfile.get_keypair(password="thisisafakepassword").public_key == bob.public_key
+        keyfile.get_keypair(password="thisisafakepassword").public_key == bob.public_key
     )
 
     repr(keyfile)
-
-
-# we can't mock rust methods
-# def test_validate_password():
-#     """
-#     Test case for the validate_password function.
-#
-#     This function tests the behavior of the validate_password function from the bittensor.keyfile module.
-#     It checks various scenarios to ensure that the function correctly validates passwords.
-#     """
-#     from bittensor_wallet.keyfile import validate_password
-#
-#     with pytest.raises(TypeError):
-#         validate_password(None)
-#     assert validate_password("passw0rd") is False
-#     assert validate_password("123456789") is False
-
-
-# def test_user_interface():
-#     """
-#     Test the user interface for asking password to encrypt.
-#
-#     This test case uses the `ask_password_to_encrypt` function from the `bittensor.keyfile` module.
-#     It mocks the `getpass.getpass` function to simulate user input of passwords.
-#     The expected result is that the `ask_password_to_encrypt` function returns the correct password.
-#     """
-#     from bittensor_wallet.keyfile import ask_password_to_encrypt
-#
-#     with mock.patch(
-#         "getpass.getpass",
-#         side_effect=["pass", "password", "asdury3294y", "asdury3294y"],
-#     ):
-#         assert ask_password_to_encrypt() == "asdury3294y"
 
 
 def test_overwriting(keyfile_setup_teardown):
@@ -465,9 +403,7 @@ def test_deserialize_keypair_from_keyfile_data(keyfile_setup_teardown):
         ("NjEsJD4xOA==", "testing"),
     ],
 )
-def test_get_coldkey_password_from_environment(
-        tmp_path, encrypted, decrypted
-):
+def test_get_coldkey_password_from_environment(tmp_path, encrypted, decrypted):
     # Preps
     assert tmp_path.exists()
     assert tmp_path.is_dir()
@@ -482,12 +418,15 @@ def test_get_coldkey_password_from_environment(
         save_hotkey_to_env=False,
         coldkey_password=decrypted,
         overwrite=True,
-        suppress=True
+        suppress=True,
     )
 
     # Call
     wallet.coldkey_file.save_password_to_env(decrypted)
 
     # Calls + Assertions
-    assert get_coldkey_password_from_environment(wallet.coldkey_file.env_var_name()) == decrypted
+    assert (
+        get_coldkey_password_from_environment(wallet.coldkey_file.env_var_name())
+        == decrypted
+    )
     assert get_coldkey_password_from_environment("non_existent_env_variable") is None
