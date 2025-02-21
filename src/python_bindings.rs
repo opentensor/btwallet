@@ -68,6 +68,10 @@ impl PyKeyfile {
         Ok(self.inner.to_string())
     }
 
+    fn __repr__(&self) -> PyResult<String> {
+        Ok(self.inner.to_string())
+    }
+
     #[getter]
     fn path(&self) -> String {
         self.inner.path.clone()
@@ -134,6 +138,20 @@ impl PyKeyfile {
     fn remove_password_from_env(&self) -> PyResult<bool> {
         self.inner
             .remove_password_from_env()
+            .map_err(|e| PyErr::new::<PyValueError, _>(e.to_string()))
+    }
+
+    #[getter(data)]
+    fn data_py(&self) -> PyResult<Option<Cow<[u8]>>> {
+        self.inner
+            .data()
+            .map(|vec| Some(Cow::Owned(vec)))
+            .or_else(|_e| Ok(None))
+    }
+
+    fn make_dirs(&self) -> PyResult<()> {
+        self.inner
+            .make_dirs()
             .map_err(|e| PyErr::new::<PyValueError, _>(e.to_string()))
     }
 
@@ -208,10 +226,13 @@ impl PyKeypair {
         Ok(PyKeypair { inner: keypair })
     }
 
+    /// Creates Keypair from a seed for python
     #[staticmethod]
-    fn create_from_seed(py: Python, seed: Vec<u8>) -> PyResult<Py<Self>> {
-        let keypair =
-            RustKeypair::create_from_seed(seed).map_err(|e| PyErr::new::<PyValueError, _>(e))?;
+    fn create_from_seed(py: Python, seed: &str) -> PyResult<Py<Self>> {
+        let vec_seed = hex::decode(seed.trim_start_matches("0x"))
+            .map_err(|e| PyErr::new::<PyValueError, _>(e.to_string()))?;
+        let keypair = RustKeypair::create_from_seed(vec_seed)
+            .map_err(|e| PyErr::new::<PyValueError, _>(e.to_string()))?;
         Py::new(py, PyKeypair { inner: keypair })
     }
 
