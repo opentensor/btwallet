@@ -1,4 +1,5 @@
 from typing import Optional, Any, Union
+from types import ModuleType
 
 # Submodules
 class config:
@@ -306,6 +307,12 @@ class wallet:
             save_hotkey_to_env: Optional[bool] = False,
             hotkey_password: Optional[str] = None,
         ) -> None: ...
+
+config: ModuleType
+keyfile: ModuleType
+keypair: ModuleType
+utils: ModuleType
+wallet: ModuleType
 
 Config = config.Config
 Keyfile = keyfile.Keyfile
