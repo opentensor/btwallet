@@ -12,7 +12,7 @@ from bittensor_wallet.keyfile import (
     deserialize_keypair_from_keyfile_data,
     decrypt_keyfile_data,
     encrypt_keyfile_data,
-    keyfile_data_is_encrypted
+    keyfile_data_is_encrypted,
 )
 from bittensor_wallet.utils import (
     get_ss58_format,
@@ -237,7 +237,9 @@ def test_is_encrypted_decrypt_encrypt_and_check_and_update_encryption(tmp_path):
 def test_keyfile_encryption_and_decryption_with_password(tmp_path):
     """Test Keyfile make_dirs, is_writable, is_readable, get_keypair and exists_on_device."""
     kf = WKeyfile(os.path.join(str(tmp_path), "new_keyfile"), name="default")
-    kp = WKeypair.create_from_mnemonic("stool feel open east woman high can denial forget screen trust salt")
+    kp = WKeypair.create_from_mnemonic(
+        "stool feel open east woman high can denial forget screen trust salt"
+    )
 
     assert kf.exists_on_device() is False
     assert kf.is_writable() is False
@@ -253,7 +255,7 @@ def test_keyfile_encryption_and_decryption_with_password(tmp_path):
 
 def test_config_parsing():
     """Config parsing test."""
-    parser = argparse.ArgumentParser(description='My parser')
+    parser = argparse.ArgumentParser(description="My parser")
 
     bt.wallet.add_args(parser)
     bt.subtensor.add_args(parser)

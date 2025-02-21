@@ -59,7 +59,6 @@ class keyfile:
         ) -> None: ...
         @property
         def data(self): ...
-
         def make_dirs(self): ...
 
     def serialized_keypair_to_keyfile_data(keypair: "Keypair") -> bytes: ...
@@ -253,7 +252,6 @@ class wallet:
             save_coldkey_to_env: Optional[bool] = False,
             coldkey_password: Optional[str] = None,
         ) -> "Wallet": ...
-
         def create_new_coldkey(
             self,
             n_words: Optional[int] = 12,
@@ -263,7 +261,6 @@ class wallet:
             save_coldkey_to_env: Optional[bool] = False,
             coldkey_password: Optional[str] = None,
         ) -> "Wallet": ...
-
         def new_hotkey(
             self,
             n_words: Optional[int] = 12,
@@ -273,7 +270,6 @@ class wallet:
             save_hotkey_to_env: Optional[bool] = False,
             hotkey_password: Optional[str] = None,
         ) -> "Wallet": ...
-
         def create_new_hotkey(
             self,
             n_words: Optional[int] = 12,
@@ -283,7 +279,6 @@ class wallet:
             save_coldkey_to_env: Optional[bool] = False,
             coldkey_password: Optional[str] = None,
         ) -> "Wallet": ...
-
         def regenerate_coldkey(
             self,
             mnemonic: Optional[str] = None,
