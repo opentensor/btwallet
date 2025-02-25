@@ -1,20 +1,3 @@
-# The MIT License (MIT)
-# Copyright © 2024 Opentensor Foundation
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
-# documentation files (the “Software”), to deal in the Software without restriction, including without limitation
-# the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
-# and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in all copies or substantial portions of
-# the Software.
-#
-# THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
-# THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
-# THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-# OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
-# DEALINGS IN THE SOFTWARE.
-
 import json
 import os
 import shutil
@@ -28,6 +11,7 @@ from bittensor_wallet.errors import ConfigurationError, KeyFileError
 from bittensor_wallet.keyfile import Keyfile
 from bittensor_wallet.keyfile import get_coldkey_password_from_environment
 from bittensor_wallet.keypair import Keypair
+from bittensor_wallet import Wallet
 
 
 def test_generate_mnemonic():
@@ -124,18 +108,6 @@ def test_sign_and_verify_hex_data():
     keypair = Keypair.create_from_mnemonic(mnemonic)
     signature = keypair.sign("0x1234")
     assert keypair.verify("0x1234", signature) is True
-
-
-# TODO: need to implement this ScaleBytes processing as option (src/keypair.rs:368)
-# def test_sign_and_verify_scale_bytes():
-#     """
-#     Test the signing and verification of ScaleBytes data using a keypair.
-#     """
-#     mnemonic = Keypair.generate_mnemonic()
-#     keypair = Keypair.create_from_mnemonic(mnemonic)
-#     data = ScaleBytes("0x1234")
-#     signature = keypair.sign(data)
-#     assert keypair.verify(data, signature) is True
 
 
 def test_sign_missing_private_key():
@@ -349,39 +321,6 @@ def test_create(keyfile_setup_teardown):
     repr(keyfile)
 
 
-# we can't mock rust methods
-# def test_validate_password():
-#     """
-#     Test case for the validate_password function.
-#
-#     This function tests the behavior of the validate_password function from the bittensor.keyfile module.
-#     It checks various scenarios to ensure that the function correctly validates passwords.
-#     """
-#     from bittensor_wallet.keyfile import validate_password
-#
-#     with pytest.raises(TypeError):
-#         validate_password(None)
-#     assert validate_password("passw0rd") is False
-#     assert validate_password("123456789") is False
-
-
-# def test_user_interface():
-#     """
-#     Test the user interface for asking password to encrypt.
-#
-#     This test case uses the `ask_password_to_encrypt` function from the `bittensor.keyfile` module.
-#     It mocks the `getpass.getpass` function to simulate user input of passwords.
-#     The expected result is that the `ask_password_to_encrypt` function returns the correct password.
-#     """
-#     from bittensor_wallet.keyfile import ask_password_to_encrypt
-#
-#     with mock.patch(
-#         "getpass.getpass",
-#         side_effect=["pass", "password", "asdury3294y", "asdury3294y"],
-#     ):
-#         assert ask_password_to_encrypt() == "asdury3294y"
-
-
 def test_overwriting(keyfile_setup_teardown):
     """
     Test case for overwriting a keypair in the keyfile.
@@ -457,18 +396,37 @@ def test_deserialize_keypair_from_keyfile_data(keyfile_setup_teardown):
 
 
 @pytest.mark.parametrize(
-    "env_name,encrypted,decrypted",
+    "encrypted,decrypted",
     [
-        ("BT_PW_COLD_WALLET", "61,$>18", "testin{"),
-        ("BT_PW_COLD_WALLET", " =+$21,:!t``", "bittenoum0?7"),
+        ("c2ZsZGJpaG1q", "123456789"),
+        ("ID0rJDIxLDoh", "bittensor"),
+        ("NjEsJD4xOA==", "testing"),
     ],
 )
-def test_get_coldkey_password_from_environment(
-    monkeypatch, env_name, encrypted, decrypted
-):
+def test_get_coldkey_password_from_environment(tmp_path, encrypted, decrypted):
     # Preps
-    monkeypatch.setenv(env_name, encrypted)
+    assert tmp_path.exists()
+    assert tmp_path.is_dir()
+
+    wallet_name = "test_wallet"
+
+    wallet = Wallet(name=wallet_name, path=str(tmp_path))
+    wallet.create(
+        coldkey_use_password=True,
+        hotkey_use_password=False,
+        save_coldkey_to_env=True,
+        save_hotkey_to_env=False,
+        coldkey_password=decrypted,
+        overwrite=True,
+        suppress=True,
+    )
+
+    # Call
+    wallet.coldkey_file.save_password_to_env(decrypted)
 
     # Calls + Assertions
-    assert get_coldkey_password_from_environment(env_name) == decrypted
+    assert (
+        get_coldkey_password_from_environment(wallet.coldkey_file.env_var_name())
+        == decrypted
+    )
     assert get_coldkey_password_from_environment("non_existent_env_variable") is None

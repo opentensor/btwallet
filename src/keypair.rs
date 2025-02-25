@@ -144,7 +144,6 @@ impl Keypair {
             pair: Some(pair),
             ..Default::default()
         };
-
         Ok(kp)
     }
 

@@ -68,6 +68,10 @@ impl PyKeyfile {
         Ok(self.inner.to_string())
     }
 
+    fn __repr__(&self) -> PyResult<String> {
+        Ok(self.inner.to_string())
+    }
+
     #[getter]
     fn path(&self) -> String {
         self.inner.path.clone()
@@ -118,6 +122,12 @@ impl PyKeyfile {
             .map_err(|e| PyErr::new::<PyValueError, _>(e.to_string()))
     }
 
+    fn env_var_name(&self) -> PyResult<String> {
+        self.inner
+            .env_var_name()
+            .map_err(|e| PyErr::new::<PyValueError, _>(e.to_string()))
+    }
+
     #[pyo3(signature = (password=None))]
     fn save_password_to_env(&self, password: Option<String>) -> PyResult<String> {
         self.inner
@@ -128,6 +138,20 @@ impl PyKeyfile {
     fn remove_password_from_env(&self) -> PyResult<bool> {
         self.inner
             .remove_password_from_env()
+            .map_err(|e| PyErr::new::<PyValueError, _>(e.to_string()))
+    }
+
+    #[getter(data)]
+    fn data_py(&self) -> PyResult<Option<Cow<[u8]>>> {
+        self.inner
+            .data()
+            .map(|vec| Some(Cow::Owned(vec)))
+            .or_else(|_e| Ok(None))
+    }
+
+    fn make_dirs(&self) -> PyResult<()> {
+        self.inner
+            .make_dirs()
             .map_err(|e| PyErr::new::<PyValueError, _>(e.to_string()))
     }
 
@@ -202,10 +226,13 @@ impl PyKeypair {
         Ok(PyKeypair { inner: keypair })
     }
 
+    /// Creates Keypair from a seed for python
     #[staticmethod]
-    fn create_from_seed(py: Python, seed: Vec<u8>) -> PyResult<Py<Self>> {
-        let keypair =
-            RustKeypair::create_from_seed(seed).map_err(|e| PyErr::new::<PyValueError, _>(e))?;
+    fn create_from_seed(py: Python, seed: &str) -> PyResult<Py<Self>> {
+        let vec_seed = hex::decode(seed.trim_start_matches("0x"))
+            .map_err(|e| PyErr::new::<PyValueError, _>(e.to_string()))?;
+        let keypair = RustKeypair::create_from_seed(vec_seed)
+            .map_err(|e| PyErr::new::<PyValueError, _>(e.to_string()))?;
         Py::new(py, PyKeypair { inner: keypair })
     }
 
@@ -827,6 +854,54 @@ except argparse.ArgumentError:
         let result = self
             .inner
             .create_if_non_existent(
+                coldkey_use_password.unwrap_or(true),
+                hotkey_use_password.unwrap_or(false),
+                save_coldkey_to_env.unwrap_or(false),
+                save_hotkey_to_env.unwrap_or(false),
+                coldkey_password,
+                hotkey_password,
+                overwrite.unwrap_or(false),
+                suppress.unwrap_or(false),
+            )
+            .map_err(|e| match e {
+                WalletError::InvalidInput(_) | WalletError::KeyGeneration(_) => {
+                    PyErr::new::<PyValueError, _>(e.to_string())
+                }
+                _ => PyErr::new::<PyKeyFileError, _>(format!("Failed to create wallet: {:?}", e)),
+            })?;
+
+        Ok(Wallet { inner: result })
+    }
+
+    /// Checks for existing coldkeypub and hotkeys, and creates them if non-existent.
+    ///     Arguments:
+    ///         coldkey_use_password (bool): Whether to use a password for coldkey. Defaults to ``True``.
+    ///         hotkey_use_password (bool): Whether to use a password for hotkey. Defaults to ``False``.
+    ///         save_coldkey_to_env (bool): Whether to save a coldkey password to local env. Defaults to ``False``.
+    ///         save_hotkey_to_env (bool): Whether to save a hotkey password to local env. Defaults to ``False``.
+    ///         coldkey_password (Optional[str]): Coldkey password for encryption. Defaults to ``None``. If `coldkey_password` is passed, then `coldkey_use_password` is automatically ``True``.
+    ///         hotkey_password (Optional[str]): Hotkey password for encryption. Defaults to ``None``. If `hotkey_password` is passed, then `hotkey_use_password` is automatically ``True``.
+    ///         overwrite (bool): Whether to overwrite an existing keys. Defaults to ``False``.
+    ///         suppress (bool): If ``True``, suppresses the display of the keys mnemonic message. Defaults to ``False``.
+    ///
+    ///     Returns:
+    ///         Wallet instance with created keys.
+
+    #[pyo3(signature = (coldkey_use_password=true, hotkey_use_password=false, save_coldkey_to_env=false, save_hotkey_to_env=false, coldkey_password=None, hotkey_password=None, overwrite=false, suppress=false))]
+    pub fn create(
+        &mut self,
+        coldkey_use_password: Option<bool>,
+        hotkey_use_password: Option<bool>,
+        save_coldkey_to_env: Option<bool>,
+        save_hotkey_to_env: Option<bool>,
+        coldkey_password: Option<String>,
+        hotkey_password: Option<String>,
+        overwrite: Option<bool>,
+        suppress: Option<bool>,
+    ) -> PyResult<Self> {
+        let result = self
+            .inner
+            .create(
                 coldkey_use_password.unwrap_or(true),
                 hotkey_use_password.unwrap_or(false),
                 save_coldkey_to_env.unwrap_or(false),
