@@ -65,8 +65,15 @@ jobs:
           source ${{ github.workspace }}/bittensor/.venv/bin/activate
           maturin develop
 
+      - name: Clone Subtensor repo
+        run: git clone https://github.com/opentensor/subtensor.git
+
+      - name: Checkout Subtensor `devnet-ready` repo
+        working-directory: ${{ github.workspace }}/subtensor
+        run: git checkout devnet-ready
+
       - name: Run tests
         working-directory: ${{ github.workspace }}/bittensor
         run: |
           source .venv/bin/activate
-          LOCALNET_SH_PATH="${{ github.workspace }}/scripts/localnet.sh" pytest tests -s
+          LOCALNET_SH_PATH="${{ github.workspace }}/subtensor/scripts/localnet.sh" pytest tests -s
