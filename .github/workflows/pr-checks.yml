@@ -5,6 +5,11 @@ concurrency:
   cancel-in-progress: true
 
 on:
+  push:
+    branches:
+      - master
+      - staging
+
   pull_request:
     branches:
       - master
@@ -14,6 +19,7 @@ on:
 jobs:
   check-labels:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     outputs:
         skip-tests: ${{ contains(github.event.pull_request.labels.*.name, 'skip-bittensor-tests') }}
         run-cli-tests: ${{ contains(github.event.pull_request.labels.*.name, 'run-bittensor-cli-tests') }}
@@ -53,11 +59,16 @@ jobs:
           components: rustfmt
           profile: minimal
 
-      - name: Create python env
-        working-directory: ${{ github.workspace }}
+      - name: Add wasm32-unknown-unknown target
         run: |
-          python3 -m venv venv
-          source venv/bin/activate
+          rustup target add wasm32-unknown-unknown --toolchain stable-x86_64-unknown-linux-gnu
+          rustup component add rust-src --toolchain stable-x86_64-unknown-linux-gnu
+
+#      - name: Create python env
+#        working-directory: ${{ github.workspace }}
+#        run: |
+#          python3 -m venv venv
+#          source venv/bin/activate
 
       - name: Clone Bittensor SDK repo
         working-directory: ${{ github.workspace }}
@@ -67,9 +78,9 @@ jobs:
         working-directory: ${{ github.workspace }}/bittensor
         run: |
           git checkout staging
-          source ${{ github.workspace }}/venv/bin/activate
-          python -m pip install --upgrade pip
-          python -m pip install '.[dev]'
+#          source ${{ github.workspace }}/venv/bin/activate
+          python3 -m pip install --upgrade pip
+          python3 -m pip install '.[dev]'
           pip install maturin
 
       - name: Clone bittensor-wallet repo
@@ -85,13 +96,20 @@ jobs:
       - name: Build and install Rust Bittensor Wallet package into python virtual environment
         working-directory: ${{ github.workspace }}/btwallet
         run: |
-          source ${{ github.workspace }}/venv/bin/activate
+#          source ${{ github.workspace }}/venv/bin/activate
           maturin develop
 
-      - name: Add wasm32-unknown-unknown target
+      - name: Run Bittensor SDK integration tests
+        working-directory: ${{ github.workspace }}/bittensor
         run: |
-          rustup target add wasm32-unknown-unknown --toolchain stable-x86_64-unknown-linux-gnu
-          rustup component add rust-src --toolchain stable-x86_64-unknown-linux-gnu
+#          source ${{ github.workspace }}/venv/bin/activate
+          python3 -m pytest tests/integration_tests -s
+
+      - name: Run Bittensor SDK unit tests
+        working-directory: ${{ github.workspace }}/bittensor
+        run: |
+#          source ${{ github.workspace }}/venv/bin/activate
+          python3 -m pytest tests/unit_tests -s
 
       - name: Clone Subtensor repo
         working-directory: ${{ github.workspace }}
@@ -101,8 +119,10 @@ jobs:
         working-directory: ${{ github.workspace }}/subtensor
         run: git checkout devnet-ready
 
-      - name: Run Bittensor SDK tests
+      - name: Run Bittensor SDK e2e tests
         working-directory: ${{ github.workspace }}/bittensor
         run: |
-          source ${{ github.workspace }}/venv/bin/activate
-          LOCALNET_SH_PATH="${{ github.workspace }}/subtensor/scripts/localnet.sh" pytest tests -s
+#          source ${{ github.workspace }}/venv/bin/activate
+          echo ">>> Files:"
+          ls "$GITHUB_WORKSPACE/subtensor"
+          LOCALNET_SH_PATH="${{ github.workspace }}/subtensor/scripts/localnet.sh" python3 -m pytest tests/e2e_tests -s
