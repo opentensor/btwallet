@@ -10,8 +10,8 @@ jobs:
   check-labels:
     runs-on: ubuntu-latest
     outputs:
-        skip-tests: ${{ env.skip-tests }}
-        run-sdk-tests: ${{ env.run-sdk-tests }}
+        skip-tests: ${{ steps.check-labels.outputs.skip-tests }}
+        run-sdk-tests: ${{ steps.check-labels.outputs.run-sdk-tests }}
 
     steps:
       - name: Check out repository
@@ -33,8 +33,10 @@ jobs:
 
           # Check for skip-bittensor-tests label
           if echo "$labels" | jq -e 'any(. == "skip-bittensor-tests")' > /dev/null; then
-            echo "skip-tests=true" >> $GITHUB_ENV
+            echo "skip-tests=true" >> $GITHUB_OUTPUT
             exit 0
+          else
+            echo "skip-tests=false" >> $GITHUB_OUTPUT
           fi
 
 #          # Check for run-bittensor-cli-tests label
@@ -46,9 +48,9 @@ jobs:
 
           # Check for run-bittensor-sdk-tests label
           if echo "$labels" | jq -e 'any(. == "run-bittensor-sdk-tests")' > /dev/null; then
-            echo "run-sdk-tests=true" >> $GITHUB_ENV
+            echo "run-sdk-tests=true" >> $GITHUB_OUTPUT
           else
-            echo "run-sdk-tests=false" >> $GITHUB_ENV
+            echo "run-sdk-tests=false" >> $GITHUB_OUTPUT
           fi
 
 #          # Fail if neither cli nor sdk tests are specified
