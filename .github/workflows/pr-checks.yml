@@ -24,13 +24,11 @@ jobs:
           labels=$(jq -r '.pull_request.labels[].name' "$GITHUB_EVENT_PATH" | jq -R -s -c 'split("\n") | map(select(. != ""))')
           echo "Labels: $labels"
           echo "LABELS=$labels" >> $GITHUB_ENV
-
       - name: Determine test strategy
         id: check-labels
         run: |
           labels=${{ env.LABELS }}
           echo "Labels: $labels"
-
           # Check for skip-bittensor-tests label
           if echo "$labels" | jq -e 'any(. == "skip-bittensor-tests")' > /dev/null; then
             echo "skip-tests=true" >> $GITHUB_OUTPUT
@@ -38,21 +36,18 @@ jobs:
           else
             echo "skip-tests=false" >> $GITHUB_OUTPUT
           fi
-
 #          # Check for run-bittensor-cli-tests label
 #          if echo "$labels" | jq -e 'any(. == "run-bittensor-cli-tests")' > /dev/null; then
 #            echo "::set-output name=run-cli-tests::true"
 #          else
 #            echo "::set-output name=run-cli-tests::false"
 #          fi
-
           # Check for run-bittensor-sdk-tests label
           if echo "$labels" | jq -e 'any(. == "run-bittensor-sdk-tests")' > /dev/null; then
             echo "run-sdk-tests=true" >> $GITHUB_OUTPUT
           else
             echo "run-sdk-tests=false" >> $GITHUB_OUTPUT
           fi
-
 #          # Fail if neither cli nor sdk tests are specified
 #          if ! echo "$labels" | jq -e 'any(. == "run-bittensor-cli-tests", . == "run-bittensor-sdk-tests")' > /dev/null; then
 #            echo "Error: Neither 'run-bittensor-cli-tests' nor 'run-bittensor-sdk-tests' label is present. 'skip-bittensor-tests' label need to specify if they are not added."
