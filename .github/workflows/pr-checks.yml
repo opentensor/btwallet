@@ -10,9 +10,9 @@ jobs:
   check-labels:
     runs-on: ubuntu-latest
     outputs:
-      skip-tests: ${{ steps.check-labels.outputs.skip-tests }}
-      run-cli-tests: ${{ steps.check-labels.outputs.run-cli-tests }}
-      run-sdk-tests: ${{ steps.check-labels.outputs.run-sdk-tests }}
+        skip-tests: ${{ env.skip-tests }}
+        run-sdk-tests: ${{ env.run-sdk-tests }}
+
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -33,7 +33,7 @@ jobs:
 
           # Check for skip-bittensor-tests label
           if echo "$labels" | jq -e 'any(. == "skip-bittensor-tests")' > /dev/null; then
-            echo "::set-output name=skip-tests::true"
+            echo "skip-tests=true" >> $GITHUB_ENV
             exit 0
           fi
 
