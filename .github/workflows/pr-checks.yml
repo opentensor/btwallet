@@ -11,23 +11,50 @@ on:
       - staging
     types: [opened, synchronize, reopened, labeled, unlabeled]
 
+env:
+  CARGO_TERM_COLOR: always
+  VERBOSE: ${{ github.event.inputs.verbose }}
+
 jobs:
   check-labels:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    if: ${{ github.event.pull_request.draft == false }}
     outputs:
         skip-tests: ${{ contains(github.event.pull_request.labels.*.name, 'skip-bittensor-tests') }}
         run-cli-tests: ${{ contains(github.event.pull_request.labels.*.name, 'run-bittensor-cli-tests') }}
         run-sdk-tests: ${{ contains(github.event.pull_request.labels.*.name, 'run-bittensor-sdk-tests') }}
+        test-files: ${{ steps.get-tests.outputs.test-files }}
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
 
-  run-sdk-tests:
-    needs: check-labels
-    if: needs.check-labels.outputs.run-sdk-tests == 'true'
+  find-tests:
     runs-on: ubuntu-latest
+    if: ${{ github.event.pull_request.draft == false }}
+    outputs:
+      test-files: ${{ steps.get-tests.outputs.test-files }}
+    steps:
+      - name: Find test files
+        id: get-tests
+        run: |
+          test_files=$(find tests/e2e_tests -name "test*.py" | jq -R -s -c 'split("\n") | map(select(. != ""))')
+          echo "::set-output name=test-files::$test_files"
+        shell: bash
+
+  run-sdk-tests:
+    needs:
+      - check-labels
+      - find-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        os:
+          - ubuntu-latest
+    if: needs.check-labels.outputs.run-sdk-tests == 'true'
     env:
       RELEASE_NAME: development
       RUSTV: stable
@@ -95,18 +122,6 @@ jobs:
           source ${{ github.workspace }}/venv/bin/activate
           maturin develop
 
-      - name: Run Bittensor SDK integration tests
-        working-directory: ${{ github.workspace }}/bittensor
-        run: |
-          source ${{ github.workspace }}/venv/bin/activate
-          python3 -m pytest tests/integration_tests -s
-
-      - name: Run Bittensor SDK unit tests
-        working-directory: ${{ github.workspace }}/bittensor
-        run: |
-          source ${{ github.workspace }}/venv/bin/activate
-          python3 -m pytest tests/unit_tests -s
-
       - name: Clone Subtensor repo
         working-directory: ${{ github.workspace }}
         run: git clone https://github.com/opentensor/subtensor.git
@@ -119,4 +134,16 @@ jobs:
         working-directory: ${{ github.workspace }}/bittensor
         run: |
           source ${{ github.workspace }}/venv/bin/activate
-          LOCALNET_SH_PATH="${{ github.workspace }}/subtensor/scripts/localnet.sh" python3 -m pytest tests/e2e_tests -s
+          LOCALNET_SH_PATH="${{ github.workspace }}/subtensor/scripts/localnet.sh" python3 -m pytest ${{ fromJson(needs.find-tests.outputs.test-files) }} -s
+
+      - name: Run Bittensor SDK integration tests
+        working-directory: ${{ github.workspace }}/bittensor
+        run: |
+          source ${{ github.workspace }}/venv/bin/activate
+          python3 -m pytest tests/integration_tests -s
+
+      - name: Run Bittensor SDK unit tests
+        working-directory: ${{ github.workspace }}/bittensor
+        run: |
+          source ${{ github.workspace }}/venv/bin/activate
+          python3 -m pytest tests/unit_tests -s
