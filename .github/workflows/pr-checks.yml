@@ -1,4 +1,9 @@
-name: PR Checks
+name: Bittensor Checks
+
+concurrency:
+  group: e2e-subtensor-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   pull_request:
     branches:
