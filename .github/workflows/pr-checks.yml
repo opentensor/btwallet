@@ -59,11 +59,11 @@ jobs:
           rustup target add wasm32-unknown-unknown --toolchain stable-x86_64-unknown-linux-gnu
           rustup component add rust-src --toolchain stable-x86_64-unknown-linux-gnu
 
-          #      - name: Create python env
-          #        working-directory: ${{ github.workspace }}
-          #        run: |
-          #          python3 -m venv venv
-          #          source venv/bin/activate
+      - name: Create python env
+        working-directory: ${{ github.workspace }}
+        run: |
+          python3 -m venv venv
+          source venv/bin/activate
 
       - name: Clone Bittensor SDK repo
         working-directory: ${{ github.workspace }}
@@ -73,7 +73,7 @@ jobs:
         working-directory: ${{ github.workspace }}/bittensor
         run: |
           git checkout staging
-          # source ${{ github.workspace }}/venv/bin/activate
+          source ${{ github.workspace }}/venv/bin/activate
           python3 -m pip install --upgrade pip
           python3 -m pip install '.[dev]'
           pip install maturin
@@ -92,19 +92,19 @@ jobs:
       - name: Build and install Rust Bittensor Wallet package into python virtual environment
         working-directory: ${{ github.workspace }}/btwallet
         run: |
-          # source ${{ github.workspace }}/venv/bin/activate
+          source ${{ github.workspace }}/venv/bin/activate
           maturin develop
 
       - name: Run Bittensor SDK integration tests
         working-directory: ${{ github.workspace }}/bittensor
         run: |
-          # source ${{ github.workspace }}/venv/bin/activate
+          source ${{ github.workspace }}/venv/bin/activate
           python3 -m pytest tests/integration_tests -s
 
       - name: Run Bittensor SDK unit tests
         working-directory: ${{ github.workspace }}/bittensor
         run: |
-          # source ${{ github.workspace }}/venv/bin/activate
+          source ${{ github.workspace }}/venv/bin/activate
           python3 -m pytest tests/unit_tests -s
 
       - name: Clone Subtensor repo
@@ -118,7 +118,7 @@ jobs:
       - name: Run Bittensor SDK e2e tests
         working-directory: ${{ github.workspace }}/bittensor
         run: |
-          # source ${{ github.workspace }}/venv/bin/activate
+          source ${{ github.workspace }}/venv/bin/activate
           echo ">>> Files:"
           ls "$GITHUB_WORKSPACE/subtensor"
           LOCALNET_SH_PATH="${{ github.workspace }}/subtensor/scripts/localnet.sh" python3 -m pytest tests/e2e_tests -s
