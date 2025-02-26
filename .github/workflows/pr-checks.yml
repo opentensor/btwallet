@@ -23,12 +23,12 @@ jobs:
           # Extract labels from the PR event payload
           labels=$(jq -r '.pull_request.labels[].name' "$GITHUB_EVENT_PATH" | jq -R -s -c 'split("\n") | map(select(. != ""))')
           echo "Labels: $labels"
-          echo "::set-output name=labels::$labels"
+          echo "LABELS=$labels" >> $GITHUB_ENV
 
       - name: Determine test strategy
         id: check-labels
         run: |
-          labels=${{ steps.get-labels.outputs.labels }}
+          labels=${{ env.LABELS }}
           echo "Labels: $labels"
 
           # Check for skip-bittensor-tests label
@@ -46,9 +46,9 @@ jobs:
 
           # Check for run-bittensor-sdk-tests label
           if echo "$labels" | jq -e 'any(. == "run-bittensor-sdk-tests")' > /dev/null; then
-            echo "::set-output name=run-sdk-tests::true"
+            echo "run-sdk-tests=true" >> $GITHUB_ENV
           else
-            echo "::set-output name=run-sdk-tests::false"
+            echo "run-sdk-tests=false" >> $GITHUB_ENV
           fi
 
 #          # Fail if neither cli nor sdk tests are specified
