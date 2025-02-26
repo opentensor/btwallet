@@ -119,6 +119,4 @@ jobs:
         working-directory: ${{ github.workspace }}/bittensor
         run: |
           source ${{ github.workspace }}/venv/bin/activate
-          echo ">>> Files:"
-          ls "$GITHUB_WORKSPACE/subtensor"
           LOCALNET_SH_PATH="${{ github.workspace }}/subtensor/scripts/localnet.sh" python3 -m pytest tests/e2e_tests -s
