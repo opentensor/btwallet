@@ -21,7 +21,7 @@ jobs:
   run-sdk-tests:
     needs: check-labels
     if: needs.check-labels.outputs.run-sdk-tests == 'true'
-    runs-on: Bittensor SDK tests
+    runs-on: ubuntu-latest
     env:
       RUST_BACKTRACE: full
     steps:
