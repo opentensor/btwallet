@@ -23,33 +23,44 @@ jobs:
     if: needs.check-labels.outputs.run-sdk-tests == 'true'
     runs-on: ubuntu-latest
     env:
+      RELEASE_NAME: development
+      RUSTV: stable
       RUST_BACKTRACE: full
+      RUST_BIN_DIR: target/x86_64-unknown-linux-gnu
+      TARGET: x86_64-unknown-linux-gnu
     steps:
-      - name: Check-out repository under $GITHUB_WORKSPACE
-        uses: actions/checkout@v4
+#      - name: Check-out repository under $GITHUB_WORKSPACE
+#        uses: actions/checkout@v4
+#
+#      - name: Utilize Shared Rust Cache
+#        uses: Swatinem/rust-cache@v2
+#
+#      - name: Install dependencies
+#        run: |
+#          sudo apt-get update &&
+#          sudo apt-get install -y clang curl libssl-dev llvm libudev-dev protobuf-compiler
 
-      - name: Utilize Shared Rust Cache
-        uses: Swatinem/rust-cache@v2
-
-      - name: Install dependencies
+      - name: Create python env
+        working-directory: ${{ github.workspace }}
         run: |
-          sudo apt-get update &&
-          sudo apt-get install -y clang curl libssl-dev llvm libudev-dev protobuf-compiler
+          python3 -m venv venv
+          source venv/bin/activate
 
-      - name: Clone bittensor repo
+      - name: Clone Bittensor SDK repo
+        working-directory: ${{ github.workspace }}
         run: git clone https://github.com/opentensor/bittensor.git
 
-      - name: Setup bittensor repo
+      - name: Setup Bittensor SDK repo
         working-directory: ${{ github.workspace }}/bittensor
         run: |
           git checkout staging
-          python3 -m venv .venv
-          source .venv/bin/activate
+          source ${{ github.workspace }}/venv/bin/activate
           python -m pip install --upgrade pip
           python -m pip install '.[dev]'
           pip install maturin
 
       - name: Clone bittensor-wallet repo
+        working-directory: ${{ github.workspace }}
         run: git clone https://github.com/opentensor/btwallet.git
 
       - name: Checkout PR branch
@@ -58,22 +69,27 @@ jobs:
           git checkout ${{ github.event.pull_request.head.ref }}
           echo "Current branch: $(git rev-parse --abbrev-ref HEAD)"
 
-      - name: Build and install Rust FFI package into bittensor python env
+      - name: Build and install Rust Bittensor Wallet package into python virtual environment
         working-directory: ${{ github.workspace }}/btwallet
         run: |
-          pwd
-          source ${{ github.workspace }}/bittensor/.venv/bin/activate
+          source ${{ github.workspace }}/venv/bin/activate
           maturin develop
 
+      - name: Add wasm32-unknown-unknown target
+        run: |
+          rustup target add wasm32-unknown-unknown --toolchain stable-x86_64-unknown-linux-gnu
+          rustup component add rust-src --toolchain stable-x86_64-unknown-linux-gnu
+
       - name: Clone Subtensor repo
+        working-directory: ${{ github.workspace }}
         run: git clone https://github.com/opentensor/subtensor.git
 
-      - name: Checkout Subtensor `devnet-ready` repo
+      - name: Checkout Subtensor repo to `devnet-ready` branch
         working-directory: ${{ github.workspace }}/subtensor
         run: git checkout devnet-ready
 
-      - name: Run tests
+      - name: Run Bittensor SDK tests
         working-directory: ${{ github.workspace }}/bittensor
         run: |
-          source .venv/bin/activate
+          source ${{ github.workspace }}/venv/bin/activate
           LOCALNET_SH_PATH="${{ github.workspace }}/subtensor/scripts/localnet.sh" pytest tests -s
