@@ -1,0 +1,111 @@
+name: PR Checks
+on:
+  pull_request:
+    branches:
+      - master
+      - staging
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+jobs:
+  check-labels:
+    runs-on: ubuntu-latest
+    outputs:
+      skip-tests: ${{ steps.check-labels.outputs.skip-tests }}
+      run-cli-tests: ${{ steps.check-labels.outputs.run-cli-tests }}
+      run-sdk-tests: ${{ steps.check-labels.outputs.run-sdk-tests }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Get PR labels
+        id: get-labels
+        run: |
+          # Extract labels from the PR event payload
+          labels=$(jq -r '.pull_request.labels[].name' "$GITHUB_EVENT_PATH" | jq -R -s -c 'split("\n") | map(select(. != ""))')
+          echo "Labels: $labels"
+          echo "::set-output name=labels::$labels"
+
+      - name: Determine test strategy
+        id: check-labels
+        run: |
+          labels=${{ steps.get-labels.outputs.labels }}
+          echo "Labels: $labels"
+
+          # Check for skip-bittensor-tests label
+          if echo "$labels" | jq -e 'any(. == "skip-bittensor-tests")' > /dev/null; then
+            echo "::set-output name=skip-tests::true"
+            exit 0
+          fi
+
+#          # Check for run-bittensor-cli-tests label
+#          if echo "$labels" | jq -e 'any(. == "run-bittensor-cli-tests")' > /dev/null; then
+#            echo "::set-output name=run-cli-tests::true"
+#          else
+#            echo "::set-output name=run-cli-tests::false"
+#          fi
+
+          # Check for run-bittensor-sdk-tests label
+          if echo "$labels" | jq -e 'any(. == "run-bittensor-sdk-tests")' > /dev/null; then
+            echo "::set-output name=run-sdk-tests::true"
+          else
+            echo "::set-output name=run-sdk-tests::false"
+          fi
+
+#          # Fail if neither cli nor sdk tests are specified
+#          if ! echo "$labels" | jq -e 'any(. == "run-bittensor-cli-tests", . == "run-bittensor-sdk-tests")' > /dev/null; then
+#            echo "Error: Neither 'run-bittensor-cli-tests' nor 'run-bittensor-sdk-tests' label is present. 'skip-bittensor-tests' label need to specify if they are not added."
+#            exit 1
+#          fi
+
+  run-sdk-tests:
+    needs: check-labels
+    if: needs.check-labels.outputs.run-sdk-tests == 'true'
+    runs-on: Bittensor SDK tests
+    env:
+      RUST_BACKTRACE: full
+    steps:
+      - name: Check-out repository under $GITHUB_WORKSPACE
+        uses: actions/checkout@v4
+
+      - name: Utilize Shared Rust Cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update &&
+          sudo apt-get install -y clang curl libssl-dev llvm libudev-dev protobuf-compiler
+
+      - name: Clone bittensor repo
+        run: git clone https://github.com/opentensor/bittensor.git
+
+      - name: Setup bittensor repo
+        working-directory: ${{ github.workspace }}/bittensor
+        run: |
+          git checkout staging
+          python3 -m venv .venv
+          source .venv/bin/activate
+          python -m pip install --upgrade pip
+          python -m pip install '.[dev]'
+          pip install maturin
+
+      - name: Clone bittensor-wallet repo
+        run: git clone https://github.com/opentensor/btwallet.git
+
+      - name: Checkout PR branch
+        working-directory: ${{ github.workspace }}/btwallet
+        run: |
+          git checkout ${{ github.event.pull_request.head.ref }}
+          echo "Current branch: $(git rev-parse --abbrev-ref HEAD)"
+
+      - name: Build and install Rust FFI package into bittensor python env
+        working-directory: ${{ github.workspace }}/btwallet
+        run: |
+          pwd
+          source ./../bittensor/venv/bin/activate
+          maturin develop
+
+      - name: Run tests
+        working-directory: ${{ github.workspace }}/bittensor
+        run: |
+          source .venv/bin/activate
+          LOCALNET_SH_PATH="${{ github.workspace }}/scripts/localnet.sh" pytest tests -s
