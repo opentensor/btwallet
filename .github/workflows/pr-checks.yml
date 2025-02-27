@@ -32,13 +32,15 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ github.event_name == 'pull_request' && github.event.pull_request.draft == false && needs.check-labels.outputs.run-sdk-tests == 'true' }}
     timeout-minutes: 60
+    outputs:
+      test-files: ${{ steps.find-tests.outputs.test-files }}
     strategy:
       fail-fast: false
       max-parallel: 8
       matrix:
         os:
           - ubuntu-latest
-        test_file: ${{ fromJson(env.TEST_FILES) }}
+        test_file: ${{ fromJson(steps.find-tests.outputs.test-files) }}
     env:
       RELEASE_NAME: development
       RUSTV: stable
@@ -85,9 +87,10 @@ jobs:
 
       - name: Find e2e test files
         working-directory: ${{ github.workspace }}/bittensor
+        id: find-tests
         run: |
           test_files=$(find tests/e2e_tests -name "test_*.py" | jq -R -s -c 'split("\n")[:-1]')
-          echo "TEST_FILES=$test_files" >> $GITHUB_ENV
+          echo "test-files=$test_files" >> $GITHUB_OUTPUT
 
       - name: Clone bittensor-wallet repo
         working-directory: ${{ github.workspace }}
