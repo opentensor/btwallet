@@ -68,11 +68,6 @@ jobs:
           rustup target add wasm32-unknown-unknown --toolchain stable-x86_64-unknown-linux-gnu
           rustup component add rust-src --toolchain stable-x86_64-unknown-linux-gnu
 
-      - name: Create python env
-        working-directory: ${{ github.workspace }}
-        run: |
-          python3 -m venv venv
-
       - name: Clone bittensor-wallet repo
         working-directory: ${{ github.workspace }}
         run: git clone https://github.com/opentensor/btwallet.git
@@ -122,6 +117,10 @@ jobs:
     outputs:
       test-files: ${{ steps.find-tests.outputs.test-files }}
     steps:
+      - name: Create python env
+        working-directory: ${{ github.workspace }}
+        run: python3 -m venv venv
+
       - name: Clone Bittensor SDK repo
         working-directory: ${{ github.workspace }}
         run: git clone https://github.com/opentensor/bittensor.git
