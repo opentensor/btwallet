@@ -29,45 +29,9 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-  find-e2e-tests:
-    runs-on: ubuntu-latest
-    outputs:
-      test-files: ${{ steps.find-tests.outputs.test-files }}
-    steps:
-      - name: Create python env
-        working-directory: ${{ github.workspace }}
-        run: python3 -m venv venv
-
-      - name: Clone Bittensor SDK repo
-        working-directory: ${{ github.workspace }}
-        run: git clone https://github.com/opentensor/bittensor.git
-
-      - name: Setup Bittensor SDK from cloned repo
-        working-directory: ${{ github.workspace }}/bittensor
-        run: |
-          source ${{ github.workspace }}/venv/bin/activate
-          git checkout staging
-          python3 -m pip install --upgrade pip
-          python3 -m pip install '.[dev]'
-          pip install maturin
-
-      - name: Debug workspace contents
-        run: ls -lah ${{ github.workspace }}
-
-      - name: Find e2e test files
-        working-directory: ${{ github.workspace }}/bittensor
-        id: find-tests
-        run: |
-          test_files=$(find tests/e2e_tests -name "test_*.py" | jq -R -s -c 'split("\n")[:-1]')
-          echo "test-files=$test_files" >> $GITHUB_ENV
-          echo "::set-output name=test-files::$test_files"
-
-
-
   run-sdk-tests:
     needs:
       - check-labels
-      - find-e2e-tests
     runs-on: ubuntu-latest
     if: ${{ github.event_name == 'pull_request' && github.event.pull_request.draft == false && needs.check-labels.outputs.run-sdk-tests == 'true' }}
     timeout-minutes: 60
@@ -83,6 +47,8 @@ jobs:
       RUST_BACKTRACE: full
       RUST_BIN_DIR: target/x86_64-unknown-linux-gnu
       TARGET: x86_64-unknown-linux-gnu
+    outputs:
+      test-files: ${{ steps.find-tests.outputs.test-files }}
     steps:
       - name: Check-out repository under $GITHUB_WORKSPACE
         uses: actions/checkout@v4
@@ -103,6 +69,31 @@ jobs:
         run: |
           rustup target add wasm32-unknown-unknown --toolchain stable-x86_64-unknown-linux-gnu
           rustup component add rust-src --toolchain stable-x86_64-unknown-linux-gnu
+
+      - name: Create python env
+        working-directory: ${{ github.workspace }}
+        run: python3 -m venv venv
+
+      - name: Clone Bittensor SDK repo
+        working-directory: ${{ github.workspace }}
+        run: git clone https://github.com/opentensor/bittensor.git
+
+      - name: Setup Bittensor SDK from cloned repo
+        working-directory: ${{ github.workspace }}/bittensor
+        run: |
+          source ${{ github.workspace }}/venv/bin/activate
+          git checkout staging
+          python3 -m pip install --upgrade pip
+          python3 -m pip install '.[dev]'
+          pip install maturin
+
+      - name: Find e2e test files
+        working-directory: ${{ github.workspace }}/bittensor
+        id: find-tests
+        run: |
+          test_files=$(find tests/e2e_tests -name "test_*.py" | jq -R -s -c 'split("\n")[:-1]')
+          echo "test-files=$test_files" >> $GITHUB_ENV
+          echo "::set-output name=test-files::$test_files"
 
       - name: Clone bittensor-wallet repo
         working-directory: ${{ github.workspace }}
