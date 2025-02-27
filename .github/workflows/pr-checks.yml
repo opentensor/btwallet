@@ -23,15 +23,12 @@ jobs:
         skip-tests: ${{ contains(github.event.pull_request.labels.*.name, 'skip-bittensor-tests') }}
         run-cli-tests: ${{ contains(github.event.pull_request.labels.*.name, 'run-bittensor-cli-tests') }}
         run-sdk-tests: ${{ contains(github.event.pull_request.labels.*.name, 'run-bittensor-sdk-tests') }}
-        test-files: ${{ steps.get-tests.outputs.test-files }}
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
 
   run-sdk-tests:
-    needs:
-      - check-labels
     runs-on: ubuntu-latest
     if: ${{ github.event_name == 'pull_request' && github.event.pull_request.draft == false && needs.check-labels.outputs.run-sdk-tests == 'true' }}
     timeout-minutes: 60
@@ -41,15 +38,13 @@ jobs:
       matrix:
         os:
           - ubuntu-latest
-        test_file: ${{ fromJson(needs.find-e2e-tests.outputs.test-files) }}
+        test_file: ${{ fromJson(env.TEST_FILES) }}
     env:
       RELEASE_NAME: development
       RUSTV: stable
       RUST_BACKTRACE: full
       RUST_BIN_DIR: target/x86_64-unknown-linux-gnu
       TARGET: x86_64-unknown-linux-gnu
-    outputs:
-      test-files: ${{ steps.find-tests.outputs.test-files }}
     steps:
       - name: Check-out repository under $GITHUB_WORKSPACE
         uses: actions/checkout@v4
@@ -90,11 +85,9 @@ jobs:
 
       - name: Find e2e test files
         working-directory: ${{ github.workspace }}/bittensor
-        id: find-tests
         run: |
           test_files=$(find tests/e2e_tests -name "test_*.py" | jq -R -s -c 'split("\n")[:-1]')
-          echo "test-files=$test_files" >> $GITHUB_ENV
-          echo "::set-output name=test-files::$test_files"
+          echo "TEST_FILES=$test_files" >> $GITHUB_ENV
 
       - name: Clone bittensor-wallet repo
         working-directory: ${{ github.workspace }}
@@ -120,9 +113,6 @@ jobs:
       - name: Checkout Subtensor repo to `devnet-ready` branch
         working-directory: ${{ github.workspace }}/subtensor
         run: git checkout devnet-ready
-
-      - name: Check-out repository under $GITHUB_WORKSPACE
-        uses: actions/checkout@v4
 
       - name: Run Bittensor SDK e2e test - ${{ matrix.test_file }}
         working-directory: ${{ github.workspace }}/bittensor
