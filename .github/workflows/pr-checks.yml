@@ -101,7 +101,7 @@ jobs:
           
           if [ -f "$LOCALNET_SH" ]; then
             export LOCALNET_SH_PATH="$LOCALNET_SH"
-            
+            ls -lash
             TESTS=$(find tests/e2e_tests -name "test_*.py" | tr '\n' ' ')
             
             if [ -z "$TESTS" ]; then
