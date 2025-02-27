@@ -86,12 +86,37 @@ jobs:
           python3 -m pip install '.[dev]'
           pip install maturin
 
+      - name: Clone bittensor-wallet repo
+        working-directory: ${{ github.workspace }}
+        run: git clone https://github.com/opentensor/btwallet.git
+
+      - name: Checkout PR branch
+        working-directory: ${{ github.workspace }}/btwallet
+        run: |
+          git fetch origin ${{ github.event.pull_request.head.ref }}
+          git checkout ${{ github.event.pull_request.head.ref }}
+          echo "Current branch: $(git rev-parse --abbrev-ref HEAD)"
+
+      - name: Build and install Rust Bittensor Wallet package into python virtual environment
+        working-directory: ${{ github.workspace }}/btwallet
+        run: |
+          source ${{ github.workspace }}/venv/bin/activate
+          maturin develop
+
       - name: Find e2e test files
         id: find-e2e-tests
         working-directory: ${{ github.workspace }}/bittensor
         run: |
           test_files=$(find e2e_tests -name "test_*.py" | tr '\n' ' ')
           echo "::set-output name=test-files::$test_files"
+
+      - name: Clone Subtensor repo
+        working-directory: ${{ github.workspace }}
+        run: git clone https://github.com/opentensor/subtensor.git
+
+      - name: Checkout Subtensor repo to `devnet-ready` branch
+        working-directory: ${{ github.workspace }}/subtensor
+        run: git checkout devnet-ready
 
       - name: Run Bittensor SDK e2e tests
         working-directory: ${{ github.workspace }}/bittensor
@@ -104,3 +129,15 @@ jobs:
             echo "Error: localnet.sh not found"
             exit 1
           fi
+
+      - name: Run Bittensor SDK integration tests
+        working-directory: ${{ github.workspace }}/bittensor
+        run: |
+          source ${{ github.workspace }}/venv/bin/activate
+          python3 -m pytest tests/integration_tests -s
+
+      - name: Run Bittensor SDK unit tests
+        working-directory: ${{ github.workspace }}/bittensor
+        run: |
+          source ${{ github.workspace }}/venv/bin/activate
+          python3 -m pytest tests/unit_tests -s
