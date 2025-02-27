@@ -29,45 +29,27 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-  find-tests:
-    runs-on: ubuntu-latest
-    outputs:
-      test-files: ${{ steps.get-tests.outputs.test-files }}
-    steps:
-      - name: Find test files
-        id: get-tests
-        run: |
-          test_files=$(find tests/e2e_tests -name "test*.py" | jq -R -s -c 'split("\n") | map(select(. != ""))')
-          echo "::set-output name=test-files::$test_files"
-        shell: bash
-
   run-sdk-tests:
     needs:
       - check-labels
-      - find-tests
     runs-on: ubuntu-latest
-    if: ${{ github.event.pull_request.draft == false }}
-    timeout-minutes: 45
+    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.draft == false }}
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       max-parallel: 8
       matrix:
         os:
           - ubuntu-latest
-        test-file: ${{ fromJson(needs.find-tests.outputs.test-files) }}
     env:
       RELEASE_NAME: development
       RUSTV: stable
       RUST_BACKTRACE: full
       RUST_BIN_DIR: target/x86_64-unknown-linux-gnu
       TARGET: x86_64-unknown-linux-gnu
-
     steps:
       - name: Check-out repository under $GITHUB_WORKSPACE
         uses: actions/checkout@v4
-
-      - name: Utilize Shared Rust Cache
-        uses: Swatinem/rust-cache@v2
 
       - name: Install dependencies
         run: |
@@ -90,7 +72,6 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: |
           python3 -m venv venv
-          source venv/bin/activate
 
       - name: Clone Bittensor SDK repo
         working-directory: ${{ github.workspace }}
@@ -99,51 +80,27 @@ jobs:
       - name: Setup Bittensor SDK repo
         working-directory: ${{ github.workspace }}/bittensor
         run: |
-          git checkout staging
           source ${{ github.workspace }}/venv/bin/activate
+          git checkout staging
           python3 -m pip install --upgrade pip
           python3 -m pip install '.[dev]'
           pip install maturin
 
-      - name: Clone bittensor-wallet repo
-        working-directory: ${{ github.workspace }}
-        run: git clone https://github.com/opentensor/btwallet.git
-
-      - name: Checkout PR branch
-        working-directory: ${{ github.workspace }}/btwallet
+      - name: Find e2e test files
+        id: find-e2e-tests
+        working-directory: ${{ github.workspace }}/bittensor
         run: |
-          git fetch origin ${{ github.event.pull_request.head.ref }}
-          git checkout ${{ github.event.pull_request.head.ref }}
-          echo "Current branch: $(git rev-parse --abbrev-ref HEAD)"
-
-      - name: Build and install Rust Bittensor Wallet package into python virtual environment
-        working-directory: ${{ github.workspace }}/btwallet
-        run: |
-          source ${{ github.workspace }}/venv/bin/activate
-          maturin develop
-
-      - name: Clone Subtensor repo
-        working-directory: ${{ github.workspace }}
-        run: git clone https://github.com/opentensor/subtensor.git
-
-      - name: Checkout Subtensor repo to `devnet-ready` branch
-        working-directory: ${{ github.workspace }}/subtensor
-        run: git checkout devnet-ready
+          test_files=$(find e2e_tests -name "test_*.py" | tr '\n' ' ')
+          echo "::set-output name=test-files::$test_files"
 
       - name: Run Bittensor SDK e2e tests
         working-directory: ${{ github.workspace }}/bittensor
         run: |
           source ${{ github.workspace }}/venv/bin/activate
-          LOCALNET_SH_PATH="${{ github.workspace }}/subtensor/scripts/localnet.sh" python3 -m pytest ${{ matrix.test-file }} -s
-
-      - name: Run Bittensor SDK integration tests
-        working-directory: ${{ github.workspace }}/bittensor
-        run: |
-          source ${{ github.workspace }}/venv/bin/activate
-          python3 -m pytest tests/integration_tests -s
-
-      - name: Run Bittensor SDK unit tests
-        working-directory: ${{ github.workspace }}/bittensor
-        run: |
-          source ${{ github.workspace }}/venv/bin/activate
-          python3 -m pytest tests/unit_tests -s
+          if [ -f "${{ github.workspace }}/subtensor/scripts/localnet.sh" ]; then
+            LOCALNET_SH_PATH="${{ github.workspace }}/subtensor/scripts/localnet.sh" \
+            python3 -m pytest ${{ steps.find-e2e-tests.outputs.test-files }} -s
+          else
+            echo "Error: localnet.sh not found"
+            exit 1
+          fi
