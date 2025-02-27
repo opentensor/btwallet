@@ -54,6 +54,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Debug workspace contents
+        run: ls -lah ${{ github.workspace }}
+
       - name: Find e2e test files
         working-directory: ${{ github.workspace }}/bittensor
         id: find-tests
