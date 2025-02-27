@@ -1,7 +1,7 @@
 name: Bittensor Checks
 
 concurrency:
-  group: e2e-subtensor-${{ github.ref }}
+  group: e2e-sdk-${{ github.ref }}
   cancel-in-progress: true
 
 on:
