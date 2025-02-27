@@ -31,7 +31,6 @@ jobs:
 
   find-tests:
     runs-on: ubuntu-latest
-    if: ${{ github.event.pull_request.draft == false }}
     outputs:
       test-files: ${{ steps.get-tests.outputs.test-files }}
     steps:
@@ -47,6 +46,7 @@ jobs:
       - check-labels
       - find-tests
     runs-on: ubuntu-latest
+    if: ${{ github.event.pull_request.draft == false }}
     timeout-minutes: 45
     strategy:
       fail-fast: false
@@ -54,7 +54,7 @@ jobs:
       matrix:
         os:
           - ubuntu-latest
-    if: needs.check-labels.outputs.run-sdk-tests == 'true'
+        test-file: ${{ fromJson(needs.find-tests.outputs.test-files) }}
     env:
       RELEASE_NAME: development
       RUSTV: stable
@@ -134,7 +134,7 @@ jobs:
         working-directory: ${{ github.workspace }}/bittensor
         run: |
           source ${{ github.workspace }}/venv/bin/activate
-          LOCALNET_SH_PATH="${{ github.workspace }}/subtensor/scripts/localnet.sh" python3 -m pytest ${{ fromJson(needs.find-tests.outputs.test-files) }} -s
+          LOCALNET_SH_PATH="${{ github.workspace }}/subtensor/scripts/localnet.sh" python3 -m pytest ${{ matrix.test-file }} -s
 
       - name: Run Bittensor SDK integration tests
         working-directory: ${{ github.workspace }}/bittensor
