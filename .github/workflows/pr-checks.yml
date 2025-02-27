@@ -73,19 +73,6 @@ jobs:
         run: |
           python3 -m venv venv
 
-      - name: Clone Bittensor SDK repo
-        working-directory: ${{ github.workspace }}
-        run: git clone https://github.com/opentensor/bittensor.git
-
-      - name: Setup Bittensor SDK from cloned repo
-        working-directory: ${{ github.workspace }}/bittensor
-        run: |
-          source ${{ github.workspace }}/venv/bin/activate
-          git checkout staging
-          python3 -m pip install --upgrade pip
-          python3 -m pip install '.[dev]'
-          pip install maturin
-
       - name: Clone bittensor-wallet repo
         working-directory: ${{ github.workspace }}
         run: git clone https://github.com/opentensor/btwallet.git
@@ -135,6 +122,19 @@ jobs:
     outputs:
       test-files: ${{ steps.find-tests.outputs.test-files }}
     steps:
+      - name: Clone Bittensor SDK repo
+        working-directory: ${{ github.workspace }}
+        run: git clone https://github.com/opentensor/bittensor.git
+
+      - name: Setup Bittensor SDK from cloned repo
+        working-directory: ${{ github.workspace }}/bittensor
+        run: |
+          source ${{ github.workspace }}/venv/bin/activate
+          git checkout staging
+          python3 -m pip install --upgrade pip
+          python3 -m pip install '.[dev]'
+          pip install maturin
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
