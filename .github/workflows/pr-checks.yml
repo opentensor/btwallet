@@ -77,7 +77,7 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: git clone https://github.com/opentensor/bittensor.git
 
-      - name: Setup Bittensor SDK repo
+      - name: Setup Bittensor SDK from cloned repo
         working-directory: ${{ github.workspace }}/bittensor
         run: |
           source ${{ github.workspace }}/venv/bin/activate
@@ -107,7 +107,7 @@ jobs:
         id: find-e2e-tests
         working-directory: ${{ github.workspace }}/bittensor
         run: |
-          test_files=$(find e2e_tests -name "test_*.py" | tr '\n' ' ')
+          test_files=$(find tests/e2e_tests -name "test_*.py" | tr '\n' ' ')
           echo "::set-output name=test-files::$test_files"
 
       - name: Clone Subtensor repo
