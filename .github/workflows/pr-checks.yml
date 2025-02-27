@@ -32,21 +32,6 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ github.event_name == 'pull_request' && github.event.pull_request.draft == false && needs.check-labels.outputs.run-sdk-tests == 'true' }}
     timeout-minutes: 60
-    outputs:
-      test-files: ${{ steps.find-tests.outputs.test-files }}
-    strategy:
-      fail-fast: false
-      max-parallel: 8
-      matrix:
-        os:
-          - ubuntu-latest
-        test_file: ${{ fromJson(steps.find-tests.outputs.test-files) }}
-    env:
-      RELEASE_NAME: development
-      RUSTV: stable
-      RUST_BACKTRACE: full
-      RUST_BIN_DIR: target/x86_64-unknown-linux-gnu
-      TARGET: x86_64-unknown-linux-gnu
     steps:
       - name: Check-out repository under $GITHUB_WORKSPACE
         uses: actions/checkout@v4
@@ -85,13 +70,6 @@ jobs:
           python3 -m pip install '.[dev]'
           pip install maturin
 
-      - name: Find e2e test files
-        working-directory: ${{ github.workspace }}/bittensor
-        id: find-tests
-        run: |
-          test_files=$(find tests/e2e_tests -name "test_*.py" | jq -R -s -c 'split("\n")[:-1]')
-          echo "test-files=$test_files" >> $GITHUB_OUTPUT
-
       - name: Clone bittensor-wallet repo
         working-directory: ${{ github.workspace }}
         run: git clone https://github.com/opentensor/btwallet.git
@@ -109,18 +87,34 @@ jobs:
           source ${{ github.workspace }}/venv/bin/activate
           maturin develop
 
-      - name: Clone Subtensor repo
-        working-directory: ${{ github.workspace }}
-        run: git clone https://github.com/opentensor/subtensor.git
+      - name: Save Python virtual environment
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-venv
+          path: venv
 
-      - name: Checkout Subtensor repo to `devnet-ready` branch
-        working-directory: ${{ github.workspace }}/subtensor
-        run: git checkout devnet-ready
+  run-e2e-tests:
+    needs: run-sdk-tests
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.draft == false }}
+    strategy:
+      fail-fast: false
+      matrix:
+        test_file: ${{ fromJson(needs.run-sdk-tests.outputs.test-files) }}
+    steps:
+      - name: Check-out repository
+        uses: actions/checkout@v4
+
+      - name: Restore Python virtual environment
+        uses: actions/download-artifact@v4
+        with:
+          name: python-venv
+          path: venv
 
       - name: Run Bittensor SDK e2e test - ${{ matrix.test_file }}
         working-directory: ${{ github.workspace }}/bittensor
         run: |
-          source ${{ github.workspace }}/venv/bin/activate
+          source venv/bin/activate
           if [ -f "${{ github.workspace }}/subtensor/scripts/localnet.sh" ]; then
             LOCALNET_SH_PATH="${{ github.workspace }}/subtensor/scripts/localnet.sh" \
             python3 -m pytest ${{ matrix.test_file }} -s
