@@ -20,21 +20,20 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ github.event.pull_request.draft == false }}
     outputs:
-        skip-tests: ${{ contains(github.event.pull_request.labels.*.name, 'skip-bittensor-tests') }}
-        run-cli-tests: ${{ contains(github.event.pull_request.labels.*.name, 'run-bittensor-cli-tests') }}
-        run-sdk-tests: ${{ contains(github.event.pull_request.labels.*.name, 'run-bittensor-sdk-tests') }}
-
+      skip-tests: ${{ contains(github.event.pull_request.labels.*.name, 'skip-bittensor-tests') }}
+      run-cli-tests: ${{ contains(github.event.pull_request.labels.*.name, 'run-bittensor-cli-tests') }}
+      run-sdk-tests: ${{ contains(github.event.pull_request.labels.*.name, 'run-bittensor-sdk-tests') }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
 
-  run-sdk-tests:
+  run-tests:
     needs: check-labels
     runs-on: ubuntu-latest
     if: ${{ github.event_name == 'pull_request' && github.event.pull_request.draft == false && needs.check-labels.outputs.run-sdk-tests == 'true' }}
     timeout-minutes: 60
     steps:
-      - name: Check-out repository under $GITHUB_WORKSPACE
+      - name: Check-out repository
         uses: actions/checkout@v4
 
       - name: Install dependencies
@@ -54,54 +53,62 @@ jobs:
           rustup target add wasm32-unknown-unknown --toolchain stable-x86_64-unknown-linux-gnu
           rustup component add rust-src --toolchain stable-x86_64-unknown-linux-gnu
 
-      - name: Create python env
-        working-directory: ${{ github.workspace }}
+      - name: Create Python virtual environment
         run: python3 -m venv venv
 
       - name: Clone Bittensor SDK repo
-        working-directory: ${{ github.workspace }}
         run: git clone https://github.com/opentensor/bittensor.git
 
       - name: Setup Bittensor SDK from cloned repo
-        working-directory: ${{ github.workspace }}/bittensor
+        working-directory: bittensor
         run: |
-          source ${{ github.workspace }}/venv/bin/activate
+          source ../venv/bin/activate
           git checkout staging
           python3 -m pip install --upgrade pip
           python3 -m pip install '.[dev]'
           pip install maturin
 
-      - name: Clone bittensor-wallet repo
-        working-directory: ${{ github.workspace }}
+      - name: Clone Bittensor Wallet repo
         run: git clone https://github.com/opentensor/btwallet.git
 
-      - name: Checkout PR branch
-        working-directory: ${{ github.workspace }}/btwallet
+      - name: Checkout PR branch in Wallet repo
+        working-directory: btwallet
         run: |
           git fetch origin ${{ github.event.pull_request.head.ref }}
           git checkout ${{ github.event.pull_request.head.ref }}
           echo "Current branch: $(git rev-parse --abbrev-ref HEAD)"
 
-      - name: Build and install Rust Bittensor Wallet package into python virtual environment
-        working-directory: ${{ github.workspace }}/btwallet
+      - name: Build and install Rust Bittensor Wallet package
+        working-directory: btwallet
         run: |
-          source ${{ github.workspace }}/venv/bin/activate
+          source ../venv/bin/activate
           maturin develop
 
-      - name: Save Python virtual environment
-        uses: actions/upload-artifact@v4
-        with:
-          name: python-venv
-          path: venv
+      - name: Clone Subtensor repo
+        run: git clone https://github.com/opentensor/subtensor.git
+
+      - name: Checkout Subtensor repo to `devnet-ready` branch
+        working-directory: subtensor
+        run: git checkout devnet-ready
+
+      - name: Find e2e test files
+        working-directory: bittensor
+        id: find-tests
+        run: |
+          test_files=$(find tests/e2e_tests -name "test_*.py" | jq -R -s -c 'split("\n")[:-1]')
+          echo "TEST_FILES=$test_files" >> $GITHUB_ENV
+          echo "matrix=$(jq -n --argjson files "$test_files" '{include: [$files[] | {test_file: .}]}')" >> $GITHUB_ENV
+
+    outputs:
+      matrix: ${{ env.matrix }}
 
   run-e2e-tests:
-    needs: run-sdk-tests
+    needs: run-tests
     runs-on: ubuntu-latest
     if: ${{ github.event_name == 'pull_request' && github.event.pull_request.draft == false }}
     strategy:
       fail-fast: false
-      matrix:
-        test_file: ${{ fromJson(needs.run-sdk-tests.outputs.test-files) }}
+      matrix: ${{ fromJson(needs.run-tests.outputs.matrix) }}
     steps:
       - name: Check-out repository
         uses: actions/checkout@v4
@@ -113,11 +120,11 @@ jobs:
           path: venv
 
       - name: Run Bittensor SDK e2e test - ${{ matrix.test_file }}
-        working-directory: ${{ github.workspace }}/bittensor
+        working-directory: bittensor
         run: |
-          source venv/bin/activate
-          if [ -f "${{ github.workspace }}/subtensor/scripts/localnet.sh" ]; then
-            LOCALNET_SH_PATH="${{ github.workspace }}/subtensor/scripts/localnet.sh" \
+          source ../venv/bin/activate
+          if [ -f "../subtensor/scripts/localnet.sh" ]; then
+            LOCALNET_SH_PATH="../subtensor/scripts/localnet.sh" \
             python3 -m pytest ${{ matrix.test_file }} -s
           else
             echo "Error: localnet.sh not found"
