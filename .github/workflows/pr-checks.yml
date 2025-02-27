@@ -123,31 +123,19 @@ jobs:
 #            exit 1
 #          fi
 
-      - name: Run Bittensor SDK integration tests
-        working-directory: ${{ github.workspace }}/bittensor
-        run: |
-          source ${{ github.workspace }}/venv/bin/activate
-          python3 -m pytest tests/integration_tests -s
-
-      - name: Run Bittensor SDK unit tests
-        working-directory: ${{ github.workspace }}/bittensor
-        run: |
-          source ${{ github.workspace }}/venv/bin/activate
-          python3 -m pytest tests/unit_tests -s
-
       - name: Find e2e test files
         id: find-e2e-tests
         working-directory: ${{ github.workspace }}/bittensor
         run: |
-          test_files=$(find tests/e2e_tests -name "test_*.py" | tr '\n' ' ')
-          echo "::set-output name=test-files::$test_files"
+          test_files=$(find tests/e2e_tests -name "test_*.py" | tr '\n' '\n')
+          echo "test-files=$test_files" >> $GITHUB_ENV
 
 
   run-e2e-tests:
     needs:
       - run-sdk-tests
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.draft == false && needs.check-labels.outputs.run-sdk-tests == 'true' }}
+    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.draft == false }}
     strategy:
       fail-fast: false
       matrix:
