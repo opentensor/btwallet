@@ -51,9 +51,6 @@ jobs:
           python3 -m pip install '.[dev]'
           pip install maturin
 
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
       - name: Debug workspace contents
         run: ls -lah ${{ github.workspace }}
 
