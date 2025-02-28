@@ -130,6 +130,10 @@ jobs:
         working-directory: ${{ github.workspace }}/subtensor
         run: git checkout devnet-ready
 
+      - name: Pre-compiling Subtensor node before tests
+        working-directory: ${{ github.workspace }}/subtensor
+        run: ${{ github.workspace }}/subtensor/scripts/localnet.sh
+
       - name: Run Bittensor SDK e2e test
         run: |
           source ${{ github.workspace }}/venv/bin/activate
