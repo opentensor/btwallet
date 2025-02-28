@@ -64,7 +64,7 @@ jobs:
           - x86_64-unknown-linux-gnu
         os:
           - ubuntu-latest
-        test-file: ${{ fromJson(needs.find-tests.outputs.test-files) }}
+        test-file: ${{ fromJson(needs.find-e2e-tests.outputs.test-files) }}
     timeout-minutes: 60
     steps:
       - name: Check-out repository
