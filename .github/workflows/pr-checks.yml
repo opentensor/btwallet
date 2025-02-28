@@ -44,6 +44,7 @@ jobs:
         run: |
           test_files=$(find ${{ github.workspace }}/bittensor/tests/e2e_tests -name "test*.py" | sed 's/^/"/;s/$/"/' | tr '\n' ',' | sed 's/,$//')
           echo "test-files=[$test_files]" >> $GITHUB_OUTPUT
+          echo $test-files
         shell: bash
 
   run-tests:
