@@ -43,7 +43,10 @@ jobs:
         id: get-tests
         run: |
           test_files=$(find ${{ github.workspace }}/bittensor/tests/e2e_tests -name "test*.py" | jq -R -s -c 'split("\n") | map(select(. != ""))')
-          echo "::set-output name=test-files::$test_files"
+          if [ -z "$test_files" ]; then
+            test_files="[]"
+          fi
+          echo "test-files=$test_files" >> $GITHUB_ENV
         shell: bash
 
   run-tests:
@@ -55,7 +58,7 @@ jobs:
       matrix:
         os:
           - ubuntu-latest
-        test-file: ${{ fromJson(needs.find-tests.outputs.test-files) }}
+        test-file: ${{ fromJson(env.test-files) }}
     if: ${{ github.event_name == 'pull_request' && github.event.pull_request.draft == false && needs.check-labels.outputs.run-sdk-tests == 'true' }}
     timeout-minutes: 60
     steps:
