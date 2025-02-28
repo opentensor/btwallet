@@ -67,6 +67,7 @@ jobs:
           - ubuntu-latest
         test-file: ${{ fromJson(needs.find-e2e-tests.outputs.test-files) }}
     timeout-minutes: 60
+    name: "Run Tests: ${{ matrix.test-file }}"
     steps:
       - name: Check-out repository
         uses: actions/checkout@v4
@@ -126,7 +127,7 @@ jobs:
         run: git clone https://github.com/opentensor/subtensor.git
 
       - name: Checkout Subtensor repo to `devnet-ready` branch
-        working-directory: subtensor
+        working-directory: ${{ github.workspace }}/subtensor
         run: git checkout devnet-ready
 
       - name: Run Bittensor SDK e2e test
