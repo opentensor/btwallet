@@ -29,7 +29,7 @@ jobs:
   find-e2e-tests:
     runs-on: ubuntu-latest
     outputs:
-      test-files: ${{ steps.find-tests.outputs.test-files }}
+      test-files: ${{ steps.get-tests.outputs.test-files }}
     steps:
       - name: Research preparation
         working-directory: ${{ github.workspace }}
@@ -40,11 +40,11 @@ jobs:
         run: git checkout staging
 
       - name: Find e2e test files
+        working-directory: ${{ github.workspace }}/bittensor
         id: get-tests
         run: |
-          test_files=$(find ${{ github.workspace }}/bittensor/tests/e2e_tests -name "test*.py" | sed 's/^/"/;s/$/"/' | tr '\n' ',' | sed 's/,$//')
-          echo "test-files=[$test_files]" >> $GITHUB_OUTPUT
-          echo $test-files
+          test_files=$(find tests/e2e_tests -name "test*.py" | jq -R -s -c 'split("\n") | map(select(. != ""))')
+          echo "::set-output name=test-files::$test_files"
         shell: bash
 
   run-tests:
@@ -52,12 +52,18 @@ jobs:
       - find-e2e-tests
       - check-labels
     runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.draft == false && needs.check-labels.outputs.run-sdk-tests == 'true' }}
     strategy:
+      fail-fast: false  # Allow other matrix jobs to run even if this job fails
+      max-parallel: 8  # Set the maximum number of parallel jobs
       matrix:
+        rust-branch:
+          - stable
+        rust-target:
+          - x86_64-unknown-linux-gnu
         os:
           - ubuntu-latest
-        test-file: ${{ fromJson(needs.find-e2e-tests.outputs.test-files) }}
-    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.draft == false && needs.check-labels.outputs.run-sdk-tests == 'true' }}
+        test-file: ${{ fromJson(needs.find-tests.outputs.test-files) }}
     timeout-minutes: 60
     steps:
       - name: Check-out repository
