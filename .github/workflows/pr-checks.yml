@@ -128,34 +128,6 @@ jobs:
         working-directory: subtensor
         run: git checkout devnet-ready
 
-#      - name: Run Bittensor SDK e2e test
-#        working-directory: ${{ github.workspace }}
-#        run: |
-#          source ${{ github.workspace }}/venv/bin/activate
-#          LOCALNET_SH="${{ github.workspace }}/subtensor/scripts/localnet.sh"
-#
-#          if [ -f "$LOCALNET_SH" ]; then
-#            export LOCALNET_SH_PATH="$LOCALNET_SH"
-#            ls -lash
-#            TESTS=$(find ${{ github.workspace }}/bittensor/tests/e2e_tests -name "test_*.py" 2>/dev/null | tr '\n' ' ')
-#
-#            if [ -z "$TESTS" ]; then
-#              echo "No tests found in tests/e2e_tests/"
-#              exit 1
-#            fi
-#
-#            python3 -m pytest $TESTS -s
-#          else
-#            echo "Error: localnet.sh not found at $LOCALNET_SH"
-#            exit 1
-#          fi
-
       - name: Run Bittensor SDK e2e test
         run: |
           LOCALNET_SH_PATH="${{ github.workspace }}/subtensor/scripts/localnet.sh" pytest ${{ matrix.test-file }} -s
-
-#      - name: Retry failed tests
-#        if: failure()
-#        run: |
-#          sleep 5
-#          LOCALNET_SH_PATH="${{ github.workspace }}/subtensor/scripts/localnet.sh" pytest ${{ matrix.test-file }} -s
