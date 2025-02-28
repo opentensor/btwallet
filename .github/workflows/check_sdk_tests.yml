@@ -26,35 +26,16 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-  find-e2e-tests:
-    runs-on: ubuntu-latest
-    outputs:
-      test-files: ${{ steps.get-tests.outputs.test-files }}
-    steps:
-      - name: Research preparation
-        working-directory: ${{ github.workspace }}
-        run: git clone https://github.com/opentensor/bittensor.git
-
-      - name: Checkout
-        working-directory: ${{ github.workspace }}/bittensor
-        run: git checkout staging
-
-      - name: Find e2e test files
-        id: get-tests
-        run: |
-          test_files=$(find ${{ github.workspace }}/bittensor/tests/e2e_tests -name "test*.py" | jq -R -s -c 'split("\n") | map(select(. != ""))')
-          echo "::set-output name=test-files::$test_files"
-        shell: bash
-
   run-tests:
     needs:
-      - find-e2e-tests
       - check-labels
     runs-on: ubuntu-latest
     if: ${{ github.event_name == 'pull_request' && github.event.pull_request.draft == false && needs.check-labels.outputs.run-sdk-tests == 'true' }}
+    outputs:
+      test-files: ${{ steps.get-tests.outputs.test-files }}
     strategy:
-      fail-fast: false  # Allow other matrix jobs to run even if this job fails
-      max-parallel: 8  # Set the maximum number of parallel jobs
+      fail-fast: false
+      max-parallel: 8
       matrix:
         rust-branch:
           - stable
@@ -118,6 +99,13 @@ jobs:
           source ${{ github.workspace }}/venv/bin/activate
           maturin develop
 
+      - name: Find e2e test files
+        id: get-tests
+        run: |
+          test_files=$(find ${{ github.workspace }}/bittensor/tests/e2e_tests -name "test*.py" | jq -R -s -c 'split("\n") | map(select(. != ""))')
+          echo "::set-output name=test-files::$test_files"
+        shell: bash
+
       - name: Clone Subtensor repo
         working-directory: ${{ github.workspace }}
         run: git clone https://github.com/opentensor/subtensor.git
@@ -127,5 +115,7 @@ jobs:
         run: git checkout devnet-ready
 
       - name: Run Bittensor SDK e2e test
+        working-directory: ${{ github.workspace }}
         run: |
+          source ${{ github.workspace }}/venv/bin/activate
           LOCALNET_SH_PATH="${{ github.workspace }}/subtensor/scripts/localnet.sh" pytest ${{ matrix.test-file }} -s
