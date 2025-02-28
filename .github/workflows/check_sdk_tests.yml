@@ -131,4 +131,5 @@ jobs:
 
       - name: Run Bittensor SDK e2e test
         run: |
+          source ${{ github.workspace }}/venv/bin/activate
           LOCALNET_SH_PATH="${{ github.workspace }}/subtensor/scripts/localnet.sh" pytest ${{ matrix.test-file }} -s
