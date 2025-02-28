@@ -33,9 +33,11 @@ jobs:
     steps:
       - name: Research preparation
         working-directory: ${{ github.workspace }}
-        run: |
-          git clone https://github.com/opentensor/bittensor.git
-          git checkout staging
+        run: git clone https://github.com/opentensor/bittensor.git
+
+      - name: Checkout
+        working-directory: ${{ github.workspace }}/bittensor
+        run: git checkout staging
 
       - name: Find e2e test files
         id: get-tests
