@@ -42,11 +42,8 @@ jobs:
       - name: Find e2e test files
         id: get-tests
         run: |
-          test_files=$(find ${{ github.workspace }}/bittensor/tests/e2e_tests -name "test*.py" | jq -R -s -c 'split("\n") | map(select(. != ""))')
-          if [ -z "$test_files" ]; then
-            test_files="[]"
-          fi
-          echo "test-files=$test_files" >> $GITHUB_ENV
+          test_files=$(find ${{ github.workspace }}/bittensor/tests/e2e_tests -name "test*.py" | sed 's/^/"/;s/$/"/' | tr '\n' ',' | sed 's/,$//')
+          echo "test-files=[$test_files]" >> $GITHUB_OUTPUT
         shell: bash
 
   run-tests:
@@ -58,7 +55,7 @@ jobs:
       matrix:
         os:
           - ubuntu-latest
-        test-file: ${{ fromJson(env.test-files) }}
+        test-file: ${{ fromJson(needs.find-e2e-tests.outputs.test-files) }}
     if: ${{ github.event_name == 'pull_request' && github.event.pull_request.draft == false && needs.check-labels.outputs.run-sdk-tests == 'true' }}
     timeout-minutes: 60
     steps:
