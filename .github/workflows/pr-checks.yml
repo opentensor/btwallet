@@ -26,9 +26,34 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-  run-tests:
-    needs: check-labels
+  find-e2e-tests:
     runs-on: ubuntu-latest
+    outputs:
+      test-files: ${{ steps.find-tests.outputs.test-files }}
+    steps:
+      - name: Research preparation
+        working-directory: ${{ github.workspace }}
+        run: |
+          git clone https://github.com/opentensor/bittensor.git
+          git checkout staging
+
+      - name: Find e2e test files
+        id: get-tests
+        run: |
+          test_files=$(find tests/e2e_tests -name "test*.py" | jq -R -s -c 'split("\n") | map(select(. != ""))')
+          echo "::set-output name=test-files::$test_files"
+        shell: bash
+
+  run-tests:
+    needs:
+      - find-e2e-tests
+      - check-labels
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os:
+          - ubuntu-latest
+        test-file: ${{ fromJson(needs.find-tests.outputs.test-files) }}
     if: ${{ github.event_name == 'pull_request' && github.event.pull_request.draft == false && needs.check-labels.outputs.run-sdk-tests == 'true' }}
     timeout-minutes: 60
     steps:
@@ -93,24 +118,34 @@ jobs:
         working-directory: subtensor
         run: git checkout devnet-ready
 
-      - name: Run Bittensor SDK e2e test - ${{ matrix.test_file }}
-        working-directory: ${{ github.workspace }}
-        run: |
-          source ${{ github.workspace }}/venv/bin/activate
-          LOCALNET_SH="${{ github.workspace }}/subtensor/scripts/localnet.sh"
-          
-          if [ -f "$LOCALNET_SH" ]; then
-            export LOCALNET_SH_PATH="$LOCALNET_SH"
-            ls -lash
-            TESTS=$(find ${{ github.workspace }}/bittensor/tests/e2e_tests -name "test_*.py" 2>/dev/null | tr '\n' ' ')
+#      - name: Run Bittensor SDK e2e test
+#        working-directory: ${{ github.workspace }}
+#        run: |
+#          source ${{ github.workspace }}/venv/bin/activate
+#          LOCALNET_SH="${{ github.workspace }}/subtensor/scripts/localnet.sh"
+#
+#          if [ -f "$LOCALNET_SH" ]; then
+#            export LOCALNET_SH_PATH="$LOCALNET_SH"
+#            ls -lash
+#            TESTS=$(find ${{ github.workspace }}/bittensor/tests/e2e_tests -name "test_*.py" 2>/dev/null | tr '\n' ' ')
+#
+#            if [ -z "$TESTS" ]; then
+#              echo "No tests found in tests/e2e_tests/"
+#              exit 1
+#            fi
+#
+#            python3 -m pytest $TESTS -s
+#          else
+#            echo "Error: localnet.sh not found at $LOCALNET_SH"
+#            exit 1
+#          fi
 
-            if [ -z "$TESTS" ]; then
-              echo "No tests found in tests/e2e_tests/"
-              exit 1
-            fi
-            
-            python3 -m pytest $TESTS -s
-          else
-            echo "Error: localnet.sh not found at $LOCALNET_SH"
-            exit 1
-          fi
+      - name: Run Bittensor SDK e2e test
+        run: |
+          LOCALNET_SH_PATH="${{ github.workspace }}/subtensor/scripts/localnet.sh" pytest ${{ matrix.test-file }} -s
+
+#      - name: Retry failed tests
+#        if: failure()
+#        run: |
+#          sleep 5
+#          LOCALNET_SH_PATH="${{ github.workspace }}/subtensor/scripts/localnet.sh" pytest ${{ matrix.test-file }} -s
