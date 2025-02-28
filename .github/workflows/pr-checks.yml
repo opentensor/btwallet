@@ -44,8 +44,6 @@ jobs:
         run: |
           test_files=$(find ${{ github.workspace }}/bittensor/tests/e2e_tests -name "test*.py" | jq -R -s -c 'split("\n") | map(select(. != ""))')
           echo "::set-output name=test-files::$test_files"
-          echo ">>>"
-          echo $test_files
         shell: bash
 
   run-tests:
