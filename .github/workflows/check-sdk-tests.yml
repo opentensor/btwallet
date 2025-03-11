@@ -49,15 +49,66 @@ jobs:
           echo "::set-output name=test-files::$test_files"
         shell: bash
 
-  run-tests:
+  print-tests:
     needs:
       - find-e2e-tests
+    runs-on: ubuntu-latest
+    steps:
+    - name: Print tests
+      run: |
+        test_files=$(echo '${{ needs.find-e2e-tests.outputs.test-files }}' | jq -r '.[]')
+        for test_file in $test_files; do
+          echo "$test_file"
+        done
+      shell: bash
+
+  cache-nodes:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Clone Subtensor repo
+        working-directory: ${{ github.workspace }}
+        run: git clone https://github.com/opentensor/subtensor.git
+
+      - name: Checkout Subtensor repo to `devnet-ready` branch
+        working-directory: ${{ github.workspace }}/subtensor
+        run: git checkout devnet-ready
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update &&
+          sudo apt-get install -y clang curl libssl-dev llvm libudev-dev protobuf-compiler jq
+
+      - name: Add wasm32-unknown-unknown target
+        run: |
+          rustup target add wasm32-unknown-unknown --toolchain stable-x86_64-unknown-linux-gnu
+          rustup component add rust-src --toolchain stable-x86_64-unknown-linux-gnu
+
+      - name: Build Subtensor nodes
+        run: |
+          echo "Bilding fast block nodes"
+          ${{ github.workspace }}/subtensor/scripts/localnet.sh --build-only
+          echo "Bilding non-fast block nodes"
+          ${{ github.workspace }}/subtensor/scripts/localnet.sh False --build-only
+
+      - name: Save cache
+        uses: actions/cache@v3
+        with:
+          path: ${{ github.workspace }}/subtensor/target/
+          key: ${{ runner.os }}-subtensor-node
+
+  run-tests:
+    needs:
       - check-labels
+      - find-e2e-tests
+      - cache-nodes
     runs-on: ubuntu-latest
     if: ${{ github.event_name == 'pull_request' && github.event.pull_request.draft == false && needs.check-labels.outputs.run-sdk-tests == 'true' }}
     strategy:
       fail-fast: false
-      max-parallel: 8
+      max-parallel: 10
       matrix:
         rust-branch:
           - stable
@@ -129,6 +180,13 @@ jobs:
       - name: Checkout Subtensor repo to `devnet-ready` branch
         working-directory: ${{ github.workspace }}/subtensor
         run: git checkout devnet-ready
+
+      - name: Restore cache
+        uses: actions/cache@v3
+        id: cache
+        with:
+          path: ${{ github.workspace }}/subtensor/target/
+          key: ${{ runner.os }}-subtensor-node
 
       - name: Run Bittensor SDK e2e test
         run: |
