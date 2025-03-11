@@ -92,6 +92,7 @@ jobs:
           ${{ github.workspace }}/subtensor/scripts/localnet.sh --build-only
           echo "Bilding non-fast block nodes"
           ${{ github.workspace }}/subtensor/scripts/localnet.sh False --build-only
+          ls -lash ${{ github.workspace }}/subtensor/target/
 
       - name: Save cache
         uses: actions/cache@v3
@@ -190,5 +191,6 @@ jobs:
 
       - name: Run Bittensor SDK e2e test
         run: |
+          ls -lash ${{ github.workspace }}/subtensor/target/
           source ${{ github.workspace }}/venv/bin/activate
           LOCALNET_SH_PATH="${{ github.workspace }}/subtensor/scripts/localnet.sh" pytest ${{ matrix.test-file }} -s
