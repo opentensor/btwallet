@@ -191,13 +191,18 @@ jobs:
 
 
   run-integration-and-unit-test:
-    needs:
-      - check-labels
-    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.draft == false && needs.check-labels.outputs.run-sdk-tests == 'true' }}
+#    needs:
+#      - check-labels
+#    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.draft == false && needs.check-labels.outputs.run-sdk-tests == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Check-out repository
         uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update &&
+          sudo apt-get install -y clang curl libssl-dev llvm libudev-dev protobuf-compiler
 
       - name: Create Python virtual environment
         working-directory: ${{ github.workspace }}
@@ -233,20 +238,14 @@ jobs:
           source ${{ github.workspace }}/venv/bin/activate
           maturin develop
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v4
-
-      - name: Install uv dependencies
-        run: uv sync --all-extras --dev
-
       - name: Run SDK integration tests
         working-directory: ${{ github.workspace }}
         run: |
           source ${{ github.workspace }}/venv/bin/activate
-          uv run pytest ${{ github.workspace }}/bittensor/tests/integration_tests
+          pytest ${{ github.workspace }}/bittensor/tests/integration_tests
 
       - name: Run SDK unit tests
         working-directory: ${{ github.workspace }}
         run: |
           source ${{ github.workspace }}/venv/bin/activate
-          uv run pytest ${{ github.workspace }}/bittensor/tests/unit_tests
+          pytest ${{ github.workspace }}/bittensor/tests/unit_tests
