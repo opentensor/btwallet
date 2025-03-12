@@ -160,16 +160,23 @@ jobs:
           source ${{ github.workspace }}/venv/bin/activate
           maturin develop
 
-      - name: Run SDK integration tests
-        working-directory: ${{ github.workspace }}
-        run: |
-          source ${{ github.workspace }}/venv/bin/activate
-
       - name: Install uv
         uses: astral-sh/setup-uv@v4
 
       - name: Install uv dependencies
         run: uv sync --all-extras --dev
+
+      - name: Run SDK integration tests
+        working-directory: ${{ github.workspace }}
+        run: |
+          source ${{ github.workspace }}/venv/bin/activate
+          uv run pytest ${{ github.workspace }}/bittensor/tests/integration_tests
+
+      - name: Run SDK unit tests
+        working-directory: ${{ github.workspace }}
+        run: |
+          source ${{ github.workspace }}/venv/bin/activate
+          uv run pytest ${{ github.workspace }}/bittensor/tests/unit_tests
 
       - name: Clone Subtensor repo
         working-directory: ${{ github.workspace }}
