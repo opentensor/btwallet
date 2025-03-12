@@ -15,6 +15,7 @@ jobs:
             echo "apply_label=true" >> $GITHUB_ENV
           else
             echo "apply_label=false" >> $GITHUB_ENV
+          fi
 
       - name: Add label to PR
         if: env.apply_label == 'true'
