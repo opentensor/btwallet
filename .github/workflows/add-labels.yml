@@ -25,8 +25,6 @@ jobs:
       - name: Add label to PR
         if: env.apply_label == 'true'
         run: |
-          gh api repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/labels \
-            --method POST \
-            --field labels='["run-bittensor-sdk-tests"]'
+          gh api repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/labels --method POST --input-json '{"labels": ["run-bittensor-sdk-tests"]}'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
