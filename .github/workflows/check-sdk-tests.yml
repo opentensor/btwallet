@@ -98,7 +98,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      max-parallel: 10
+      max-parallel: 8
       matrix:
         rust-branch:
           - stable
