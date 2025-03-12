@@ -89,7 +89,7 @@ jobs:
           path: ${{ github.workspace }}/subtensor/target/
           key: ${{ runner.os }}-subtensor-node
 
-  run-tests:
+  run-e2e-tests:
     needs:
       - check-labels
       - find-e2e-tests
@@ -163,6 +163,75 @@ jobs:
           source ${{ github.workspace }}/venv/bin/activate
           maturin develop
 
+      - name: Clone Subtensor repo
+        working-directory: ${{ github.workspace }}
+        run: git clone https://github.com/opentensor/subtensor.git
+
+      - name: Checkout Subtensor repo to `devnet-ready` branch
+        working-directory: ${{ github.workspace }}/subtensor
+        run: git checkout devnet-ready
+
+      - name: Restore cache
+        uses: actions/cache@v3
+        id: cache
+        with:
+          path: ${{ github.workspace }}/subtensor/target/
+          key: ${{ runner.os }}-subtensor-node
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Install uv dependencies
+        run: uv sync --all-extras --dev
+
+      - name: Run Bittensor SDK e2e test
+        run: |
+          source ${{ github.workspace }}/venv/bin/activate
+          LOCALNET_SH_PATH="${{ github.workspace }}/subtensor/scripts/localnet.sh" uv run pytest ${{ matrix.test-file }} -s
+
+
+  run-integration-and-unit-test:
+    needs:
+      - check-labels
+    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.draft == false && needs.check-labels.outputs.run-sdk-tests == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check-out repository
+        uses: actions/checkout@v4
+
+      - name: Create Python virtual environment
+        working-directory: ${{ github.workspace }}
+        run: python3 -m venv venv
+
+      - name: Clone Bittensor SDK repo
+        working-directory: ${{ github.workspace }}
+        run: git clone https://github.com/opentensor/bittensor.git
+
+      - name: Setup Bittensor SDK from cloned repo
+        working-directory: ${{ github.workspace }}/bittensor
+        run: |
+          source ${{ github.workspace }}/venv/bin/activate
+          git checkout staging
+          python3 -m pip install --upgrade pip
+          python3 -m pip install '.[dev]'
+          python3 -m pip install maturin
+
+      - name: Clone Bittensor Wallet repo
+        run: git clone https://github.com/opentensor/btwallet.git
+
+      - name: Checkout PR branch in Wallet repo
+        working-directory: ${{ github.workspace }}/btwallet
+        run: |
+          git fetch origin ${{ github.event.pull_request.head.ref }}
+          git checkout ${{ github.event.pull_request.head.ref }}
+          echo "Current branch: $(git rev-parse --abbrev-ref HEAD)"
+
+      - name: Build and install Rust Bittensor Wallet package
+        working-directory: ${{ github.workspace }}
+        run: |
+          source ${{ github.workspace }}/venv/bin/activate
+          maturin develop
+
       - name: Install uv
         uses: astral-sh/setup-uv@v4
 
@@ -180,23 +249,3 @@ jobs:
         run: |
           source ${{ github.workspace }}/venv/bin/activate
           uv run pytest ${{ github.workspace }}/bittensor/tests/unit_tests
-
-      - name: Clone Subtensor repo
-        working-directory: ${{ github.workspace }}
-        run: git clone https://github.com/opentensor/subtensor.git
-
-      - name: Checkout Subtensor repo to `devnet-ready` branch
-        working-directory: ${{ github.workspace }}/subtensor
-        run: git checkout devnet-ready
-
-      - name: Restore cache
-        uses: actions/cache@v3
-        id: cache
-        with:
-          path: ${{ github.workspace }}/subtensor/target/
-          key: ${{ runner.os }}-subtensor-node
-
-      - name: Run Bittensor SDK e2e test
-        run: |
-          source ${{ github.workspace }}/venv/bin/activate
-          LOCALNET_SH_PATH="${{ github.workspace }}/subtensor/scripts/localnet.sh" uv run pytest ${{ matrix.test-file }} -s
