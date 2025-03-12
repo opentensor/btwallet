@@ -1,0 +1,26 @@
+name: Add Label to PR
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  add-label:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check base branch
+        id: check
+        run: |
+          if [[ "${{ github.event.pull_request.base.ref }}" == "staging" || "${{ github.event.pull_request.base.ref }}" == "main" ]]; then
+            echo "apply_label=true" >> $GITHUB_ENV
+          else
+            echo "apply_label=false" >> $GITHUB_ENV
+
+      - name: Add label to PR
+        if: env.apply_label == 'true'
+        run: |
+          gh api repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/labels \
+            --method POST \
+            --field labels='["run-bittensor-sdk-tests"]'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
