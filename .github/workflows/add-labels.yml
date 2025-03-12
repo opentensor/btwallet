@@ -14,5 +14,3 @@ jobs:
     steps:
       - name: Apply labels based on changed files
         uses: actions/labeler@v4
-        with:
-          configuration-path: .github/labeler.yml
