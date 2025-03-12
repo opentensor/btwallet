@@ -108,7 +108,7 @@ jobs:
           - ubuntu-latest
         test-file: ${{ fromJson(needs.find-e2e-tests.outputs.test-files) }}
     timeout-minutes: 60
-    name: "e2e test: ${{ basename(matrix.test-file) }}"
+    name: "e2e test: ${{ matrix.test-file.split('/')[-1] }}"
     steps:
       - name: Check-out repository
         uses: actions/checkout@v4
