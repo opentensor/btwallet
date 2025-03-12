@@ -191,9 +191,9 @@ jobs:
 
 
   run-integration-and-unit-test:
-#    needs:
-#      - check-labels
-#    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.draft == false && needs.check-labels.outputs.run-sdk-tests == 'true' }}
+    needs:
+      - check-labels
+    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.draft == false && needs.check-labels.outputs.run-sdk-tests == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Check-out repository
