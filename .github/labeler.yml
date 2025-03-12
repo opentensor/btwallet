@@ -1,2 +1,0 @@
-run-bittensor-sdk-tests:
-  - '*'
