@@ -1101,7 +1101,7 @@ except argparse.ArgumentError:
     }
 
     #[pyo3(
-        signature = (uri, use_password=None, overwrite=None, suppress=None, save_coldkey_to_env=None, coldkey_password=None)
+        signature = (uri, use_password=false, overwrite=false, suppress=true, save_coldkey_to_env=false, coldkey_password=false)
     )]
     fn create_coldkey_from_uri(
         &mut self,
@@ -1131,7 +1131,7 @@ except argparse.ArgumentError:
     }
 
     #[pyo3(
-        signature = (uri, use_password=None, overwrite=None, suppress=None, save_hotkey_to_env=None, hotkey_password=None)
+        signature = (uri, use_password=false, overwrite=false, suppress=true, save_hotkey_to_env=false, hotkey_password=false)
     )]
     fn create_hotkey_from_uri(
         &mut self,
