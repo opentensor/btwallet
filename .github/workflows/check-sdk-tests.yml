@@ -134,9 +134,9 @@ jobs:
         run: |
           source ${{ github.workspace }}/venv/bin/activate
           git checkout staging
-          uv run --active python3 -m pip install --upgrade pip
-          uv run --active python3 -m pip install '.[dev]'
-          uv run --active python3 -m pip install maturin
+          uv run --active pip install --upgrade pip
+          uv run --active pip install '.[dev]'
+          uv run --active pip install maturin
 
       - name: Clone Bittensor Wallet repo
         run: git clone https://github.com/opentensor/btwallet.git
