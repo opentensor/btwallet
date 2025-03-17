@@ -45,7 +45,7 @@ jobs:
         uses: PyO3/maturin-action@v1.44.0
         with:
           target: ${{ matrix.platform.target }}
-          args: --release --out dist --find-interpreter
+          args: --release --out dist
           sccache: 'true'
           manylinux: auto
           before-script-linux: (apt-get update && apt-get install -y apt-utils && apt-get install -y pkg-config libssl-dev) || (yum install openssl openssl-devel -y)
