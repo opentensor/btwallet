@@ -138,6 +138,10 @@ jobs:
           uv run --active pip install '.[dev]'
           uv run --active pip install maturin
 
+      - name: Install uv dependencies
+        working-directory: ${{ github.workspace }}
+        run: uv sync --all-extras --dev
+
       - name: Clone Bittensor Wallet repo
         run: git clone https://github.com/opentensor/btwallet.git
 
@@ -153,10 +157,6 @@ jobs:
         run: |
           source ${{ github.workspace }}/venv/bin/activate
           uv run --active maturin develop
-
-      - name: Install uv dependencies
-        working-directory: ${{ github.workspace }}
-        run: uv sync --all-extras --dev
 
       - name: Download Cached Docker Image
         uses: actions/download-artifact@v4
