@@ -50,55 +50,35 @@ jobs:
           echo "::set-output name=test-files::$test_files"
         shell: bash
 
-  cache-nodes:
-    needs: check-labels
-    if: needs.check-labels.outputs.run-sdk-tests == 'true'
+  pull-docker-image:
     runs-on: ubuntu-latest
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
+      - name: Log in to GitHub Container Registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u $GITHUB_ACTOR --password-stdin
 
-      - name: Clone Subtensor repo
-        working-directory: ${{ github.workspace }}
-        run: git clone https://github.com/opentensor/subtensor.git
+      - name: Pull Docker Image
+        run: docker pull ghcr.io/opentensor/subtensor-localnet:latest
 
-      - name: Checkout Subtensor repo to `devnet-ready` branch
-        working-directory: ${{ github.workspace }}/subtensor
-        run: git checkout devnet-ready
+      - name: Save Docker Image to Cache
+        run: docker save -o subtensor-localnet.tar ghcr.io/opentensor/subtensor-localnet:latest
 
-      - name: Install dependencies
-        run: |
-          sudo apt-get update &&
-          sudo apt-get install -y clang curl libssl-dev llvm libudev-dev protobuf-compiler jq
-
-      - name: Add wasm32-unknown-unknown target
-        run: |
-          rustup target add wasm32-unknown-unknown --toolchain stable-x86_64-unknown-linux-gnu
-          rustup component add rust-src --toolchain stable-x86_64-unknown-linux-gnu
-
-      - name: Build Subtensor nodes
-        run: |
-          echo "Bilding fast block nodes"
-          ${{ github.workspace }}/subtensor/scripts/localnet.sh --build-only
-          echo "Bilding non-fast block nodes"
-          ${{ github.workspace }}/subtensor/scripts/localnet.sh False --build-only
-
-      - name: Save cache
-        uses: actions/cache@v3
+      - name: Upload Docker Image as Artifact
+        uses: actions/upload-artifact@v4
         with:
-          path: ${{ github.workspace }}/subtensor/target/
-          key: ${{ runner.os }}-subtensor-node
+          name: subtensor-localnet
+          path: subtensor-localnet.tar
 
   run-e2e-tests:
     needs:
       - check-labels
       - find-e2e-tests
-      - cache-nodes
+      - pull-docker-image
+
     if: ${{ github.event_name == 'pull_request' && github.event.pull_request.draft == false && needs.check-labels.outputs.run-sdk-tests == 'true' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      max-parallel: 8
+      max-parallel: 32
       matrix:
         rust-branch:
           - stable
@@ -121,11 +101,6 @@ jobs:
       - name: Check-out repository
         uses: actions/checkout@v4
 
-      - name: Install dependencies
-        run: |
-          sudo apt-get update &&
-          sudo apt-get install -y clang curl libssl-dev llvm libudev-dev protobuf-compiler jq
-
       - name: Install Rust stable
         uses: actions-rs/toolchain@v1.0.6
         with:
@@ -133,14 +108,22 @@ jobs:
           components: rustfmt
           profile: minimal
 
+      - name: Install rust/cargo dependencies
+        run: |
+          sudo apt-get update &&
+          sudo apt-get install -y clang curl libssl-dev llvm libudev-dev protobuf-compiler jq
+
       - name: Add wasm32-unknown-unknown target
         run: |
           rustup target add wasm32-unknown-unknown --toolchain stable-x86_64-unknown-linux-gnu
           rustup component add rust-src --toolchain stable-x86_64-unknown-linux-gnu
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
       - name: Create Python virtual environment
         working-directory: ${{ github.workspace }}
-        run: python3 -m venv venv
+        run: uv venv ${{ github.workspace }}/venv
 
       - name: Clone Bittensor SDK repo
         working-directory: ${{ github.workspace }}
@@ -151,9 +134,9 @@ jobs:
         run: |
           source ${{ github.workspace }}/venv/bin/activate
           git checkout staging
-          python3 -m pip install --upgrade pip
-          python3 -m pip install '.[dev]'
-          python3 -m pip install maturin
+          uv run --active python3 -m pip install --upgrade pip
+          uv run --active python3 -m pip install '.[dev]'
+          uv run --active python3 -m pip install maturin
 
       - name: Clone Bittensor Wallet repo
         run: git clone https://github.com/opentensor/btwallet.git
@@ -169,33 +152,25 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: |
           source ${{ github.workspace }}/venv/bin/activate
-          maturin develop
-
-      - name: Clone Subtensor repo
-        working-directory: ${{ github.workspace }}
-        run: git clone https://github.com/opentensor/subtensor.git
-
-      - name: Checkout Subtensor repo to `devnet-ready` branch
-        working-directory: ${{ github.workspace }}/subtensor
-        run: git checkout devnet-ready
-
-      - name: Restore cache
-        uses: actions/cache@v3
-        id: cache
-        with:
-          path: ${{ github.workspace }}/subtensor/target/
-          key: ${{ runner.os }}-subtensor-node
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v4
+          uv run --active maturin develop
 
       - name: Install uv dependencies
+        working-directory: ${{ github.workspace }}
         run: uv sync --all-extras --dev
 
-      - name: Run Bittensor SDK e2e test
+      - name: Download Cached Docker Image
+        uses: actions/download-artifact@v4
+        with:
+          name: subtensor-localnet
+
+      - name: Load Docker Image
+        run: docker load -i subtensor-localnet.tar
+
+      - name: Run tests
+        working-directory: ${{ github.workspace }}
         run: |
           source ${{ github.workspace }}/venv/bin/activate
-          BUILD_BINARY=0 LOCALNET_SH_PATH="${{ github.workspace }}/subtensor/scripts/localnet.sh" uv run pytest ${{ matrix.test-file }} -s
+          uv run pytest ${{ matrix.test-file }} -s
 
 
   run-integration-and-unit-test:
