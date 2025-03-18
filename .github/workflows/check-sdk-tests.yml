@@ -179,6 +179,7 @@ jobs:
         run: |
           source ${{ github.workspace }}/venv/bin/activate
           git checkout staging
+          git fetch origin staging
           uv run --active pip install --upgrade pip
           uv run --active pip install '.[dev]'
           uv run --active pip install maturin
@@ -245,6 +246,7 @@ jobs:
         run: |
           source ${{ github.workspace }}/venv/bin/activate
           git checkout staging
+          git fetch origin staging
           python3 -m pip install --upgrade pip
           python3 -m pip install '.[dev]'
           python3 -m pip install -r requirements/torch.txt
