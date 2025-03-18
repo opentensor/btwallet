@@ -1,5 +1,9 @@
 name: Add Labels to PR
 
+permissions:
+  contents: write
+  pull-requests: write
+
 on:
   pull_request:
     types: [opened, reopened, ready_for_review]
