@@ -1,5 +1,9 @@
 name: Bittensor BTCLI Test
 
+permissions:
+  pull-requests: write
+  contents: read
+
 concurrency:
   group: e2e-cli-${{ github.ref }}
   cancel-in-progress: true
