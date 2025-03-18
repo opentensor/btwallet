@@ -1,3 +1,4 @@
+use std::fmt;
 use base64::{engine::general_purpose, Engine as _};
 use bip39::Mnemonic;
 use schnorrkel::{PublicKey, SecretKey};
@@ -115,6 +116,17 @@ impl Keypair {
             return Err("No SS58 formatted address or public key provided.".to_string());
         }
         Ok(kp)
+    }
+
+    fn __str__(&self) -> Result<String, String> {
+        match self.ss58_address() {
+            Some(address) => Ok(format!("<Keypair (address={})>", address)),
+            None => Ok("<Keypair (address=None)>".to_string()),
+        }
+    }
+
+    fn __repr__(&self) -> Result<String, String> {
+        self.__str__()
     }
 
     pub fn generate_mnemonic(n_words: usize) -> Result<String, String> {
@@ -418,6 +430,26 @@ impl Default for Keypair {
             crypto_type: 1,
             mnemonic: None,
             pair: None,
+        }
+    }
+}
+
+impl fmt::Display for Keypair {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let address = self.ss58_address();
+        match address {
+            Some(addr) => write!(f, "<Keypair (address={})>", addr),
+            None => write!(f, "<Keypair (address=None)>"),
+        }
+    }
+}
+
+impl fmt::Debug for Keypair {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let address = self.ss58_address();
+        match address {
+            Some(addr) => write!(f, "<Keypair (address={})>", addr),
+            None => write!(f, "<Keypair (address=None)>"),
         }
     }
 }
