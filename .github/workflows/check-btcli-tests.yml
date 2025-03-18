@@ -16,18 +16,60 @@ env:
   VERBOSE: ${{ github.event.inputs.verbose }}
 
 jobs:
-  check-labels:
+  apply-label-to-new-pr:
     runs-on: ubuntu-latest
     if: ${{ github.event.pull_request.draft == false }}
     outputs:
-      run-cli-tests: ${{ contains(github.event.pull_request.labels.*.name, 'run-bittensor-cli-tests') }}
+      should_continue: ${{ steps.check.outputs.should_continue }}
+    steps:
+      - name: Check
+        id: check
+        run: |
+          ACTION="${{ github.event.action }}"
+          if [[ "$ACTION" == "opened" || "$ACTION" == "reopened" ]]; then
+            echo "should_continue=true" >> $GITHUB_ENV;
+            echo "::set-output name=should_continue::true";
+          else
+            echo "should_continue=false" >> $GITHUB_ENV;
+            echo "::set-output name=should_continue::false";
+          fi
+        shell: bash
+
+      - name: Add label
+        if: steps.check.outputs.should_continue == 'true'
+        uses: actions-ecosystem/action-add-labels@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          labels: run-bittensor-cli-tests
+
+  check-labels:
+    needs: apply-label-to-new-pr
+    runs-on: ubuntu-latest
+    if: always()
+    outputs:
+      run-cli-tests: ${{ steps.get-labels.outputs.run-cli-tests }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Get labels from PR
+        id: get-labels
+        run: |
+          LABELS=$(gh pr view ${{ github.event.pull_request.number }} --json labels --jq '.labels[].name')
+          echo "Current labels: $LABELS"
+          if echo "$LABELS" | grep -q "run-bittensor-cli-tests"; then
+            echo "run-cli-tests=true" >> $GITHUB_ENV
+            echo "::set-output name=run-cli-tests::true"
+          else
+            echo "run-cli-tests=false" >> $GITHUB_ENV
+            echo "::set-output name=run-cli-tests::false"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   find-e2e-tests:
     needs: check-labels
-    if: needs.check-labels.outputs.run-cli-tests == 'true'
+    if: always() && needs.check-labels.outputs.run-cli-tests == 'true'
     runs-on: ubuntu-latest
     outputs:
       test-files: ${{ steps.get-tests.outputs.test-files }}
@@ -53,7 +95,7 @@ jobs:
   pull-docker-image:
     needs: check-labels
     runs-on: ubuntu-latest
-    if: needs.check-labels.outputs.run-cli-tests == 'true'
+    if: always() && needs.check-labels.outputs.run-cli-tests == 'true'
     steps:
       - name: Log in to GitHub Container Registry
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u $GITHUB_ACTOR --password-stdin
@@ -76,7 +118,7 @@ jobs:
       - find-e2e-tests
       - pull-docker-image
 
-    if: needs.check-labels.outputs.run-cli-tests == 'true'
+    if: always() && needs.check-labels.outputs.run-cli-tests == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -178,7 +220,7 @@ jobs:
   run-unit-test:
     needs:
       - check-labels
-    if: needs.check-labels.outputs.run-cli-tests == 'true'
+    if: always() && needs.check-labels.outputs.run-cli-tests == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Check-out repository
