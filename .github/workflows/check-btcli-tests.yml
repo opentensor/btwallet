@@ -16,7 +16,21 @@ env:
   VERBOSE: ${{ github.event.inputs.verbose }}
 
 jobs:
+
+  add-labels:
+    runs-on: ubuntu-latest
+    if: (github.event.pull_request.base.ref == 'staging' || github.event.pull_request.base.ref == 'main') && github.event_name == 'pull_request' && github.event.action == 'opened'
+    steps:
+      - name: Add labels to PR
+        uses: actions-ecosystem/action-add-labels@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          labels: |
+            run-bittensor-sdk-tests
+            run-bittensor-cli-tests
+
   check-labels:
+    needs: add-labels
     runs-on: ubuntu-latest
     if: ${{ github.event.pull_request.draft == false }}
     outputs:
