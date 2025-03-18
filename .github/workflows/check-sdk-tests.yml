@@ -4,6 +4,10 @@ concurrency:
   group: e2e-sdk-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: write
+  pull-requests: write
+
 on:
   pull_request:
     branches:
