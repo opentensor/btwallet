@@ -7,7 +7,7 @@ concurrency:
 on:
   pull_request:
     branches:
-      - master
+      - main
       - staging
     types: [opened, synchronize, reopened, labeled, unlabeled]
 
@@ -18,7 +18,7 @@ env:
 jobs:
   add-labels:
     runs-on: ubuntu-latest
-    if: (github.event.pull_request.base.ref == 'staging' || github.event.pull_request.base.ref == 'main') && github.event_name == 'pull_request' && github.event.action == 'opened'
+    if: (github.event.pull_request.base.ref == 'staging' || github.event.pull_request.base.ref == 'main') && (github.event.action == 'reopened' || github.event.action == 'opened')
     steps:
       - name: Add labels to PR
         uses: actions-ecosystem/action-add-labels@v1
