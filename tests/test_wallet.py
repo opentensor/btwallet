@@ -195,3 +195,35 @@ def test_wallet_string_representation_with_custom_arguments():
     assert w.name == wallet_name
     assert w.hotkey_str == wallet_hotkey
     assert w.path == wallet_path
+
+
+def test_create_coldkey_from_uri():
+    """Tests create_coldkey_from_uri method."""
+    # Preps
+    wallet_name = "test_wallet"
+    wallet_hotkey = "test_hotkey"
+    wallet_path = "/tmp/tests_wallets/"
+
+    # Call
+    w = Wallet(name=wallet_name, hotkey=wallet_hotkey, path=wallet_path)
+    w.create_coldkey_from_uri("//test", use_password=False, overwrite=True)
+
+    # Asserts
+    assert w.coldkey.ss58_address is not None
+    assert w.coldkeypub.ss58_address is not None
+
+
+def test_hotkey_coldkey_from_uri():
+    """Tests create_coldkey_from_uri method."""
+    # Preps
+    wallet_name = "test_wallet"
+    wallet_hotkey = "test_hotkey"
+    wallet_path = "/tmp/tests_wallets/"
+
+    # Call
+    w = Wallet(name=wallet_name, hotkey=wallet_hotkey, path=wallet_path)
+    w.create_hotkey_from_uri("//test", use_password=False, overwrite=True)
+
+    # Asserts
+    assert w.coldkey.ss58_address is not None
+    assert w.coldkeypub.ss58_address is not None
