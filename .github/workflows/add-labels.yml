@@ -17,4 +17,6 @@ jobs:
         uses: actions-ecosystem/action-add-labels@v1
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          labels: run-bittensor-sdk-tests, run-bittensor-cli-tests
+          labels: |
+            run-bittensor-sdk-tests
+            run-bittensor-cli-tests
