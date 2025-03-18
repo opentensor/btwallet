@@ -31,11 +31,9 @@ jobs:
         run: |
           ACTION="${{ github.event.action }}"
           if [[ "$ACTION" == "opened" || "$ACTION" == "reopened" ]]; then
-            echo "should_continue_cli=true" >> $GITHUB_ENV;
-            echo "::set-output name=should_continue::true";
+            echo "should_continue_cli=true" >> $GITHUB_OUTPUT
           else
-            echo "should_continue_cli=false" >> $GITHUB_ENV;
-            echo "::set-output name=should_continue::false";
+            echo "should_continue_cli=false" >> $GITHUB_OUTPUT
           fi
         shell: bash
 
