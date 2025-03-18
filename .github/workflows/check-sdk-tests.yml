@@ -58,7 +58,7 @@ jobs:
 
   find-e2e-tests:
     needs: check-labels
-    if: needs.check-labels.outputs.run-sdk-tests == 'true'
+    if: always() && needs.check-labels.outputs.run-sdk-tests == 'true'
     runs-on: ubuntu-latest
     outputs:
       test-files: ${{ steps.get-tests.outputs.test-files }}
@@ -84,7 +84,7 @@ jobs:
   pull-docker-image:
     needs: check-labels
     runs-on: ubuntu-latest
-    if: needs.check-labels.outputs.run-sdk-tests == 'true'
+    if: always() && needs.check-labels.outputs.run-sdk-tests == 'true'
     steps:
       - name: Log in to GitHub Container Registry
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u $GITHUB_ACTOR --password-stdin
@@ -107,7 +107,7 @@ jobs:
       - find-e2e-tests
       - pull-docker-image
 
-    if: needs.check-labels.outputs.run-sdk-tests == 'true'
+    if: always() && needs.check-labels.outputs.run-sdk-tests == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -209,7 +209,7 @@ jobs:
   run-integration-and-unit-test:
     needs:
       - check-labels
-    if: needs.check-labels.outputs.run-sdk-tests == 'true'
+    if: always() && needs.check-labels.outputs.run-sdk-tests == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Check-out repository
