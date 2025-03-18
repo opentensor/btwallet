@@ -10,6 +10,7 @@ on:
       - Add Labels to PR
     types:
       - completed
+      - requested
 
   pull_request:
     branches:
