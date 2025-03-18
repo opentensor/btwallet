@@ -1,4 +1,4 @@
-name: Bittensor SDK Test
+name: Bittensor BTCLI Test
 
 concurrency:
   group: e2e-sdk-${{ github.ref }}
@@ -34,10 +34,10 @@ jobs:
     steps:
       - name: Research preparation
         working-directory: ${{ github.workspace }}
-        run: git clone https://github.com/opentensor/bittensor.git
+        run: git clone https://github.com/opentensor/btcli.git
 
       - name: Checkout
-        working-directory: ${{ github.workspace }}/bittensor
+        working-directory: ${{ github.workspace }}/btcli
         run: git checkout staging
 
       - name: Install dependencies
@@ -129,15 +129,15 @@ jobs:
 
       - name: Clone Bittensor SDK repo
         working-directory: ${{ github.workspace }}
-        run: git clone https://github.com/opentensor/bittensor.git
+        run: git clone https://github.com/opentensor/btcli.git
 
-      - name: Setup Bittensor SDK from cloned repo
-        working-directory: ${{ github.workspace }}/bittensor
+      - name: Setup Bittensor-cli from cloned repo
+        working-directory: ${{ github.workspace }}/btcli
         run: |
           source ${{ github.workspace }}/venv/bin/activate
           git checkout staging
           uv run --active pip install --upgrade pip
-          uv run --active pip install '.[dev]'
+          uv run --acrive pip install pytest
           uv run --active pip install maturin
 
       - name: Install uv dependencies
@@ -175,7 +175,7 @@ jobs:
           uv run pytest ${{ matrix.test-file }} -s
 
 
-  run-integration-and-unit-test:
+  run-unit-test:
     needs:
       - check-labels
     if: always() && needs.check-labels.outputs.run-sdk-tests == 'true'
@@ -195,16 +195,15 @@ jobs:
 
       - name: Clone Bittensor SDK repo
         working-directory: ${{ github.workspace }}
-        run: git clone https://github.com/opentensor/bittensor.git
+        run: git clone https://github.com/opentensor/btcli.git
 
       - name: Setup Bittensor SDK from cloned repo
-        working-directory: ${{ github.workspace }}/bittensor
+        working-directory: ${{ github.workspace }}/btcli
         run: |
           source ${{ github.workspace }}/venv/bin/activate
           git checkout staging
           python3 -m pip install --upgrade pip
           python3 -m pip install '.[dev]'
-          python3 -m pip install -r requirements/torch.txt
           python3 -m pip install maturin
 
       - name: Clone Bittensor Wallet repo
@@ -223,7 +222,13 @@ jobs:
           source ${{ github.workspace }}/venv/bin/activate
           maturin develop
 
-      - name: Run bittensor-cli unit tests
+      - name: Run SDK integration tests
+        working-directory: ${{ github.workspace }}
+        run: |
+          source ${{ github.workspace }}/venv/bin/activate
+          pytest ${{ github.workspace }}/bittensor/tests/integration_tests
+
+      - name: Run SDK unit tests
         working-directory: ${{ github.workspace }}
         run: |
           source ${{ github.workspace }}/venv/bin/activate
