@@ -30,7 +30,6 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           labels: |
-            run-bittensor-sdk-tests
             run-bittensor-cli-tests
 
   check-labels:
@@ -38,7 +37,7 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ github.event.pull_request.draft == false }}
     outputs:
-      run-sdk-tests: ${{ contains(github.event.pull_request.labels.*.name, 'run-bittensor-sdk-tests') }}
+      run-sdk-tests: ${{ contains(github.event.pull_request.labels.*.name, 'run-bittensor-cli-tests') }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4

@@ -30,7 +30,6 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           labels: |
             run-bittensor-sdk-tests
-            run-bittensor-cli-tests
 
   check-labels:
     needs: add-labels
