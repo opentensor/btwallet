@@ -1,4 +1,3 @@
-use std::fmt;
 use base64::{engine::general_purpose, Engine as _};
 use bip39::Mnemonic;
 use schnorrkel::{PublicKey, SecretKey};
@@ -8,6 +7,7 @@ use sodiumoxide::crypto::secretbox;
 use sodiumoxide::crypto::secretbox::{Key, Nonce};
 use sp_core::crypto::Ss58Codec;
 use sp_core::{sr25519, ByteArray, Pair};
+use std::fmt;
 
 const PKCS8_HEADER: &[u8] = &[48, 83, 2, 1, 1, 48, 5, 6, 3, 43, 101, 112, 4, 34, 4, 32];
 const PKCS8_DIVIDER: &[u8] = &[161, 35, 3, 33, 0];
