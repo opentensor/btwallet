@@ -463,8 +463,6 @@ impl Wallet {
         if !suppress {
             if let Some(m) = keypair.mnemonic() {
                 display_mnemonic_msg(m, "coldkey");
-            } else {
-                return Err(KeyFileError::Generic("Failed to get mnemonic".to_string()));
             }
         }
 
@@ -495,8 +493,6 @@ impl Wallet {
         if !suppress {
             if let Some(m) = keypair.mnemonic() {
                 display_mnemonic_msg(m, "hotkey");
-            } else {
-                return Err(KeyFileError::Generic("Failed to get mnemonic".to_string()));
             }
         }
 
