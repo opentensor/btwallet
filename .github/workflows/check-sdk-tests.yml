@@ -5,6 +5,12 @@ concurrency:
   cancel-in-progress: true
 
 on:
+  workflow_run:
+    workflows:
+      - Add Labels to PR
+    types:
+      - completed
+
   pull_request:
     branches:
       - master
