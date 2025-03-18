@@ -217,7 +217,6 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: |
           source ${{ github.workspace }}/venv/bin/activate
-#          uv run pytest ${{ matrix.test-file }} -s
           pytest ${{ matrix.test-file }} -s
 
 
