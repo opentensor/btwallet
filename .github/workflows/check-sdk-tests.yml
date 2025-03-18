@@ -8,9 +8,6 @@ on:
   workflow_run:
     workflows:
       - Add Labels to PR
-    types:
-      - completed
-      - requested
 
   pull_request:
     branches:
