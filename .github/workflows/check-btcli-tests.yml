@@ -171,7 +171,7 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: uv venv ${{ github.workspace }}/venv
 
-      - name: Clone Bittensor SDK repo
+      - name: Clone Bittensor CLI repo
         working-directory: ${{ github.workspace }}
         run: git clone https://github.com/opentensor/btcli.git
 
@@ -237,7 +237,7 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: python3 -m venv venv
 
-      - name: Clone Bittensor SDK repo
+      - name: Clone Bittensor CLI repo
         working-directory: ${{ github.workspace }}
         run: git clone https://github.com/opentensor/btcli.git
 
