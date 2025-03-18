@@ -24,23 +24,23 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ github.event.pull_request.draft == false }}
     outputs:
-      should_continue: ${{ steps.check.outputs.should_continue }}
+      should_continue_cli: ${{ steps.check.outputs.should_continue_cli }}
     steps:
       - name: Check
         id: check
         run: |
           ACTION="${{ github.event.action }}"
           if [[ "$ACTION" == "opened" || "$ACTION" == "reopened" ]]; then
-            echo "should_continue=true" >> $GITHUB_ENV;
+            echo "should_continue_cli=true" >> $GITHUB_ENV;
             echo "::set-output name=should_continue::true";
           else
-            echo "should_continue=false" >> $GITHUB_ENV;
+            echo "should_continue_cli=false" >> $GITHUB_ENV;
             echo "::set-output name=should_continue::false";
           fi
         shell: bash
 
       - name: Add label
-        if: steps.check.outputs.should_continue == 'true'
+        if: steps.check.outputs.should_continue_cli == 'true'
         uses: actions-ecosystem/action-add-labels@v1
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
