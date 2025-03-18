@@ -46,15 +46,40 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           labels: run-bittensor-sdk-tests
 
+#  check-labels:
+#    needs: apply-label-to-new-pr
+#    runs-on: ubuntu-latest
+#    if: always()
+#    outputs:
+#      run-sdk-tests: ${{ contains(github.event.pull_request.labels.*.name, 'run-bittensor-sdk-tests') }}
+#    steps:
+#      - name: Check out repository
+#        uses: actions/checkout@v4
+
   check-labels:
     needs: apply-label-to-new-pr
     runs-on: ubuntu-latest
     if: always()
     outputs:
-      run-sdk-tests: ${{ contains(github.event.pull_request.labels.*.name, 'run-bittensor-sdk-tests') }}
+      run-sdk-tests: ${{ steps.get-labels.outputs.run-sdk-tests }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+
+      - name: Get labels from PR
+        id: get-labels
+        run: |
+          LABELS=$(gh pr view ${{ github.event.pull_request.number }} --json labels --jq '.labels[].name')
+          echo "Current labels: $LABELS"
+          if echo "$LABELS" | grep -q "run-bittensor-sdk-tests"; then
+            echo "run-sdk-tests=true" >> $GITHUB_ENV
+            echo "::set-output name=run-sdk-tests::true"
+          else
+            echo "run-sdk-tests=false" >> $GITHUB_ENV
+            echo "::set-output name=run-sdk-tests::false"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   find-e2e-tests:
     needs: check-labels
