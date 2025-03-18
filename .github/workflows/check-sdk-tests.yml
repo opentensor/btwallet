@@ -31,11 +31,12 @@ jobs:
         run: |
           ACTION="${{ github.event.action }}"
           if [[ "$ACTION" == "opened" || "$ACTION" == "reopened" ]]; then
-            echo "should_continue=true" >> $GITHUB_ENV
-            echo "::set-output name=should_continue::true"
+            echo "should_continue=true" >> $GITHUB_ENV;
+            echo "::set-output name=should_continue::true";
           else
-            echo "should_continue=false" >> $GITHUB_ENV
-            echo "::set-output name=should_continue::false"
+            echo "should_continue=false" >> $GITHUB_ENV;
+            echo "::set-output name=should_continue::false";
+          fi
         shell: bash
 
       - name: Add label
