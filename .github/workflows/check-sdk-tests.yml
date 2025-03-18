@@ -31,9 +31,28 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+  pull-docker-image:
+    runs-on: ubuntu-latest
+    if: always() && needs.check-labels.outputs.run-sdk-tests == 'true'
+    steps:
+      - name: Log in to GitHub Container Registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u $GITHUB_ACTOR --password-stdin
+
+      - name: Pull Docker Image
+        run: docker pull ghcr.io/opentensor/subtensor-localnet:latest
+
+      - name: Save Docker Image to Cache
+        run: docker save -o subtensor-localnet.tar ghcr.io/opentensor/subtensor-localnet:latest
+
+      - name: Upload Docker Image as Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: subtensor-localnet
+          path: subtensor-localnet.tar
+
   find-e2e-tests:
     needs: check-labels
-    if: needs.check-labels.outputs.run-sdk-tests == 'true'
+    if: always() && needs.check-labels.outputs.run-sdk-tests == 'true'
     runs-on: ubuntu-latest
     outputs:
       test-files: ${{ steps.get-tests.outputs.test-files }}
@@ -56,31 +75,13 @@ jobs:
           echo "::set-output name=test-files::$test_files"
         shell: bash
 
-  pull-docker-image:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Log in to GitHub Container Registry
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u $GITHUB_ACTOR --password-stdin
-
-      - name: Pull Docker Image
-        run: docker pull ghcr.io/opentensor/subtensor-localnet:latest
-
-      - name: Save Docker Image to Cache
-        run: docker save -o subtensor-localnet.tar ghcr.io/opentensor/subtensor-localnet:latest
-
-      - name: Upload Docker Image as Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: subtensor-localnet
-          path: subtensor-localnet.tar
-
   run-e2e-tests:
     needs:
       - check-labels
       - find-e2e-tests
       - pull-docker-image
 
-    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.draft == false && needs.check-labels.outputs.run-sdk-tests == 'true' }}
+    if: always() && needs.check-labels.outputs.run-sdk-tests == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -183,7 +184,7 @@ jobs:
     needs:
       - check-labels
       - run-e2e-tests
-    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.draft == false && needs.check-labels.outputs.run-sdk-tests == 'true' }}
+    if: always() && needs.check-labels.outputs.run-sdk-tests == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Check-out repository
