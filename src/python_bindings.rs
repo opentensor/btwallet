@@ -213,6 +213,14 @@ impl PyKeypair {
         Ok(PyKeypair { inner: keypair })
     }
 
+    fn __str__(&self) -> PyResult<String> {
+        Ok(self.inner.to_string())
+    }
+
+    fn __repr__(&self) -> PyResult<String> {
+        self.__str__()
+    }
+
     #[staticmethod]
     #[pyo3(signature = (n_words=12))]
     fn generate_mnemonic(n_words: usize) -> PyResult<String> {
@@ -764,6 +772,10 @@ impl Wallet {
 
     fn __str__(&self) -> PyResult<String> {
         Ok(self.inner.to_string())
+    }
+
+    fn __repr__(&self) -> PyResult<String> {
+        self.__str__()
     }
 
     /// Accept specific arguments from parser.

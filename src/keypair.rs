@@ -7,6 +7,7 @@ use sodiumoxide::crypto::secretbox;
 use sodiumoxide::crypto::secretbox::{Key, Nonce};
 use sp_core::crypto::Ss58Codec;
 use sp_core::{sr25519, ByteArray, Pair};
+use std::fmt;
 
 const PKCS8_HEADER: &[u8] = &[48, 83, 2, 1, 1, 48, 5, 6, 3, 43, 101, 112, 4, 34, 4, 32];
 const PKCS8_DIVIDER: &[u8] = &[161, 35, 3, 33, 0];
@@ -115,6 +116,17 @@ impl Keypair {
             return Err("No SS58 formatted address or public key provided.".to_string());
         }
         Ok(kp)
+    }
+
+    fn __str__(&self) -> Result<String, String> {
+        match self.ss58_address() {
+            Some(address) => Ok(format!("<Keypair (address={})>", address)),
+            None => Ok("<Keypair (address=None)>".to_string()),
+        }
+    }
+
+    fn __repr__(&self) -> Result<String, String> {
+        self.__str__()
     }
 
     pub fn generate_mnemonic(n_words: usize) -> Result<String, String> {
@@ -418,6 +430,26 @@ impl Default for Keypair {
             crypto_type: 1,
             mnemonic: None,
             pair: None,
+        }
+    }
+}
+
+impl fmt::Display for Keypair {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let address = self.ss58_address();
+        match address {
+            Some(addr) => write!(f, "<Keypair (address={})>", addr),
+            None => write!(f, "<Keypair (address=None)>"),
+        }
+    }
+}
+
+impl fmt::Debug for Keypair {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let address = self.ss58_address();
+        match address {
+            Some(addr) => write!(f, "<Keypair (address={})>", addr),
+            None => write!(f, "<Keypair (address=None)>"),
         }
     }
 }
