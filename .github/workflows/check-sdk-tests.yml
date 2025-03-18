@@ -32,6 +32,7 @@ jobs:
         uses: actions/checkout@v4
 
   pull-docker-image:
+    needs: check-labels
     runs-on: ubuntu-latest
     if: always() && needs.check-labels.outputs.run-sdk-tests == 'true'
     steps:
