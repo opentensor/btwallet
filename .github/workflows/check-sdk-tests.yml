@@ -29,7 +29,8 @@ jobs:
       - name: Check
         id: check
         run: |
-          if [[ "${{ github.event.action }}" == "opened" || "${{ github.event.action }}" == "reopened" ]]; then
+          ACTION="${{ github.event.action }}"
+          if [[ "$ACTION" == "opened" || "$ACTION" == "reopened" ]]; then
             echo "should_continue=true" >> $GITHUB_ENV
             echo "::set-output name=should_continue::true"
           else
