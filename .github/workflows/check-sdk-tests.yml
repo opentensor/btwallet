@@ -1,5 +1,9 @@
 name: Bittensor SDK Test
 
+permissions:
+  pull-requests: write
+  contents: read
+
 concurrency:
   group: e2e-sdk-${{ github.ref }}
   cancel-in-progress: true
@@ -31,13 +35,14 @@ jobs:
           else
             echo "should_continue=false" >> $GITHUB_ENV
             echo "::set-output name=should_continue::false"
+        shell: bash
 
-      - name: Add lable
-        if: ${{ steps.check.outputs.should_continue == 'true' }}
+      - name: Add liable
+        if: steps.check.outputs.should_continue == 'true'
         uses: actions-ecosystem/action-add-labels@v1
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          labels: run-bittensor-sdk-tests
+          labels: "new, pending-review"
 
   check-labels:
     needs: apply-label-to-new-pr
