@@ -766,6 +766,10 @@ impl Wallet {
         Ok(self.inner.to_string())
     }
 
+    fn __repr__(&self) -> PyResult<String> {
+        self.__str__()
+    }
+
     /// Accept specific arguments from parser.
     #[classmethod]
     #[pyo3(signature = (parser, prefix = None))]
