@@ -63,7 +63,7 @@ jobs:
       - name: Find e2e test files
         id: get-tests
         run: |
-          test_files=$(find ${{ github.workspace }}/bittensor/tests/e2e_tests -name "test*.py" | jq -R -s -c 'split("\n") | map(select(. != ""))')
+          test_files=$(find ${{ github.workspace }}/btcli/tests/e2e_tests -name "test*.py" | jq -R -s -c 'split("\n") | map(select(. != ""))')
           echo "::set-output name=test-files::$test_files"
         shell: bash
 
@@ -239,14 +239,8 @@ jobs:
           source ${{ github.workspace }}/venv/bin/activate
           maturin develop
 
-      - name: Run SDK integration tests
-        working-directory: ${{ github.workspace }}
-        run: |
-          source ${{ github.workspace }}/venv/bin/activate
-          pytest ${{ github.workspace }}/bittensor/tests/integration_tests
-
       - name: Run SDK unit tests
         working-directory: ${{ github.workspace }}
         run: |
           source ${{ github.workspace }}/venv/bin/activate
-          pytest ${{ github.workspace }}/bittensor/tests/unit_tests
+          pytest ${{ github.workspace }}/btcli/tests/unit_tests
