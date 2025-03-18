@@ -1,4 +1,4 @@
-name: Bittensor Checks
+name: Bittensor SDK Test
 
 concurrency:
   group: e2e-sdk-${{ github.ref }}
