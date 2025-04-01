@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 use std::env;
 use std::fs;
+use std::fs::File;
 use std::io::{Read, Write};
+#[cfg(not(target_os = "windows"))]
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 use std::str::from_utf8;
@@ -85,16 +87,16 @@ pub fn deserialize_keypair_from_keyfile_data(keyfile_data: &[u8]) -> Result<Keyp
 
     // Create the `Keypair` based on the available data
     if let Some(secret_phrase) = secret_phrase {
-        Keypair::create_from_mnemonic(secret_phrase.as_str()).map_err(|e| KeyFileError::Generic(e))
+        Keypair::create_from_mnemonic(secret_phrase.as_str()).map_err(KeyFileError::Generic)
     } else if let Some(seed) = secret_seed {
         // Remove 0x prefix if present
         let seed = seed.trim_start_matches("0x");
         let seed_bytes = hex::decode(seed).map_err(|e| KeyFileError::Generic(e.to_string()))?;
-        Keypair::create_from_seed(seed_bytes).map_err(|e| KeyFileError::Generic(e))
+        Keypair::create_from_seed(seed_bytes).map_err(KeyFileError::Generic)
     } else if let Some(private_key) = private_key {
         // Remove 0x prefix if present
         let key = private_key.trim_start_matches("0x");
-        Keypair::create_from_private_key(key).map_err(|e| KeyFileError::Generic(e))
+        Keypair::create_from_private_key(key).map_err(KeyFileError::Generic)
     } else if let Some(ss58) = ss58_address {
         Keypair::new(Some(ss58.clone()), None, None, 42, None, 1)
             .map_err(|e| KeyFileError::Generic(e.to_string()))
@@ -150,7 +152,7 @@ pub fn ask_password(validation_required: bool) -> Result<String, KeyFileError> {
     if validation_required {
         while !valid {
             if let Some(ref pwd) = password {
-                valid = validate_password(&pwd)?;
+                valid = validate_password(pwd)?;
                 if !valid {
                     password = utils::prompt_password("Enter your password again: ".to_string());
                 }
@@ -487,10 +489,7 @@ impl Keyfile {
 
     /// Returns local environment variable key name based on Keyfile path.
     pub fn env_var_name(&self) -> Result<String, KeyFileError> {
-        let path = &self
-            .path
-            .replace(std::path::MAIN_SEPARATOR, "_")
-            .replace('.', "_");
+        let path = &self.path.replace([std::path::MAIN_SEPARATOR, '.'], "_");
         Ok(format!("BT_PW_{}", path.to_uppercase()))
     }
 
@@ -549,14 +548,21 @@ impl Keyfile {
             return Ok(false);
         }
 
+        #[cfg(not(target_os = "windows"))]
         // get file metadata
         let metadata = fs::metadata(&self._path).map_err(|e| {
             KeyFileError::MetadataError(format!("Failed to get metadata for file: {}.", e))
         })?;
 
         // check permissions
-        let permissions = metadata.permissions();
-        let readable = permissions.mode() & 0o444 != 0; // check readability
+
+        #[cfg(not(target_os = "windows"))]
+        let readable = {
+            let permissions = metadata.permissions();
+            permissions.mode() & 0o444 != 0 // check readability
+        };
+        #[cfg(target_os = "windows")]
+        let readable = File::open(&self._path).is_ok();
 
         Ok(readable)
     }
@@ -575,7 +581,10 @@ impl Keyfile {
 
         // check the permissions
         let permissions = metadata.permissions();
+        #[cfg(not(target_os = "windows"))]
         let writable = permissions.mode() & 0o222 != 0; // check if file is writable
+        #[cfg(target_os = "windows")]
+        let writable = !permissions.readonly();
 
         Ok(writable)
     }
@@ -880,16 +889,25 @@ impl Keyfile {
             .write_all(keyfile_data)
             .map_err(|e| KeyFileError::FileWrite(format!("Failed to write to file: {}.", e)))?;
 
+        // WARNING: Currently, under Windows, SYSTEM and Administrators can also access the file,
+        // as the permission setting system is very tedious
+        // And only provides very little additional security
+        // (Both SYSTEM and Administrators can "Force" acquiry of these extra permissions anyway)
+
         // set permissions
-        let mut permissions = fs::metadata(&self._path)
-            .map_err(|e| {
-                KeyFileError::MetadataError(format!("Failed to get metadata for file: {}.", e))
-            })?
-            .permissions();
-        permissions.set_mode(0o600); // just for owner
-        fs::set_permissions(&self._path, permissions).map_err(|e| {
-            KeyFileError::PermissionError(format!("Failed to set permissions: {}.", e))
-        })?;
+        #[cfg(not(target_os = "windows"))]
+        {
+            let mut permissions = fs::metadata(&self._path)
+                .map_err(|e| {
+                    KeyFileError::MetadataError(format!("Failed to get metadata for file: {}.", e))
+                })?
+                .permissions();
+            #[cfg(not(target_os = "windows"))]
+            permissions.set_mode(0o600); // just for owner
+            fs::set_permissions(&self._path, permissions).map_err(|e| {
+                KeyFileError::PermissionError(format!("Failed to set permissions: {}.", e))
+            })?;
+        }
         Ok(())
     }
 
