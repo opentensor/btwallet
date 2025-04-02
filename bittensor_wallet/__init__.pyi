@@ -289,13 +289,13 @@ class wallet:
             suppress: Optional[bool] = False,
             save_coldkey_to_env: Optional[bool] = False,
             coldkey_password: Optional[str] = None,
-        ) -> None: ...
+        ) -> "Wallet": ...
         def regenerate_coldkeypub(
             self,
             ss58_address: Optional[str] = None,
             public_key: Optional[bytes] = None,
             overwrite: Optional[bool] = False,
-        ) -> None: ...
+        ) -> "Wallet": ...
         def regenerate_hotkey(
             self,
             mnemonic: Optional[str] = None,
@@ -306,7 +306,7 @@ class wallet:
             suppress: Optional[bool] = False,
             save_hotkey_to_env: Optional[bool] = False,
             hotkey_password: Optional[str] = None,
-        ) -> None: ...
+        ) -> "Wallet": ...
 
 config: ModuleType
 keyfile: ModuleType
