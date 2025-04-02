@@ -1290,7 +1290,7 @@ except argparse.ArgumentError:
         suppress: Option<bool>,
         save_coldkey_to_env: Option<bool>,
         coldkey_password: Option<String>,
-    ) -> PyResult<()> {
+    ) -> PyResult<Self> {
         let new_inner_wallet = self
             .inner
             .regenerate_coldkey(
@@ -1310,7 +1310,9 @@ except argparse.ArgumentError:
                 _ => PyErr::new::<PyKeyFileError, _>(e.to_string()),
             })?;
         self.inner = new_inner_wallet;
-        Ok(())
+        Ok(Wallet {
+            inner: self.inner.clone(),
+        })
     }
 
     #[pyo3(signature = (ss58_address=None, public_key=None, overwrite=None))]
@@ -1319,13 +1321,15 @@ except argparse.ArgumentError:
         ss58_address: Option<String>,
         public_key: Option<String>,
         overwrite: Option<bool>,
-    ) -> PyResult<()> {
+    ) -> PyResult<Self> {
         let new_inner_wallet = self
             .inner
             .regenerate_coldkeypub(ss58_address, public_key, overwrite.unwrap_or(false))
             .map_err(|e| PyErr::new::<PyKeyFileError, _>(e))?;
         self.inner = new_inner_wallet;
-        Ok(())
+        Ok(Wallet {
+            inner: self.inner.clone(),
+        })
     }
 
     #[pyo3(signature = (
@@ -1348,7 +1352,7 @@ except argparse.ArgumentError:
         suppress: Option<bool>,
         save_hotkey_to_env: Option<bool>,
         hotkey_password: Option<String>,
-    ) -> PyResult<()> {
+    ) -> PyResult<Self> {
         let new_inner_wallet = self
             .inner
             .regenerate_hotkey(
@@ -1365,6 +1369,8 @@ except argparse.ArgumentError:
                 PyErr::new::<PyKeyFileError, _>(format!("Failed to regenerate hotkey: {:?}", e))
             })?;
         self.inner = new_inner_wallet;
-        Ok(())
+        Ok(Wallet {
+            inner: self.inner.clone(),
+        })
     }
 }
