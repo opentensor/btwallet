@@ -1,6 +1,6 @@
 [project]
 name = "bittensor-wallet"
-version = "3.0.4"
+version = "3.0.5"
 description = ""
 readme = "README.md"
 license = {file = "LICENSE"}
@@ -71,7 +71,10 @@ dev = [
     "ruff==0.4.7",
     "aioresponses==0.7.6",
     "factory-boy==3.3.0",
-    "maturin==1.7.0",
+    "maturin==1.8.3",
     "py-bip39-bindings==0.1.11",
-    "ansible_vault~=2.1"
+    "ansible_vault~=2.1",
+    "bittensor>=9.0.1",
+    "substrate-interface==1.7.11",
+    "scalecodec~=1.2.11",
 ]

@@ -1,6 +1,6 @@
 <div align="center">
 
-# Bittensor Wallet SDK <!-- omit in toc -->
+# Bittensor Wallet <!-- omit in toc -->
 
 [![Discord Chat](https://img.shields.io/discord/308323056592486420.svg)](https://discord.gg/bittensor)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -14,20 +14,19 @@
 
 </div>
 
-## Bittensor Wallet SDK
+## Bittensor Wallet
 
 The Bittensor Wallet SDK is a Python interface for a powerful Rust-based Bittensor wallet functionality. You do not need to know Rust to use this Wallet SDK. However, if you want to contribute to the Rust components of this Wallet SDK, the Rust source is located in the [src](./src) directory. You can look at the development history by inspecting the Changelog.md.
 
 ## Documentation
 
-For a full documentation on how to use `btwallet`, see the [Bittensor Wallet SDK section](https://docs.bittensor.com/btcli) on the developer documentation site.
+For a full documentation on how to use `btwallet`, see the [Bittensor Wallet SDK section](https://docs.bittensor.com/working-with-keys) on the developer documentation site.
 
 ---
 
 ## Before you proceed
 
-1. If you installed either Bittensor SDK version `8.1.0` or BTCLI version `8.1.0` then the Wallet SDK 2.0.0 is already installed. The below installation steps are only for a standalone installation of the Wallet SDK 2.0.0 package.
-2. **IMPORTANT**: The Wallet SDK 2.0.0 is compatible only with Bittensor SDK version `8.1.0` and later versions and BTCLI version `8.1.0` and later versions. Earlier versions of Bittensor SDK and BTCLI are not compatible with Wallet SDK 2.0.0.
+If you installed either Bittensor SDK version `9.x.x` or BTCLI version `9.x.x` then the Wallet SDK 3.x.x is already installed. The below installation steps are only for a standalone installation of the Wallet SDK 3.x.x package.
 
 ## Install
 
@@ -38,9 +37,9 @@ Follow the below steps to install the Bittensor Wallet SDK:
 Use this option if you want to use the Wallet SDK.
 
 ```bash
-$ python3 -m venv btwallet-venv  # create a virtual env
-$ source btwallet-venv/bin/activate  # activate the env
-$ pip install bittensor-wallet  # install bittensor-wallet
+python3 -m venv btwallet-venv  # create a virtual env
+source btwallet-venv/bin/activate  # activate the env
+pip install bittensor-wallet  # install bittensor-wallet
 ```
 
 ### From source
@@ -70,17 +69,17 @@ You will see `bittensor-wallet` in the list on installed packages. This means th
 
 In the `python3` interpreter, run the below code to verify that your installation was successful. See an example output below:
 
-```bash
-python3
-Python 3.12.4 (v3.12.4:8e8a4baf65, Jun  6 2024, 17:33:18) [Clang 13.0.0 (clang-1300.0.29.30)] on darwin
-Type "help", "copyright", "credits" or "license" for more information.
->>> import bittensor_wallet
->>> print(bittensor_wallet.__version__)
-2.0.0
->>>
+```py
+# python3
+# Python 3.12.4 (v3.12.4:8e8a4baf65, Jun  6 2024, 17:33:18) [Clang 13.0.0 (clang-1300.0.29.30)] on darwin
+# Type "help", "copyright", "credits" or "license" for more information.
+
+import bittensor_wallet
+print(bittensor_wallet.__version__)
+>>> 3.x.x
 ```
 
-The above will print the Wallet SDK version you just installed, i.e., `2.0.0`, confirming that the installation was successful.
+The above will print the Wallet SDK version you just installed, i.e., `3.x.x`, confirming that the installation was successful.
 
 ---
 
@@ -100,7 +99,7 @@ wallet.create()
 
 If a wallet with the name "default" already exists, then you will see a message. If it doesn't exist, then the above code will create both a coldkey and a hotkey and displays the following information, including your mnemonic **(mnemonics are replaced with `x` in the below example for security)**:
 
-```
+```bash
 IMPORTANT: Store this mnemonic in a secure (preferable offline place), as anyone who has possession of this mnemonic can use it to regenerate the key and access your tokens.
 
 The mnemonic to the new coldkey is:
@@ -130,7 +129,7 @@ Wallet (Name: 'default', Hotkey: 'default', Path: '~/.bittensor/wallets/')
 
 **2. Pass arguments to a class other than the default**
 
-```
+```bash
 name (str): The name of the wallet, used to identify it among possibly multiple wallets.
 hotkey (str): String identifier for the hotkey.
 path (str): File system path where wallet keys are stored.
@@ -139,29 +138,22 @@ config (Config): Bittensor configuration object.
 
 In the `python3` interpreter, run the below code. See an example below (only partial is shown):
 
-```bash
-python3
-Python 3.12.4 (v3.12.4:8e8a4baf65, Jun  6 2024, 17:33:18) [Clang 13.0.0 (clang-1300.0.29.30)] on darwin
-Type "help", "copyright", "credits" or "license" for more information.
->>> from bittensor_wallet import Wallet
->>> my_name = "my_wallet_name"
->>> my_path = "path_to_my_wallet"
->>> my_hotkey = "name_of_my_hotkey"
->>>
->>> my_wallet = Wallet(name=my_name, path=my_path, hotkey=my_hotkey)
->>> my_wallet.create()
+```py
+# python3
+# Python 3.12.4 (v3.12.4:8e8a4baf65, Jun  6 2024, 17:33:18) [Clang 13.0.0 (clang-1300.0.29.30)] on darwin
+# Type "help", "copyright", "credits" or "license" for more information.
 
-IMPORTANT: Store this mnemonic in a secure (preferable offline place), as anyone who has possession of this mnemonic can use it to regenerate the key and access your tokens.
+from bittensor_wallet import Wallet
 
+my_name = "my_wallet_name"
+my_path = "path_to_my_wallet"
+my_hotkey = "name_of_my_hotkey"
+
+my_wallet = Wallet(name=my_name, path=my_path, hotkey=my_hotkey)
+my_wallet.create()
+
+>>> IMPORTANT: Store this mnemonic in a secure (preferable offline place), as anyone who has possession of this mnemonic can use it to regenerate the key and access your tokens.
 ```
-
 The above will create a wallet with "my_wallet_name". 
-
-**3. Use your own config**
-
-```python
-from bittensor_wallet.config import Config
-config = Config()
-```
 
 ---

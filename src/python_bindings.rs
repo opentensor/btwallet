@@ -68,6 +68,10 @@ impl PyKeyfile {
         Ok(self.inner.to_string())
     }
 
+    fn __repr__(&self) -> PyResult<String> {
+        Ok(self.inner.to_string())
+    }
+
     #[getter]
     fn path(&self) -> String {
         self.inner.path.clone()
@@ -137,6 +141,20 @@ impl PyKeyfile {
             .map_err(|e| PyErr::new::<PyValueError, _>(e.to_string()))
     }
 
+    #[getter(data)]
+    fn data_py(&self) -> PyResult<Option<Cow<[u8]>>> {
+        self.inner
+            .data()
+            .map(|vec| Some(Cow::Owned(vec)))
+            .or_else(|_e| Ok(None))
+    }
+
+    fn make_dirs(&self) -> PyResult<()> {
+        self.inner
+            .make_dirs()
+            .map_err(|e| PyErr::new::<PyValueError, _>(e.to_string()))
+    }
+
     /// Returns the keypair from path, decrypts data if the file is encrypted.
     #[getter(keypair)]
     pub fn keypair_py(&self) -> PyResult<PyKeypair> {
@@ -195,6 +213,14 @@ impl PyKeypair {
         Ok(PyKeypair { inner: keypair })
     }
 
+    fn __str__(&self) -> PyResult<String> {
+        Ok(self.inner.to_string())
+    }
+
+    fn __repr__(&self) -> PyResult<String> {
+        self.__str__()
+    }
+
     #[staticmethod]
     #[pyo3(signature = (n_words=12))]
     fn generate_mnemonic(n_words: usize) -> PyResult<String> {
@@ -208,10 +234,13 @@ impl PyKeypair {
         Ok(PyKeypair { inner: keypair })
     }
 
+    /// Creates Keypair from a seed for python
     #[staticmethod]
-    fn create_from_seed(py: Python, seed: Vec<u8>) -> PyResult<Py<Self>> {
-        let keypair =
-            RustKeypair::create_from_seed(seed).map_err(|e| PyErr::new::<PyValueError, _>(e))?;
+    fn create_from_seed(py: Python, seed: &str) -> PyResult<Py<Self>> {
+        let vec_seed = hex::decode(seed.trim_start_matches("0x"))
+            .map_err(|e| PyErr::new::<PyValueError, _>(e.to_string()))?;
+        let keypair = RustKeypair::create_from_seed(vec_seed)
+            .map_err(|e| PyErr::new::<PyValueError, _>(e.to_string()))?;
         Py::new(py, PyKeypair { inner: keypair })
     }
 
@@ -745,6 +774,10 @@ impl Wallet {
         Ok(self.inner.to_string())
     }
 
+    fn __repr__(&self) -> PyResult<String> {
+        self.__str__()
+    }
+
     /// Accept specific arguments from parser.
     #[classmethod]
     #[pyo3(signature = (parser, prefix = None))]
@@ -1080,7 +1113,7 @@ except argparse.ArgumentError:
     }
 
     #[pyo3(
-        signature = (uri, use_password=None, overwrite=None, suppress=None, save_coldkey_to_env=None, coldkey_password=None)
+        signature = (uri, use_password=false, overwrite=false, suppress=true, save_coldkey_to_env=false, coldkey_password=None)
     )]
     fn create_coldkey_from_uri(
         &mut self,
@@ -1110,7 +1143,7 @@ except argparse.ArgumentError:
     }
 
     #[pyo3(
-        signature = (uri, use_password=None, overwrite=None, suppress=None, save_hotkey_to_env=None, hotkey_password=None)
+        signature = (uri, use_password=false, overwrite=false, suppress=true, save_hotkey_to_env=false, hotkey_password=None)
     )]
     fn create_hotkey_from_uri(
         &mut self,
@@ -1257,7 +1290,7 @@ except argparse.ArgumentError:
         suppress: Option<bool>,
         save_coldkey_to_env: Option<bool>,
         coldkey_password: Option<String>,
-    ) -> PyResult<()> {
+    ) -> PyResult<Self> {
         let new_inner_wallet = self
             .inner
             .regenerate_coldkey(
@@ -1277,7 +1310,9 @@ except argparse.ArgumentError:
                 _ => PyErr::new::<PyKeyFileError, _>(e.to_string()),
             })?;
         self.inner = new_inner_wallet;
-        Ok(())
+        Ok(Wallet {
+            inner: self.inner.clone(),
+        })
     }
 
     #[pyo3(signature = (ss58_address=None, public_key=None, overwrite=None))]
@@ -1286,13 +1321,15 @@ except argparse.ArgumentError:
         ss58_address: Option<String>,
         public_key: Option<String>,
         overwrite: Option<bool>,
-    ) -> PyResult<()> {
+    ) -> PyResult<Self> {
         let new_inner_wallet = self
             .inner
             .regenerate_coldkeypub(ss58_address, public_key, overwrite.unwrap_or(false))
             .map_err(|e| PyErr::new::<PyKeyFileError, _>(e))?;
         self.inner = new_inner_wallet;
-        Ok(())
+        Ok(Wallet {
+            inner: self.inner.clone(),
+        })
     }
 
     #[pyo3(signature = (
@@ -1315,7 +1352,7 @@ except argparse.ArgumentError:
         suppress: Option<bool>,
         save_hotkey_to_env: Option<bool>,
         hotkey_password: Option<String>,
-    ) -> PyResult<()> {
+    ) -> PyResult<Self> {
         let new_inner_wallet = self
             .inner
             .regenerate_hotkey(
@@ -1332,6 +1369,8 @@ except argparse.ArgumentError:
                 PyErr::new::<PyKeyFileError, _>(format!("Failed to regenerate hotkey: {:?}", e))
             })?;
         self.inner = new_inner_wallet;
-        Ok(())
+        Ok(Wallet {
+            inner: self.inner.clone(),
+        })
     }
 }

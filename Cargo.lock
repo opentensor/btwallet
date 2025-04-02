@@ -401,7 +401,7 @@ checksum = "b048fb63fd8b5923fc5aa7b340d8e156aec7ec02f0c78fa8a6ddc2613f6f71de"
 
 [[package]]
 name = "bittensor_wallet"
-version = "2.1.2"
+version = "3.0.5"
 dependencies = [
  "ansible-vault",
  "base64 0.22.1",
