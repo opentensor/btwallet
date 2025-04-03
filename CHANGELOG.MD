@@ -1,5 +1,12 @@
 # Changelog
 
+## 3.0.7 /2025-04-03
+
+## What's Changed
+* Fixes, improvement, refactoring by @roman-opentensor in https://github.com/opentensor/btwallet/pull/124
+
+**Full Changelog**: https://github.com/opentensor/btwallet/compare/v3.0.6...v3.0.7
+
 ## 3.0.6 /2025-04-02
 
 ## What's Changed
@@ -7,7 +14,7 @@
 
 **Full Changelog**: https://github.com/opentensor/btwallet/compare/v3.0.5...v3.0.6
 
-## 3.0.6 /2025-04-02
+## 3.0.5 /2025-04-02
 
 ## What's Changed
 * BT Wallet v.3 (python improvement) by @roman-opentensor in #105
