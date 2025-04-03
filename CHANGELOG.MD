@@ -1,5 +1,28 @@
 # Changelog
 
+## 3.0.6 /2025-04-02
+
+## What's Changed
+* Improve release workflow by @roman-opentensor in #122
+
+**Full Changelog**: https://github.com/opentensor/btwallet/compare/v3.0.5...v3.0.6
+
+## 3.0.6 /2025-04-02
+
+## What's Changed
+* BT Wallet v.3 (python improvement) by @roman-opentensor in #105
+* Test workflow by @igorsyl in #104
+* Add skip-check-rust label check in .github/workflows/check-rust.yml workflow by @roman-opentensor in #110
+* Fix wallet.create_coldkey_from_uri broken by @roman-opentensor in #109
+* Add workflows for run SDK and BTCLI tests if labels are applied by @roman-opentensor in #106
+* Add back srt and repr for Wallet and Keypair by @roman-opentensor in #111
+* Add trigger for check-rust workflow by @roman-opentensor in #113
+* Update readme by @roman-opentensor in #112
+* Update docker image name by @roman-opentensor in #114
+* fix returns for rust and pyi by @roman-opentensor in #119
+
+**Full Changelog**: https://github.com/opentensor/btwallet/compare/v3.0.4...v3.0.5
+
 ## 3.0.4 /2025-02-19
 
 ## What's Changed
