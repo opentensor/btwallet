@@ -1,5 +1,3 @@
-from typing import TypeAlias
-
 from bittensor_wallet.bittensor_wallet import keyfile as _
 
 serialized_keypair_to_keyfile_data = _.serialized_keypair_to_keyfile_data
@@ -18,4 +16,4 @@ get_coldkey_password_from_environment = _.get_password_from_environment
 get_password_from_environment = get_coldkey_password_from_environment
 encrypt_keyfile_data = _.encrypt_keyfile_data
 decrypt_keyfile_data = _.decrypt_keyfile_data
-Keyfile: TypeAlias = _.Keyfile
+Keyfile = _.Keyfile
