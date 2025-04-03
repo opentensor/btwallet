@@ -1,4 +1,4 @@
-from typing import Optional, Any, Union
+from typing import Optional, Any, Union, TypeAlias
 from types import ModuleType
 
 # Submodules
@@ -113,7 +113,7 @@ class keypair:
             self, data: Union[str, bytes], signature: Union[str, bytes]
         ) -> bool: ...
         @property
-        def ss58_address(self) -> Optional[str]: ...
+        def ss58_address(self) -> str: ...
         @property
         def public_key(self) -> Optional[bytes]: ...
         @property
@@ -314,7 +314,7 @@ keypair: ModuleType
 utils: ModuleType
 wallet: ModuleType
 
-Config = config.Config
-Keyfile = keyfile.Keyfile
-Keypair = keypair.Keypair
-Wallet = wallet.Wallet
+Config: TypeAlias = config.Config
+Keyfile: TypeAlias = keyfile.Keyfile
+Keypair: TypeAlias = keypair.Keypair
+Wallet: TypeAlias = wallet.Wallet
