@@ -1,7 +1,4 @@
 py-bip39-bindings==0.1.11
-termcolor
 eth-utils<2.3.0
 password_strength
 cryptography~=43.0.1
-munch~=2.5.0
-rich
