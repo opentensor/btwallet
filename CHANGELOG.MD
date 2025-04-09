@@ -1,5 +1,13 @@
 # Changelog
 
+## 3.0.8 /2025-04-09
+
+## What's Changed
+* backmerge-main-staging-v3.0.7 by @basfroman in https://github.com/opentensor/btwallet/pull/126
+* Remove unused requirements by @thewhaleking in https://github.com/opentensor/btwallet/pull/128
+
+**Full Changelog**: https://github.com/opentensor/btwallet/compare/v3.0.7...v3.0.8
+
 ## 3.0.7 /2025-04-03
 
 ## What's Changed
