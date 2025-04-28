@@ -113,7 +113,7 @@ def get_mock_keypair(uid: int, test_name: Optional[str] = None) -> Keypair:
         uid = uid + hashed_test_name_as_int
 
     return Keypair.create_from_seed(
-        seed_hex=int.to_bytes(uid, 32, "big", signed=False),
+        seed=int.to_bytes(uid, 32, "big", signed=False),
     )
 
 

@@ -1,13 +1,12 @@
 [project]
 name = "bittensor-wallet"
-version = "3.0.8"
+version = "3.0.9"
 description = ""
 readme = "README.md"
 license = {file = "LICENSE"}
 keywords = ["substrate", "scale", "codec", "bittensor", "wallet"]
 
 dependencies = [
-    "eth-utils<2.3.0",
     "password_strength",
     "cryptography~=43.0.1",
     "py-bip39-bindings==0.1.11",

@@ -68,6 +68,7 @@ def validate_password(password: str) -> bool: ...
 
 def ask_password(validation_required: bool) -> str: ...
 
+ask_password_to_encrypt = ask_password
 
 def legacy_encrypt_keyfile_data(
         keyfile_data: bytes, password: Optional[str] = None
@@ -76,6 +77,7 @@ def legacy_encrypt_keyfile_data(
 
 def get_password_from_environment(env_var_name: str) -> Optional[str]: ...
 
+get_coldkey_password_from_environment = get_password_from_environment
 
 def encrypt_keyfile_data(
         keyfile_data: bytes, password: Optional[str] = None
