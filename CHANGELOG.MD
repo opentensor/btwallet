@@ -1,5 +1,12 @@
 # Changelog
 
+## 3.0.10 /2025-05-12
+
+## What's Changed
+* Fix regenerate key by seed (`seed.trim_start_matches("0x")) by @basfroman in https://github.com/opentensor/btwallet/pull/136
+
+**Full Changelog**: https://github.com/opentensor/btwallet/compare/v3.0.9...v3.0.10
+
 ## 3.0.9 /2025-04-28
 
 ## What's Changed
