@@ -478,27 +478,28 @@ fn bittensor_wallet(module: Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<PyKeypair>()?;
     module.add_class::<Wallet>()?;
 
-    // Add submodules to the main module
-    register_config_module(module.clone())?;
-    register_errors_module(module.clone())?;
-    register_keyfile_module(module.clone())?;
-    register_keypair_module(module.clone())?;
-    register_utils_module(module.clone())?;
-    register_wallet_module(module)?;
-
     // Add cargo package verions
     module.add("__version__", env!("CARGO_PKG_VERSION"))?;
+
+    // Add submodules to the main module
+    register_config_module(&module)?;
+    register_errors_module(&module)?;
+    register_keyfile_module(&module)?;
+    register_keypair_module(&module)?;
+    register_utils_module(&module)?;
+    register_wallet_module(&module)?;
+
     Ok(())
 }
 
 // Define the submodule registration functions
-fn register_config_module(main_module: Bound<'_, PyModule>) -> PyResult<()> {
+fn register_config_module(main_module: &Bound<'_, PyModule>) -> PyResult<()> {
     let config_module = PyModule::new_bound(main_module.py(), "config")?;
     config_module.add_class::<Config>()?;
     main_module.add_submodule(&config_module)
 }
 
-fn register_errors_module(main_module: Bound<'_, PyModule>) -> PyResult<()> {
+fn register_errors_module(main_module: &Bound<'_, PyModule>) -> PyResult<()> {
     let errors_module = PyModule::new_bound(main_module.py(), "errors")?;
     // Register the WalletError exception
     errors_module.add_class::<PyWalletError>()?;
@@ -570,7 +571,7 @@ fn py_decrypt_keyfile_data(
 }
 
 // keyfile module with functions
-fn register_keyfile_module(main_module: Bound<'_, PyModule>) -> PyResult<()> {
+fn register_keyfile_module(main_module: &Bound<'_, PyModule>) -> PyResult<()> {
     let keyfile_module = PyModule::new_bound(main_module.py(), "keyfile")?;
     keyfile_module.add_function(wrap_pyfunction!(
         py_serialized_keypair_to_keyfile_data,
@@ -616,7 +617,7 @@ fn register_keyfile_module(main_module: Bound<'_, PyModule>) -> PyResult<()> {
     main_module.add_submodule(&keyfile_module)
 }
 
-fn register_keypair_module(main_module: Bound<'_, PyModule>) -> PyResult<()> {
+fn register_keypair_module(main_module: &Bound<'_, PyModule>) -> PyResult<()> {
     let keypair_module = PyModule::new_bound(main_module.py(), "keypair")?;
     keypair_module.add_class::<PyKeypair>()?;
     main_module.add_submodule(&keypair_module)
@@ -668,7 +669,7 @@ fn py_is_valid_bittensor_address_or_public_key(address: &Bound<'_, PyAny>) -> bo
     })
 }
 
-fn register_utils_module(main_module: Bound<'_, PyModule>) -> PyResult<()> {
+fn register_utils_module(main_module: &Bound<'_, PyModule>) -> PyResult<()> {
     let utils_module = PyModule::new_bound(main_module.py(), "utils")?;
     utils_module.add_function(wrap_pyfunction!(
         crate::utils::is_valid_ss58_address,
@@ -689,7 +690,7 @@ fn register_utils_module(main_module: Bound<'_, PyModule>) -> PyResult<()> {
     main_module.add_submodule(&utils_module)
 }
 
-fn register_wallet_module(main_module: Bound<'_, PyModule>) -> PyResult<()> {
+fn register_wallet_module(main_module: &Bound<'_, PyModule>) -> PyResult<()> {
     let wallet_module = PyModule::new_bound(main_module.py(), "wallet")?;
     wallet_module.add_function(wrap_pyfunction!(
         crate::wallet::display_mnemonic_msg,
