@@ -485,6 +485,9 @@ fn bittensor_wallet(module: Bound<'_, PyModule>) -> PyResult<()> {
     register_keypair_module(module.clone())?;
     register_utils_module(module.clone())?;
     register_wallet_module(module)?;
+
+    // Add cargo package verions
+    module.add("__version__", env!("CARGO_PKG_VERSION"))?;
     Ok(())
 }
 
