@@ -11,6 +11,7 @@ from bittensor_wallet.bittensor_wallet import (
     keypair,
     utils,
     wallet,
+    __version__
 )
 
 # classes
@@ -26,6 +27,3 @@ keyfile = keyfile
 keypair = keypair
 utils = utils
 wallet = wallet
-
-# bump version in `pyproject.toml` only
-__version__ = importlib.metadata.version("bittensor-wallet")
