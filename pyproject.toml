@@ -9,7 +9,6 @@ keywords = ["substrate", "scale", "codec", "bittensor", "wallet"]
 dependencies = [
     "password_strength",
     "cryptography~=43.0.1",
-    "py-bip39-bindings==0.1.11",
 ]
 requires-python = ">= 3.9"
 
@@ -73,4 +72,6 @@ dev = [
     "bittensor>=9.0.1",
     "substrate-interface==1.7.11",
     "scalecodec~=1.2.11",
+    "bittensor>=9.6.0",
+    "py-bip39-bindings==0.1.11"
 ]
