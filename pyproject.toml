@@ -6,11 +6,6 @@ readme = "README.md"
 license = {file = "LICENSE"}
 keywords = ["substrate", "scale", "codec", "bittensor", "wallet"]
 
-dependencies = [
-    "password_strength",
-    "cryptography~=43.0.1",
-    "py-bip39-bindings==0.1.11",
-]
 requires-python = ">= 3.9"
 
 authors = [
@@ -73,4 +68,5 @@ dev = [
     "bittensor>=9.0.1",
     "substrate-interface==1.7.11",
     "scalecodec~=1.2.11",
+    "py-bip39-bindings==0.1.11",
 ]
