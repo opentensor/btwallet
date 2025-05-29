@@ -72,5 +72,4 @@ dev = [
   "scalecodec~=1.2.11",
   "bittensor>=9.6.0",
   "py-bip39-bindings==0.1.11",
-  "tomli==2.2.1",
 ]
