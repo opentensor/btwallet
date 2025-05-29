@@ -478,9 +478,6 @@ fn bittensor_wallet(module: Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<PyKeypair>()?;
     module.add_class::<Wallet>()?;
 
-    // Add cargo package verions
-    module.add("__version__", env!("CARGO_PKG_VERSION"))?;
-
     // Add submodules to the main module
     register_config_module(&module)?;
     register_errors_module(&module)?;
@@ -489,6 +486,8 @@ fn bittensor_wallet(module: Bound<'_, PyModule>) -> PyResult<()> {
     register_utils_module(&module)?;
     register_wallet_module(&module)?;
 
+    // Add Cargo.toml package versions
+    module.add("__version__", env!("CARGO_PKG_VERSION"))?;
     Ok(())
 }
 

@@ -3,14 +3,18 @@ name = "bittensor-wallet"
 dynamic = ["version"]
 description = ""
 readme = "README.md"
-license = { file = "LICENSE" }
+license = {file = "LICENSE"}
 keywords = ["substrate", "scale", "codec", "bittensor", "wallet"]
 
 dependencies = []
 requires-python = ">= 3.9"
 
-authors = [{ name = "Roman Chkhaidze", email = "roman@opentensor.dev" }]
-maintainers = [{ name = "Cortex Team", email = "cortex@opentensor.dev" }]
+authors = [
+  {name = "Roman Chkhaidze", email = "r@latent.to"}
+]
+maintainers = [
+  {name = "Cortex Team", email = "cortex@opentensor.dev"}
+]
 classifiers = [
   "Development Status :: 5 - Production/Stable",
   "Intended Audience :: Developers",
