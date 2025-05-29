@@ -1,5 +1,3 @@
-import importlib.metadata
-
 from bittensor_wallet.bittensor_wallet import (
     Config,
     Keyfile,
@@ -11,7 +9,7 @@ from bittensor_wallet.bittensor_wallet import (
     keypair,
     utils,
     wallet,
-    __version__
+    __version__,
 )
 
 # classes
@@ -27,3 +25,4 @@ keyfile = keyfile
 keypair = keypair
 utils = utils
 wallet = wallet
+__version__ == __version__

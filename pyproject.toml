@@ -1,5 +1,6 @@
 [project]
 name = "bittensor-wallet"
+# Bumping version in Cargo.toml file only
 dynamic = ["version"]
 description = ""
 readme = "README.md"
@@ -9,7 +10,7 @@ keywords = ["substrate", "scale", "codec", "bittensor", "wallet"]
 dependencies = []
 requires-python = ">= 3.9"
 
-authors = [{ name = "Roman Chkhaidze", email = "roman@opentensor.dev" }]
+authors = [{ name = "Roman Chkhaidze", email = "r@latent.to" }]
 maintainers = [{ name = "Cortex Team", email = "cortex@opentensor.dev" }]
 classifiers = [
   "Development Status :: 5 - Production/Stable",
