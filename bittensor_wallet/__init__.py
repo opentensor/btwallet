@@ -25,3 +25,4 @@ keyfile = keyfile
 keypair = keypair
 utils = utils
 wallet = wallet
+__version__ = __version__
