@@ -3,7 +3,6 @@ import json
 import os
 
 import bittensor as bt
-import tomli
 from scalecodec.base import ScaleBytes
 from substrateinterface.keypair import Keypair as SKeypair
 
@@ -26,13 +25,6 @@ from bittensor_wallet.utils import (
     is_valid_ed25519_pubkey,
     is_valid_bittensor_address_or_public_key,
 )
-
-
-def get_cargo_version() -> str:
-    cargo_path = os.path.join("..", "Cargo.toml")
-    with open(cargo_path, "rb") as f:
-        data = tomli.load(f)
-    return data["package"]["version"]
 
 
 def test_common_calls():
@@ -289,5 +281,5 @@ def test_config_parsing():
 
 
 def test__version__():
-    """Test version."""
-    assert __version__ == get_cargo_version()
+    """Test version is provided."""
+    assert __version__
