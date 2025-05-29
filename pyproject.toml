@@ -1,5 +1,6 @@
 [project]
 name = "bittensor-wallet"
+# Bumping version in Cargo.toml file only
 dynamic = ["version"]
 description = ""
 readme = "README.md"
@@ -70,5 +71,5 @@ dev = [
   "substrate-interface==1.7.11",
   "scalecodec~=1.2.11",
   "bittensor>=9.6.0",
-  "py-bip39-bindings==0.1.11"
+  "py-bip39-bindings==0.1.11",
 ]
