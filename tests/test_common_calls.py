@@ -6,7 +6,12 @@ import bittensor as bt
 from scalecodec.base import ScaleBytes
 from substrateinterface.keypair import Keypair as SKeypair
 
-from bittensor_wallet import Keypair as WKeypair, Wallet as WWallet, Keyfile as WKeyfile
+from bittensor_wallet import (
+    Keypair as WKeypair,
+    Wallet as WWallet,
+    Keyfile as WKeyfile,
+    __version__,
+)
 from bittensor_wallet.keyfile import (
     serialized_keypair_to_keyfile_data,
     deserialize_keypair_from_keyfile_data,
@@ -273,3 +278,8 @@ def test_config_parsing():
     assert wallet.name == config.wallet.name
     assert wallet.hotkey_str == config.wallet.hotkey
     assert wallet.path == config.wallet.path
+
+
+def test__version__():
+    """Test version is provided."""
+    assert __version__
