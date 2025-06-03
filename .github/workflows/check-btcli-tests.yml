@@ -189,7 +189,7 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: |
           source ${{ github.workspace }}/venv/bin/activate
-          uv sync --all-extras --dev
+          uv sync --all-extras --dev --active
 
       - name: Clone Bittensor Wallet repo
         run: git clone https://github.com/opentensor/btwallet.git
