@@ -187,7 +187,9 @@ jobs:
 
       - name: Install uv dependencies
         working-directory: ${{ github.workspace }}
-        run: uv sync --all-extras --dev
+        run: |
+          source ${{ github.workspace }}/venv/bin/activate
+          uv sync --all-extras --dev
 
       - name: Clone Bittensor Wallet repo
         run: git clone https://github.com/opentensor/btwallet.git
