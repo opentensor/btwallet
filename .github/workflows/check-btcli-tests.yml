@@ -184,6 +184,7 @@ jobs:
           uv run --active pip install --upgrade pip
           uv run --active pip install pytest
           uv run --active pip install maturin
+          uv run --active pip install -e .
 
       - name: Install uv dependencies
         working-directory: ${{ github.workspace }}
