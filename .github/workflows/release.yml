@@ -32,10 +32,10 @@ jobs:
         if: matrix.platform.target == 'aarch64'
         uses: docker/setup-qemu-action@v3
 
-      - name: Add wasm32-unknown-unknown target
-        run: |
-          rustup target add wasm32-unknown-unknown --toolchain nightly-aarch64-unknown-linux-gnu
-          rustup component add rust-src --toolchain nightly-aarch64-unknown-linux-gnu
+#      - name: Add wasm32-unknown-unknown target
+#        run: |
+#          rustup target add wasm32-unknown-unknown --toolchain nightly-aarch64-unknown-linux-gnu
+#          rustup component add rust-src --toolchain nightly-aarch64-unknown-linux-gnu
 
       - uses: actions/setup-python@v5
         with:
