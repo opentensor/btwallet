@@ -18,10 +18,10 @@ jobs:
     strategy:
       matrix:
         platform:
-#          - runner: ubuntu-latest
-#            target: x86_64
-#          - runner: ubuntu-latest
-#            target: x86
+          - runner: ubuntu-latest
+            target: x86_64
+          - runner: ubuntu-latest
+            target: x86
           - runner: ubuntu-24.04-arm
             target: aarch64
 
@@ -32,11 +32,6 @@ jobs:
         if: matrix.platform.target == 'aarch64'
         uses: docker/setup-qemu-action@v3
 
-#      - name: Add wasm32-unknown-unknown target
-#        run: |
-#          rustup target add wasm32-unknown-unknown --toolchain nightly-aarch64-unknown-linux-gnu
-#          rustup component add rust-src --toolchain nightly-aarch64-unknown-linux-gnu
-
       - uses: actions/setup-python@v5
         with:
           python-version: "3.10"
@@ -45,7 +40,11 @@ jobs:
         uses: PyO3/maturin-action@v1.44.0
         with:
           target: ${{ matrix.platform.target }}
-          args: --release --out dist --interpreter python3.9 python3.10 python3.11 python3.12 python3.13
+          args: >-
+            --release
+            --out dist
+            --interpreter python3.9 python3.10 python3.11 python3.12 python3.13
+            ${{ matrix.platform.target == 'aarch64' && '--features vendored-openssl' || '' }}
           sccache: 'true'
           manylinux: auto
           before-script-linux: (apt-get update && apt-get install -y apt-utils && apt-get install -y pkg-config libssl-dev) || (yum install openssl openssl-devel -y)
