@@ -25,6 +25,7 @@ jobs:
           - runner: ubuntu-24.04-arm
             target: aarch64
             openssl_dir: /usr/aarch64-unknown-linux-gnu
+            sodium_dir: /usr/aarch64-unknown-linux-gnu
 
     steps:
       - uses: actions/checkout@v4
@@ -42,22 +43,33 @@ jobs:
       - name: Build wheels
         uses: PyO3/maturin-action@v1.44.0
         with:
-          target: ${{ matrix.target }}
-          args: --release --out dist --interpreter python3.9 python3.10 python3.11 python3.12 python3.13
+          target: ${{ matrix.platform.target }}
+          args: -v --release --out dist --interpreter python3.9 python3.10 python3.11 python3.12 python3.13
           sccache: 'true'
           manylinux: auto
           before-script-linux: |
-            if command -v apt-get &>/dev/null; then
-              apt-get update && apt-get install -y pkg-config libssl-dev
-            elif command -v yum &>/dev/null; then
-              yum install -y pkgconfig openssl-devel
-            fi
-            if [ "${{ matrix.target }}" = "aarch64" ]; then
+            if [ "${{ matrix.platform.target }}" = "aarch64" ]; then
+              yum install -y pkgconfig openssl-devel curl make autoconf automake libtool gcc gcc-c++ wget tar
               export CFLAGS="-D__ARM_ARCH=8"
+
+              # Build libsodium for aarch64
+              curl -LO https://download.libsodium.org/libsodium/releases/libsodium-1.0.18.tar.gz
+              tar -xzf libsodium-1.0.18.tar.gz
+              cd libsodium-1.0.18
+              ./configure --host=aarch64-unknown-linux-gnu --prefix=${{ matrix.platform.sodium_dir }}
+              make -j$(nproc)
+              make install
+              cd ..
+            else
+              yum install -y pkgconfig openssl-devel
             fi
         env:
           OPENSSL_NO_VENDOR: "1"
-          OPENSSL_DIR: ${{ matrix.openssl_dir || '' }}
+          OPENSSL_DIR: ${{ matrix.platform.openssl_dir || '' }}
+          SODIUM_LIB_DIR: ${{ matrix.platform.sodium_dir || '' }}/lib
+          SODIUM_INCLUDE_DIR: ${{ matrix.platform.sodium_dir || '' }}/include
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+          CARGO_BUILD_TARGET: aarch64-unknown-linux-gnu
 
       - name: Upload wheels
         uses: actions/upload-artifact@v4
@@ -74,6 +86,7 @@ jobs:
             target: x86_64
           - runner: macos-14
             target: aarch64
+
     steps:
       - uses: actions/checkout@v4
 
@@ -124,6 +137,7 @@ jobs:
       contents: write
       # Used to generate artifact attestation
       attestations: write
+
     steps:
       - uses: actions/download-artifact@v4
 
@@ -133,8 +147,8 @@ jobs:
           subject-path: 'wheels-*/*'
 
       - name: Publish to PyPI
-        if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
         uses: PyO3/maturin-action@v1.44.0
+        if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
         with:
           command: upload
           args: --non-interactive --skip-existing dist/*
