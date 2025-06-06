@@ -46,10 +46,10 @@ jobs:
           sccache: 'true'
           manylinux: auto
           before-script-linux: |
-            # run this installation and add CFLAGS only for aarch64
+            apt-get update
+            apt-get install -y pkg-config libssl-dev
+            # CFLAGS only for aarch64
             if [ "${{ matrix.platform.target }}" = "aarch64" ]; then
-              apt-get update
-              apt-get install -y pkg-config libssl-dev
               export CFLAGS="-D__ARM_ARCH=8"
             fi
 
