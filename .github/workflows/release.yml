@@ -19,62 +19,41 @@ jobs:
       matrix:
         platform:
           - runner: ubuntu-latest
-            target: x86_64
+            target: x86_64-unknown-linux-gnu
           - runner: ubuntu-latest
-            target: x86
-          - runner: ubuntu-24.04-arm
-            target: aarch64
-            openssl_dir: /usr/aarch64-unknown-linux-gnu
-            sodium_dir: /usr/aarch64-unknown-linux-gnu
+            target: i686-unknown-linux-gnu
+          - runner: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
 
     steps:
       - uses: actions/checkout@v4
 
       - name: Set up QEMU for ARM support
-        if: matrix.platform.target == 'aarch64'
+        if: matrix.platform.target == 'aarch64-unknown-linux-gnu'
         uses: docker/setup-qemu-action@v3
         with:
           platforms: arm64
 
-      - uses: actions/setup-python@v5
+      - name: Install Rust and cross
+        uses: dtolnay/rust-toolchain@stable
         with:
-          python-version: "3.10"
+          targets: ${{ matrix.platform.target }}
 
-      - name: Build wheels
-        uses: PyO3/maturin-action@v1.44.0
-        with:
-          target: ${{ matrix.platform.target }}
-          args: -v --release --out dist --interpreter python3.9 python3.10 python3.11 python3.12 python3.13
-          sccache: 'true'
-          manylinux: auto
-          before-script-linux: |
-            if [ "${{ matrix.platform.target }}" = "aarch64" ]; then
-              yum install -y pkgconfig openssl-devel curl make autoconf automake libtool gcc gcc-c++ wget tar
-              export CFLAGS="-D__ARM_ARCH=8"
+      - name: Install cross
+        run: cargo install cross --git https://github.com/cross-rs/cross
 
-              # Build libsodium for aarch64
-              curl -LO https://download.libsodium.org/libsodium/releases/libsodium-1.0.18.tar.gz
-              tar -xzf libsodium-1.0.18.tar.gz
-              cd libsodium-1.0.18
-              ./configure --host=aarch64-unknown-linux-gnu --prefix=${{ matrix.platform.sodium_dir }}
-              make -j$(nproc)
-              make install
-              cd ..
-            else
-              yum install -y pkgconfig openssl-devel
-            fi
-        env:
-          OPENSSL_NO_VENDOR: "1"
-          OPENSSL_DIR: ${{ matrix.platform.openssl_dir || '' }}
-          SODIUM_LIB_DIR: ${{ matrix.platform.sodium_dir || '' }}/lib
-          SODIUM_INCLUDE_DIR: ${{ matrix.platform.sodium_dir || '' }}/include
-          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
-          CARGO_BUILD_TARGET: aarch64-unknown-linux-gnu
+      - name: Build with cross
+        run: cross build --release --target ${{ matrix.platform.target }}
 
-      - name: Upload wheels
+      - name: Copy output to dist/
+        run: |
+          mkdir -p dist
+          cp target/${{ matrix.platform.target }}/release/libbittensor_wallet.* dist/
+
+      - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: wheels-linux-${{ matrix.platform.target }}-py${{ matrix.python-version }}
+          name: lib-bittensor_wallet-${{ matrix.platform.target }}
           path: dist
 
   macos:
