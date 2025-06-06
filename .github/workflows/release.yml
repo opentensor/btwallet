@@ -34,6 +34,11 @@ jobs:
         with:
           image: tonistiigi/binfmt:qemu-v7.0.0-28
 
+      - name: Install OpenSSL development package
+        if: matrix.platform.target == 'aarch64'
+        run: |
+          sudo dnf install -y openssl-devel
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.10"
