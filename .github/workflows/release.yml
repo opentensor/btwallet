@@ -14,15 +14,13 @@ permissions:
 
 jobs:
   linux:
-    runs-on: ${{ matrix.platform.runner }}
+    runs-on: ${{ matrix.runner }}
     strategy:
       matrix:
-        platform:
+        include:
           - runner: ubuntu-latest
             target: x86_64
-            manylinux: 2014/2_17
-#          - runner: ubuntu-latest
-#            target: x86
+            manylinux: 2014
           - runner: ubuntu-24.04-arm
             target: aarch64
             manylinux: 2_28
@@ -31,30 +29,35 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Set up QEMU for ARM support
-        if: matrix.platform.target == 'aarch64'
+        if: matrix.target == 'aarch64'
         uses: docker/setup-qemu-action@v3
         with:
           platforms: arm64
 
       - uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: ${{ matrix.python-version || '3.10' }}
 
       - name: Build wheels
         uses: PyO3/maturin-action@v1.44.0
         with:
-          target: ${{ matrix.platform.target }}
+          target: ${{ matrix.target }}
           args: --release --out dist --interpreter python3.9 python3.10 python3.11 python3.12 python3.13
           sccache: 'true'
-          manylinux: ${{ matrix.platform.manylinux }}
+          manylinux: ${{ matrix.manylinux }}
           before-script-linux: |
-           (apt-get update && apt-get install -y apt-utils && apt-get install -y pkg-config libssl-dev) || (yum install openssl openssl-devel -y)
+            if [ "${{ matrix.target }}" = "aarch64" ]; then
+              echo "OPENSSL_DIR=/usr" >> $GITHUB_ENV
+              echo "OPENSSL_INCLUDE_DIR=/usr/include" >> $GITHUB_ENV
+              echo "OPENSSL_LIB_DIR=/usr/lib/aarch64-linux-gnu" >> $GITHUB_ENV
+            fi
 
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
-          name: wheels-linux-${{ matrix.platform.target }}
+          name: wheels-linux-${{ matrix.target }}
           path: dist
+
 
   macos:
     runs-on: ${{ matrix.platform.runner }}
