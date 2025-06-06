@@ -30,6 +30,7 @@ shellexpand = "3.1.0"
 rpassword = "7.3.1"
 clap = "4.5.21"
 thiserror = "2.0.3"
+openssl = { version = "0.10.35", features = ["vendored"] }
 
 [features]
 extension-module = ["pyo3/extension-module"]
