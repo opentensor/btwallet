@@ -48,17 +48,21 @@ jobs:
               sudo apt-get update
               sudo apt-get install -y apt-utils pkg-config gcc-aarch64-linux-gnu libssl-dev build-essential
           
-              echo "Searching for opensslconf.h..."
-              find /usr -name "opensslconf.h"
+              # Установите PKG_CONFIG_PATH для aarch64
+              export PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig:/usr/share/pkgconfig
               
-              export OPENSSL_DIR="/usr"
-              export OPENSSL_INCLUDE_DIR="/usr/include/aarch64-linux-gnu"
+              # Проверьте, что pkg-config видит openssl
+              echo "Checking pkg-config for openssl:"
+              pkg-config --cflags openssl
+              pkg-config --libs openssl
+              
+              # Установите OPENSSL_DIR. Иногда openssl-sys предпочитает его
+              export OPENSSL_DIR="/usr" 
+              # Эти переменные могут не понадобиться, если pkg-config работает
+              # Но на всякий случай оставим их, т.к. они были в вашем конфиге
+              export OPENSSL_INCLUDE_DIR="/usr/include/aarch64-linux-gnu" 
               export OPENSSL_LIB_DIR="/usr/lib/aarch64-linux-gnu"
               export CFLAGS="-D__ARM_ARCH=8"
-            
-              export PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig:/usr/share/pkgconfig
-              pkg-config --libs openssl
-              pkg-config --cflags openssl
             else
               (apt-get update && apt-get install -y apt-utils pkg-config libssl-dev) || (yum install openssl openssl-devel -y)
             fi
