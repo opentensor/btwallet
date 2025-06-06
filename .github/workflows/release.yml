@@ -32,6 +32,16 @@ jobs:
         if: matrix.platform.target == 'aarch64'
         uses: docker/setup-qemu-action@v3
 
+      - name: Install rust/cargo dependencies
+        run: |
+          sudo apt-get update &&
+          sudo apt-get install -y clang curl libssl-dev llvm libudev-dev protobuf-compiler jq
+
+      - name: Add wasm32-unknown-unknown target
+        run: |
+          rustup target add wasm32-unknown-unknown --toolchain stable-x86_64-unknown-linux-gnu
+          rustup component add rust-src --toolchain stable-x86_64-unknown-linux-gnu
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.10"
@@ -43,29 +53,7 @@ jobs:
           args: --release --out dist --interpreter python3.9 python3.10 python3.11 python3.12 python3.13
           sccache: 'true'
           manylinux: auto
-          before-script-linux: |
-            if [ "${{ matrix.platform.target }}" = "aarch64" ]; then
-              sudo apt-get update
-              sudo apt-get install -y apt-utils pkg-config gcc-aarch64-linux-gnu libssl-dev build-essential
-          
-              # Установите PKG_CONFIG_PATH для aarch64
-              export PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig:/usr/share/pkgconfig
-              
-              # Проверьте, что pkg-config видит openssl
-              echo "Checking pkg-config for openssl:"
-              pkg-config --cflags openssl
-              pkg-config --libs openssl
-              
-              # Установите OPENSSL_DIR. Иногда openssl-sys предпочитает его
-              export OPENSSL_DIR="/usr" 
-              # Эти переменные могут не понадобиться, если pkg-config работает
-              # Но на всякий случай оставим их, т.к. они были в вашем конфиге
-              export OPENSSL_INCLUDE_DIR="/usr/include/aarch64-linux-gnu" 
-              export OPENSSL_LIB_DIR="/usr/lib/aarch64-linux-gnu"
-              export CFLAGS="-D__ARM_ARCH=8"
-            else
-              (apt-get update && apt-get install -y apt-utils pkg-config libssl-dev) || (yum install openssl openssl-devel -y)
-            fi
+          before-script-linux: (apt-get update && apt-get install -y apt-utils && apt-get install -y pkg-config libssl-dev) || (yum install openssl openssl-devel -y)
 
       - name: Upload wheels
         uses: actions/upload-artifact@v4
