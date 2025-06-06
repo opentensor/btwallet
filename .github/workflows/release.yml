@@ -45,6 +45,13 @@ jobs:
           args: --release --out dist --interpreter python3.9 python3.10 python3.11 python3.12 python3.13
           sccache: 'true'
           manylinux: auto
+      - name: Build wheels
+        uses: PyO3/maturin-action@v1.44.0
+        with:
+          target: ${{ matrix.platform.target }}
+          args: --release --out dist --interpreter python3.9 python3.10 python3.11 python3.12 python3.13
+          sccache: 'true'
+          manylinux: auto
           before-script-linux: |
             if [ "${{ matrix.platform.target }}" = "aarch64" ]; then
               apt-get update
