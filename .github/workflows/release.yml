@@ -51,16 +51,19 @@ jobs:
               apt-get install -y \
                 pkg-config \
                 gcc-aarch64-linux-gnu \
-                libssl-dev \
-                libssl-dev:arm64
+                libssl-dev
+          
+              export OPENSSL_DIR="/usr"
+              export OPENSSL_INCLUDE_DIR="/usr/include"
+              export OPENSSL_LIB_DIR="/usr/lib/aarch64-linux-gnu"
+              export CFLAGS="-D__ARM_ARCH=8"
+              echo "OPENSSL_DIR=$OPENSSL_DIR" >> $GITHUB_ENV
+              echo "OPENSSL_INCLUDE_DIR=$OPENSSL_INCLUDE_DIR" >> $GITHUB_ENV
+              echo "OPENSSL_LIB_DIR=$OPENSSL_LIB_DIR" >> $GITHUB_ENV
+              echo "CFLAGS=$CFLAGS" >> $GITHUB_ENV
             else
               yum install -y openssl openssl-devel
             fi
-        env:
-          OPENSSL_DIR: /usr/aarch64-linux-gnu
-          OPENSSL_INCLUDE_DIR: /usr/aarch64-linux-gnu/include
-          OPENSSL_LIB_DIR: /usr/aarch64-linux-gnu/lib
-          CFLAGS: -D__ARM_ARCH=8
 
       - name: Upload wheels
         uses: actions/upload-artifact@v4
