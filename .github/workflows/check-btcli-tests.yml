@@ -60,11 +60,9 @@ jobs:
           LABELS=$(gh pr view ${{ github.event.pull_request.number }} --json labels --jq '.labels[].name')
           echo "Current labels: $LABELS"
           if echo "$LABELS" | grep -q "run-bittensor-cli-tests"; then
-            echo "run-cli-tests=true" >> $GITHUB_ENV
-            echo "::set-output name=run-cli-tests::true"
+            echo "run-cli-tests=true" >> $GITHUB_OUTPUT
           else
-            echo "run-cli-tests=false" >> $GITHUB_ENV
-            echo "::set-output name=run-cli-tests::false"
+            echo "run-cli-tests=false" >> $GITHUB_OUTPUT
           fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -91,7 +89,7 @@ jobs:
         id: get-tests
         run: |
           test_files=$(find ${{ github.workspace }}/btcli/tests/e2e_tests -name "test*.py" | jq -R -s -c 'split("\n") | map(select(. != ""))')
-          echo "::set-output name=test-files::$test_files"
+          echo "test-files=$test_files" >> $GITHUB_OUTPUT
         shell: bash
 
   pull-docker-image:
