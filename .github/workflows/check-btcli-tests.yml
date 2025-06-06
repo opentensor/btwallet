@@ -182,10 +182,7 @@ jobs:
           uv run --active pip install --upgrade pip
           uv run --active pip install pytest
           uv run --active pip install maturin
-
-      - name: Install uv dependencies
-        working-directory: ${{ github.workspace }}
-        run: uv sync --all-extras --dev
+          uv run --active pip install -e .[dev]
 
       - name: Clone Bittensor Wallet repo
         run: git clone https://github.com/opentensor/btwallet.git
