@@ -60,10 +60,8 @@ jobs:
           LABELS=$(gh pr view ${{ github.event.pull_request.number }} --json labels --jq '.labels[].name')
           echo "Current labels: $LABELS"
           if echo "$LABELS" | grep -q "run-bittensor-cli-tests"; then
-            echo "run-cli-tests=true" >> $GITHUB_ENV
             echo "run-cli-tests=true" >> $GITHUB_OUTPUT
           else
-            echo "run-cli-tests=false" >> $GITHUB_ENV
             echo "run-cli-tests=false" >> $GITHUB_OUTPUT
           fi
         env:
