@@ -46,12 +46,6 @@ jobs:
           sccache: 'true'
           manylinux: auto
           before-script-linux: |
-            #            if [ "${{ matrix.platform.target }}" = "aarch64" ]; then
-            #              apt-get update
-            #              apt-get install -y pkg-config libssl-dev
-            #              export CFLAGS="-D__ARM_ARCH=8"
-            #
-            #            fi
             if [ "${{ matrix.platform.target }}" = "aarch64" ]; then
               apt-get update
               apt-get install -y \
@@ -59,14 +53,14 @@ jobs:
                 gcc-aarch64-linux-gnu \
                 libssl-dev \
                 libssl-dev:arm64
-          
-              export OPENSSL_DIR="/usr/aarch64-linux-gnu"
-              export OPENSSL_INCLUDE_DIR="/usr/aarch64-linux-gnu/include"
-              export OPENSSL_LIB_DIR="/usr/aarch64-linux-gnu/lib"
-              export CFLAGS="-D__ARM_ARCH=8"
             else
-              yum install openssl openssl-devel -y
+              yum install -y openssl openssl-devel
             fi
+        env:
+          OPENSSL_DIR: /usr/aarch64-linux-gnu
+          OPENSSL_INCLUDE_DIR: /usr/aarch64-linux-gnu/include
+          OPENSSL_LIB_DIR: /usr/aarch64-linux-gnu/lib
+          CFLAGS: -D__ARM_ARCH=8
 
       - name: Upload wheels
         uses: actions/upload-artifact@v4
