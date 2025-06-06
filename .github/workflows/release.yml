@@ -46,9 +46,12 @@ jobs:
           sccache: 'true'
           manylinux: auto
           before-script-linux: |
-            apt-get update
-            apt-get install -y pkg-config libssl-dev
-            # CFLAGS only for aarch64
+            if command -v apt-get &>/dev/null; then
+              apt-get update && apt-get install -y pkg-config libssl-dev
+            elif command -v yum &>/dev/null; then
+              yum install -y pkgconfig openssl-devel
+            fi
+          
             if [ "${{ matrix.platform.target }}" = "aarch64" ]; then
               export CFLAGS="-D__ARM_ARCH=8"
             fi
