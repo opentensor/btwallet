@@ -48,10 +48,11 @@ jobs:
           before-script-linux: |
             if [ "${{ matrix.platform.target }}" = "aarch64" ]; then
               apt-get update
-              apt-get install -y pkg-config libssl-dev openssl-dev
+              apt-get install -y pkg-config libssl-dev
               export CFLAGS="-D__ARM_ARCH=8"
             else
-              yum install -y pkgconfig openssl-devel
+              apt-get update
+              apt-get install -y pkg-config libssl-dev
             fi
 
       - name: Upload wheels
