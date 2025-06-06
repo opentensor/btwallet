@@ -20,10 +20,13 @@ jobs:
         platform:
           - runner: ubuntu-latest
             target: x86_64
+            rust-branch: stable
           - runner: ubuntu-latest
             target: x86
+            rust-branch: stable
           - runner: ubuntu-24.04-arm
             target: aarch64
+            rust-branch: nightly
 
     steps:
       - uses: actions/checkout@v4
@@ -41,6 +44,11 @@ jobs:
         run: |
           rustup target add wasm32-unknown-unknown --toolchain stable-x86_64-unknown-linux-gnu
           rustup component add rust-src --toolchain stable-x86_64-unknown-linux-gnu
+
+      - name: Setup Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: ${{ matrix.platform.rust-branch }}
 
       - uses: actions/setup-python@v5
         with:
