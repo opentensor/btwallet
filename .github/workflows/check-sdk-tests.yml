@@ -90,7 +90,7 @@ jobs:
         id: get-tests
         run: |
           test_files=$(find ${{ github.workspace }}/bittensor/tests/e2e_tests -name "test*.py" | jq -R -s -c 'split("\n") | map(select(. != ""))')
-          echo "::set-output name=test-files::$test_files"
+          echo "test-files=$test_files" >> $GITHUB_OUTPUT
         shell: bash
 
   pull-docker-image:
