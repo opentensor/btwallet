@@ -5,13 +5,13 @@ import time
 from unittest import mock
 
 import pytest
-from bip39 import bip39_validate
 
+from bittensor_wallet import Wallet
 from bittensor_wallet.errors import ConfigurationError, KeyFileError
 from bittensor_wallet.keyfile import Keyfile
 from bittensor_wallet.keyfile import get_coldkey_password_from_environment
 from bittensor_wallet.keypair import Keypair
-from bittensor_wallet import Wallet
+from tests.utils.bip39 import bip39_validate
 
 
 def test_generate_mnemonic():
