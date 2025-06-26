@@ -62,10 +62,8 @@ dev = [
   "aioresponses==0.7.6",
   "factory-boy==3.3.0",
   "maturin==1.8.3",
-  "py-bip39-bindings==0.1.11",
   "ansible_vault~=2.1",
   "substrate-interface==1.7.11",
   "scalecodec~=1.2.11",
-  "bittensor>=9.6.0",
-  "py-bip39-bindings==0.1.11"
+  "bittensor>=9.7.0",
 ]
