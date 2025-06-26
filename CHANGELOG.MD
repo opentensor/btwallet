@@ -1,5 +1,20 @@
 # Changelog
 
+## 3.0.11 /2025-06-26
+
+## What's Changed
+* update deps by @basfroman in https://github.com/opentensor/btwallet/pull/141
+* Improvements on the top of https://github.com/opentensor/btwallet/pull/140 by @basfroman in https://github.com/opentensor/btwallet/pull/145
+* chore(pyo3): use CARGO_PKG_VERSION to auto-sync Python binding version with crate by @LVivona in https://github.com/opentensor/btwallet/pull/140
+* Add `arm64` wheels by @basfroman in https://github.com/opentensor/btwallet/pull/147
+* 3.0.11rc1: Bumps version and changelog by @ibraheem-abe in https://github.com/opentensor/btwallet/pull/148
+* Replace py-bip39-bindings deps with stored list of words by @basfroman in https://github.com/opentensor/btwallet/pull/151
+
+## New Contributors
+* @LVivona made their first contribution in https://github.com/opentensor/btwallet/pull/140
+
+**Full Changelog**: https://github.com/opentensor/btwallet/compare/v3.0.10...v3.0.11
+
 ## 3.0.11-rc.1 /2025-06-11
 
 ## What's Changed
