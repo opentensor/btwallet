@@ -193,7 +193,6 @@ def test_keyfile_encrypt_and_decrypt(tmp_path):
     assert kf.data[:5] == b"$NACL"
     kf.decrypt(password)
     # Decrypt data...
-    print(">>> kf.data", kf.data)
     json_data = json.loads(kf.data)
     assert set(json_data.keys()) == {
         "accountId",
