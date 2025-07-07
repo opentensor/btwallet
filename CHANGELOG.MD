@@ -1,5 +1,12 @@
 # Changelog
 
+## 3.1.0 /2025-07-07
+
+## What's Changed
+* Add `hotkeypub` to bittensor-wallet by @basfroman in https://github.com/opentensor/btwallet/pull/156
+
+**Full Changelog**: https://github.com/opentensor/btwallet/compare/v3.0.11...v3.1.0
+
 ## 3.0.11 /2025-06-26
 
 ## What's Changed

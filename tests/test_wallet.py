@@ -6,6 +6,7 @@ import pytest
 from ansible_vault import Vault
 
 from bittensor_wallet import Wallet, keyfile
+from bittensor_wallet.errors import KeyFileError
 
 
 def legacy_encrypt_keyfile_data(keyfile_data: bytes, password: str = None) -> bytes:
@@ -154,12 +155,19 @@ def test_unlock_coldkey(mock_wallet):
 def test_unlock_coldkeypub(mock_wallet):
     """Verify that `unlock_coldkeypub` works correctly."""
     # Call
-    result = mock_wallet.unlock_coldkeypub()
+    coldkeypub = mock_wallet.unlock_coldkeypub()
+    hotkeypub = mock_wallet.unlock_hotkeypub()
+
     # Assertions
-    assert result.ss58_address == mock_wallet.get_coldkeypub().ss58_address
-    assert result.public_key == mock_wallet.get_coldkeypub().public_key
-    assert result.ss58_format == mock_wallet.get_coldkeypub().ss58_format
-    assert result.crypto_type == mock_wallet.get_coldkeypub().crypto_type
+    assert coldkeypub.ss58_address == mock_wallet.get_coldkeypub().ss58_address
+    assert coldkeypub.public_key == mock_wallet.get_coldkeypub().public_key
+    assert coldkeypub.ss58_format == mock_wallet.get_coldkeypub().ss58_format
+    assert coldkeypub.crypto_type == mock_wallet.get_coldkeypub().crypto_type
+
+    assert hotkeypub.ss58_address == mock_wallet.get_hotkeypub().ss58_address
+    assert hotkeypub.public_key == mock_wallet.get_hotkeypub().public_key
+    assert hotkeypub.ss58_format == mock_wallet.get_hotkeypub().ss58_format
+    assert hotkeypub.crypto_type == mock_wallet.get_hotkeypub().crypto_type
 
 
 def test_wallet_string_representation_with_default_arguments():
@@ -227,3 +235,43 @@ def test_hotkey_coldkey_from_uri():
     # Asserts
     assert w.coldkey.ss58_address is not None
     assert w.coldkeypub.ss58_address is not None
+
+
+def test_regenerate_hotkeypub(tmp_path):
+    """Tests any type of regenerating."""
+
+    # Preps
+    wallet_name = "test_wallet_new"
+    wallet_hotkey = "test_hotkey_new"
+    wallet_path = (tmp_path / "test_wallets_new").resolve().as_posix()
+
+    # Call
+    w = Wallet(name=wallet_name, hotkey=wallet_hotkey, path=wallet_path)
+
+    with pytest.raises(KeyFileError):
+        _ = w.coldkey
+
+    with pytest.raises(KeyFileError):
+        _ = w.hotkey
+
+    with pytest.raises(KeyFileError):
+        _ = w.coldkeypub
+
+    with pytest.raises(KeyFileError):
+        _ = w.hotkeypub
+
+    w.create(coldkey_use_password=False)
+
+    ss58_coldkey = w.coldkey.ss58_address
+    ss58_coldkeypub = w.coldkeypub.ss58_address
+    ss58_hotkey = w.hotkey.ss58_address
+    ss58_hotkeypub = w.hotkeypub.ss58_address
+
+    w.regenerate_hotkeypub(ss58_address=ss58_hotkey, overwrite=True)
+
+    new_ss58_hotkeypub = w.hotkeypub.ss58_address
+
+    # Assert
+    assert ss58_coldkey == ss58_coldkeypub
+    assert ss58_hotkey == ss58_hotkeypub
+    assert ss58_hotkeypub == new_ss58_hotkeypub
