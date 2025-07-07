@@ -477,7 +477,7 @@ fn bittensor_wallet(module: Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<PyKeyfile>()?;
     module.add_class::<PyKeypair>()?;
     module.add_class::<Wallet>()?;
-    
+
     // Add submodules to the main module
     register_config_module(&module)?;
     register_errors_module(&module)?;
@@ -1000,6 +1000,15 @@ except argparse.ArgumentError:
         Ok(PyKeypair { inner: keypair })
     }
 
+    #[pyo3(signature = (password=None))]
+    fn get_hotkeypub(&self, password: Option<String>) -> PyResult<PyKeypair> {
+        let keypair = self
+            .inner
+            .get_hotkeypub(password)
+            .map_err(|e| PyErr::new::<PyKeyFileError, _>(e))?;
+        Ok(PyKeypair { inner: keypair })
+    }
+
     #[pyo3(signature = (keypair, encrypt=true, overwrite=false, save_coldkey_to_env=false, coldkey_password=None))]
     fn set_coldkey(
         &mut self,
@@ -1052,6 +1061,18 @@ except argparse.ArgumentError:
             .map_err(|e| PyErr::new::<PyKeyFileError, _>(e))
     }
 
+    #[pyo3(signature = (keypair, encrypt=false, overwrite=false))]
+    fn set_hotkeypub(
+        &mut self,
+        keypair: PyKeypair,
+        encrypt: bool,
+        overwrite: bool,
+    ) -> PyResult<()> {
+        self.inner
+            .set_hotkeypub(keypair.inner, encrypt, overwrite)
+            .map_err(|e| PyErr::new::<PyKeyFileError, _>(e))
+    }
+
     // Getters
     #[getter(coldkey)]
     fn coldkey_py_property(&self) -> PyResult<PyKeypair> {
@@ -1077,6 +1098,14 @@ except argparse.ArgumentError:
         Ok(PyKeypair { inner: keypair })
     }
 
+    #[getter(hotkeypub)]
+    fn hotkeypub_py_property(&self) -> PyResult<PyKeypair> {
+        let keypair = self.inner.hotkeypub_property().map_err(|e| {
+            PyErr::new::<PyKeyFileError, _>(format!("Failed to get hotkeypub: {:?}", e))
+        })?;
+        Ok(PyKeypair { inner: keypair })
+    }
+
     #[getter]
     fn coldkey_file(&self) -> PyResult<PyKeyfile> {
         self.inner
@@ -1097,6 +1126,14 @@ except argparse.ArgumentError:
     fn hotkey_file(&self) -> PyResult<PyKeyfile> {
         self.inner
             .hotkey_file()
+            .map(|inner| PyKeyfile { inner })
+            .map_err(|e| PyErr::new::<PyKeyFileError, _>(e))
+    }
+
+    #[getter]
+    fn hotkeypub_file(&self) -> PyResult<PyKeyfile> {
+        self.inner
+            .hotkeypub_file()
             .map(|inner| PyKeyfile { inner })
             .map_err(|e| PyErr::new::<PyKeyFileError, _>(e))
     }
@@ -1208,6 +1245,20 @@ except argparse.ArgumentError:
     fn unlock_hotkey(&mut self) -> PyResult<PyKeypair> {
         self.inner
             .unlock_hotkey()
+            .map(|inner| PyKeypair { inner })
+            .map_err(|e| match e {
+                KeyFileError::DecryptionError(_) => PyErr::new::<PyPasswordError, _>(format!(
+                    "Decryption failed: {}",
+                    e.to_string()
+                )),
+                _ => PyErr::new::<PyKeyFileError, _>(format!("Failed to unlock hotkey: {:?}", e)),
+            })
+    }
+
+    #[pyo3(text_signature = "($self)")]
+    fn unlock_hotkeypub(&mut self) -> PyResult<PyKeypair> {
+        self.inner
+            .unlock_hotkeypub()
             .map(|inner| PyKeypair { inner })
             .map_err(|e| match e {
                 KeyFileError::DecryptionError(_) => PyErr::new::<PyPasswordError, _>(format!(
@@ -1372,6 +1423,23 @@ except argparse.ArgumentError:
             .map_err(|e| {
                 PyErr::new::<PyKeyFileError, _>(format!("Failed to regenerate hotkey: {:?}", e))
             })?;
+        self.inner = new_inner_wallet;
+        Ok(Wallet {
+            inner: self.inner.clone(),
+        })
+    }
+
+    #[pyo3(signature = (ss58_address=None, public_key=None, overwrite=None))]
+    fn regenerate_hotkeypub(
+        &mut self,
+        ss58_address: Option<String>,
+        public_key: Option<String>,
+        overwrite: Option<bool>,
+    ) -> PyResult<Self> {
+        let new_inner_wallet = self
+            .inner
+            .regenerate_hotkeypub(ss58_address, public_key, overwrite.unwrap_or(false))
+            .map_err(|e| PyErr::new::<PyKeyFileError, _>(e))?;
         self.inner = new_inner_wallet;
         Ok(Wallet {
             inner: self.inner.clone(),
