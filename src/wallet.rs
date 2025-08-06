@@ -606,7 +606,7 @@ impl Wallet {
         let _hotkeypub = self
             ._hotkeypub
             .clone()
-            .ok_or_else(|| KeyFileError::Generic("Hotkey file doesn't exist.".to_string()))?;
+            .ok_or_else(|| KeyFileError::Generic("Hotkeypub file doesn't exist.".to_string()))?;
         Ok(_hotkeypub)
     }
 
