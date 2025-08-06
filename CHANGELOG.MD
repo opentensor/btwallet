@@ -4,7 +4,7 @@
 * make when_created field optional for json file import by @camfairchild in https://github.com/opentensor/btwallet/pull/160
 * Fix hotkeypub by @thewhaleking in https://github.com/opentensor/btwallet/pull/161
 
-**Full Changelog**: https://github.com/opentensor/btwallet/compare/v3.1.0...3.2.0
+**Full Changelog**: https://github.com/opentensor/btwallet/compare/v3.1.0...4.0.0
 
 ## 3.1.0 /2025-07-07
 
