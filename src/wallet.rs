@@ -320,13 +320,13 @@ impl Wallet {
     pub fn hotkeypub_file(&self) -> Result<Keyfile, KeyFileError> {
         // concatenate wallet path
         let wallet_path = self._path.join(&self.name);
-
+        let hotkeypub_name = format!("{}pub.txt", self.hotkey);
         // concatenate hotkeypub path
-        let hotkeypub_path = wallet_path.join("hotkeypub.txt");
+        let hotkeypub_path = wallet_path.join("hotkeys").join(&hotkeypub_name);
 
         Keyfile::new(
             hotkeypub_path.to_string_lossy().into_owned(),
-            Some("hotkeypub.txt".to_string()),
+            Some(hotkeypub_name),
             false,
         )
     }
