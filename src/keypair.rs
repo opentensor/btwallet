@@ -28,7 +28,7 @@ struct Meta {
     genesis_hash: Option<String>,
     name: String,
     #[serde(rename = "whenCreated")]
-    when_created: u64,
+    when_created: Option<u64>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
