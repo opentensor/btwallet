@@ -156,14 +156,18 @@ def test_unlock_coldkeypub(mock_wallet):
     """Verify that `unlock_coldkeypub` works correctly."""
     # Call
     coldkeypub = mock_wallet.unlock_coldkeypub()
-    hotkeypub = mock_wallet.unlock_hotkeypub()
 
     # Assertions
     assert coldkeypub.ss58_address == mock_wallet.get_coldkeypub().ss58_address
     assert coldkeypub.public_key == mock_wallet.get_coldkeypub().public_key
     assert coldkeypub.ss58_format == mock_wallet.get_coldkeypub().ss58_format
     assert coldkeypub.crypto_type == mock_wallet.get_coldkeypub().crypto_type
-
+    
+def test_unlock_hotkeypub(mock_wallet):
+    # Call
+    hotkeypub = mock_wallet.unlock_hotkeypub()
+    
+    # Assertations
     assert hotkeypub.ss58_address == mock_wallet.get_hotkeypub().ss58_address
     assert hotkeypub.public_key == mock_wallet.get_hotkeypub().public_key
     assert hotkeypub.ss58_format == mock_wallet.get_hotkeypub().ss58_format
